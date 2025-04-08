@@ -1,128 +1,95 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { DatePicker, Button, Space } from 'antd';
+import type { DatePickerProps, RangePickerProps } from 'antd/es/date-picker';
+import dayjs from 'dayjs';
+import locale from 'antd/lib/date-picker/locale/ko_KR';
+
+const { RangePicker } = DatePicker;
 
 export interface DateRange {
-  startDate: Date;
-  endDate: Date;
+  startDate: string | null;
+  endDate: string | null;
 }
 
 export interface DateRangePickerProps {
-  initialRange?: DateRange;
-  onChange: (range: DateRange) => void;
-  className?: string;
-  label?: string;
+  onChange: (value: DateRange | null) => void;
+  value?: DateRange | null;
+  defaultValue?: DateRange | null;
 }
 
 /**
  * 날짜 범위 선택 컴포넌트
+ * 빠른 선택 버튼과 직접 입력 제공
  */
-const DateRangePicker: React.FC<DateRangePickerProps> = ({
-  initialRange,
-  onChange,
-  className = '',
-  label = '기간 선택',
+const DateRangePicker: React.FC<DateRangePickerProps> = ({ 
+  onChange, 
+  value, 
+  defaultValue 
 }) => {
-  const today = new Date();
-  const monthAgo = new Date();
-  monthAgo.setMonth(today.getMonth() - 1);
-  
-  const [range, setRange] = useState<DateRange>(
-    initialRange || { startDate: monthAgo, endDate: today }
-  );
+  const [selectedDates, setSelectedDates] = useState<DateRange | null>(value || defaultValue || null);
 
-  const formatDateForInput = (date: Date) => {
-    return date.toISOString().split('T')[0];
-  };
-
-  const handleStartDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newStartDate = new Date(e.target.value);
-    const newRange = { ...range, startDate: newStartDate };
-    
-    // 시작일이 종료일보다 늦으면 종료일을 시작일로 설정
-    if (newStartDate > range.endDate) {
-      newRange.endDate = newStartDate;
+  // value prop이 변경되면 내부 상태 업데이트
+  useEffect(() => {
+    if (value !== undefined) {
+      setSelectedDates(value);
     }
-    
-    setRange(newRange);
-    onChange(newRange);
-  };
+  }, [value]);
 
-  const handleEndDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newEndDate = new Date(e.target.value);
-    const newRange = { ...range, endDate: newEndDate };
-    
-    // 종료일이 시작일보다 이르면 시작일을 종료일로 설정
-    if (newEndDate < range.startDate) {
-      newRange.startDate = newEndDate;
+  // 날짜 범위 변경 처리
+  const handleDateChange = (dates: RangePickerProps['value']) => {
+    if (dates && dates[0] && dates[1]) {
+      const newRange = {
+        startDate: dates[0].format('YYYY-MM-DD'),
+        endDate: dates[1].format('YYYY-MM-DD')
+      };
+      setSelectedDates(newRange);
+      onChange(newRange);
+    } else {
+      setSelectedDates(null);
+      onChange(null);
     }
+  };
+
+  // 빠른 선택 버튼 처리
+  const handleQuickSelect = (days: number) => {
+    const endDate = dayjs();
+    const startDate = dayjs().subtract(days, 'day');
     
-    setRange(newRange);
+    const newRange = {
+      startDate: startDate.format('YYYY-MM-DD'),
+      endDate: endDate.format('YYYY-MM-DD')
+    };
+    
+    setSelectedDates(newRange);
     onChange(newRange);
   };
 
-  // 빠른 기간 선택 옵션
-  const selectPresetRange = (days: number) => {
-    const end = new Date();
-    const start = new Date();
-    start.setDate(end.getDate() - days);
-    
-    const newRange = { startDate: start, endDate: end };
-    setRange(newRange);
-    onChange(newRange);
+  // 선택된 날짜를 dayjs 객체로 변환
+  const getDayjsValue = () => {
+    if (selectedDates && selectedDates.startDate && selectedDates.endDate) {
+      return [
+        dayjs(selectedDates.startDate),
+        dayjs(selectedDates.endDate)
+      ] as [dayjs.Dayjs, dayjs.Dayjs];
+    }
+    return null;
   };
 
   return (
-    <div className={`${className}`}>
-      {label && <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>}
-      <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
-        <div className="flex-1">
-          <div className="relative">
-            <input
-              type="date"
-              value={formatDateForInput(range.startDate)}
-              onChange={handleStartDateChange}
-              className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-            />
-          </div>
-        </div>
-        <div className="flex items-center justify-center">
-          <span className="text-gray-500">~</span>
-        </div>
-        <div className="flex-1">
-          <div className="relative">
-            <input
-              type="date"
-              value={formatDateForInput(range.endDate)}
-              onChange={handleEndDateChange}
-              className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-            />
-          </div>
-        </div>
-      </div>
-      
-      <div className="mt-2 flex space-x-2">
-        <button 
-          type="button" 
-          onClick={() => selectPresetRange(7)}
-          className="inline-flex items-center px-2.5 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-        >
-          7일
-        </button>
-        <button 
-          type="button" 
-          onClick={() => selectPresetRange(30)}
-          className="inline-flex items-center px-2.5 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-        >
-          30일
-        </button>
-        <button 
-          type="button" 
-          onClick={() => selectPresetRange(90)}
-          className="inline-flex items-center px-2.5 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-        >
-          90일
-        </button>
-      </div>
-    </div>
+    <Space direction="vertical" size="small">
+      <Space>
+        <Button size="small" onClick={() => handleQuickSelect(7)}>최근 7일</Button>
+        <Button size="small" onClick={() => handleQuickSelect(30)}>최근 30일</Button>
+        <Button size="small" onClick={() => handleQuickSelect(90)}>최근 90일</Button>
+      </Space>
+      <RangePicker 
+        locale={locale}
+        value={getDayjsValue()}
+        onChange={handleDateChange}
+        allowClear={true}
+        style={{ width: '100%' }}
+      />
+    </Space>
   );
 };
 
