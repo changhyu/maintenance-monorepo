@@ -10,4 +10,5 @@ export { vehicleService } from './vehicle';
 export { maintenanceService } from './maintenance';
 export { authService } from './auth';
 export { notificationService } from './notificationService';
-export { DashboardDataService } from './DashboardDataService'; 
+export * from './DashboardDataService';
+export * from './bookingService'; 
