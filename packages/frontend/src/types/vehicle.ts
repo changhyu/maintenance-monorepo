@@ -6,22 +6,23 @@
  * 차량 상태 열거형
  */
 export enum VehicleStatus {
-  ACTIVE = 'ACTIVE',
-  MAINTENANCE = 'MAINTENANCE',
-  INACTIVE = 'INACTIVE',
-  RECALLED = 'RECALLED'
+  ACTIVE = 'active',
+  MAINTENANCE = 'maintenance',
+  INACTIVE = 'inactive'
 }
 
 /**
  * 차량 유형 열거형
  */
 export enum VehicleType {
-  SEDAN = 'SEDAN',
+  TRUCK = '화물트럭',
+  BUS = '버스',
+  VAN = '밴',
+  TAXI = '택시',
+  SEDAN = '승용차',
   SUV = 'SUV',
-  TRUCK = 'TRUCK',
-  VAN = 'VAN',
-  ELECTRIC = 'ELECTRIC',
-  HYBRID = 'HYBRID'
+  PICKUP = '픽업트럭',
+  SPECIAL = '특수차량'
 }
 
 /**
@@ -29,26 +30,39 @@ export enum VehicleType {
  */
 export interface Vehicle {
   id: string;
-  vin: string;
-  make: string;
-  model: string;
-  year: number;
-  type: VehicleType;
-  status: VehicleStatus;
-  plate: string;
-  color: string;
-  mileage: number;
-  lastServiceDate?: string;
-  nextServiceDate?: string;
-  features?: VehicleFeature[];
-  ownerInfo?: OwnerInfo;
-  insuranceInfo?: InsuranceInfo;
-  documents?: VehicleDocument[];
-  telemetryStatus?: TelemetryStatus;
-  softwareVersion?: string;
-  purchaseDate?: string;
-  createdAt: string;
-  updatedAt: string;
+  name: string;
+  type: VehicleType | string;
+  status: VehicleStatus | string;
+  healthScore: number;
+  model?: string;
+  year?: number;
+  licensePlate?: string;
+  vin?: string;
+  manufacturer?: string;
+  fuelType?: FuelType;
+  fuelLevel?: number;
+  mileage?: number;
+  lastMaintenanceDate?: Date;
+  nextMaintenanceDate?: Date;
+  purchaseDate?: Date;
+  assignedDriverId?: string;
+  departmentId?: string;
+  fleetId?: string;
+  insuranceExpiration?: Date;
+  location?: {
+    latitude: number;
+    longitude: number;
+    lastUpdated: Date;
+  };
+  telemetryEnabled?: boolean;
+  maintenanceHistory?: {
+    id: string;
+    date: Date;
+    type: string;
+    description: string;
+    cost: number;
+    shopId?: string;
+  }[];
 }
 
 /**
@@ -65,18 +79,14 @@ export type VehicleUpdate = Partial<Omit<Vehicle, 'id' | 'createdAt' | 'updatedA
  * 차량 필터 인터페이스
  */
 export interface VehicleFilter {
-  make?: string;
-  model?: string;
-  year?: number;
-  type?: VehicleType;
-  status?: VehicleStatus;
-  fromDate?: string;
-  toDate?: string;
+  types?: VehicleType[];
+  status?: VehicleStatus[];
   searchTerm?: string;
-  sortBy?: string;
-  sortOrder?: 'asc' | 'desc';
-  page?: number;
-  limit?: number;
+  minHealthScore?: number;
+  maxHealthScore?: number;
+  departmentId?: string;
+  fleetId?: string;
+  needsMaintenance?: boolean;
 }
 
 /**
@@ -150,4 +160,24 @@ export interface TelemetryStatus {
     lastUpdated: string;
   };
   diagnosticCodes?: string[];
+}
+
+export enum FuelType {
+  GASOLINE = '가솔린',
+  DIESEL = '디젤',
+  LPG = 'LPG',
+  ELECTRIC = '전기',
+  HYBRID = '하이브리드',
+  HYDROGEN = '수소'
+}
+
+export interface VehicleStats {
+  total: number;
+  active: number;
+  maintenance: number;
+  inactive: number;
+  averageHealthScore: number;
+  fleetUtilization: number; // 백분율 (0-100)
+  maintenanceCost: number; // 지난 달 유지보수 비용
+  fuelCost: number; // 지난 달 연료 비용
 } 

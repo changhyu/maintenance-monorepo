@@ -11,6 +11,7 @@ import { ReportGenerator, DateRangePicker } from './common';
 import { vehicleService } from '../services/vehicle';
 import { ReportType } from './common/ReportGenerator';
 import { Vehicle as ApiVehicle } from '../types/vehicle';
+import { VehicleTypeChart, MaintenanceStatusChart, CostDistributionChart, MaintenanceTrendChart } from './charts';
 
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
@@ -297,23 +298,76 @@ const VehicleReportPage: React.FC = () => {
             <Row gutter={[16, 16]}>
               <Col span={8}>
                 <Card title="차량 유형 분포">
-                  <div style={{ height: 200, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                    <Text type="secondary">차트 데이터 준비 중...</Text>
-                  </div>
+                  {filteredVehicles.length > 0 ? (
+                    <VehicleTypeChart 
+                      data={Object.entries(filteredVehicles.reduce((acc, vehicle) => {
+                        acc[vehicle.type] = (acc[vehicle.type] || 0) + 1;
+                        return acc;
+                      }, {} as Record<string, number>)).map(([label, value]) => ({
+                        label,
+                        value
+                      }))}
+                    />
+                  ) : (
+                    <div style={{ height: 200, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                      <Text type="secondary">데이터가 없습니다</Text>
+                    </div>
+                  )}
                 </Card>
               </Col>
               <Col span={8}>
                 <Card title="차량 상태 분포">
-                  <div style={{ height: 200, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                    <Text type="secondary">차트 데이터 준비 중...</Text>
-                  </div>
+                  {filteredVehicles.length > 0 ? (
+                    <MaintenanceStatusChart 
+                      data={Object.entries(filteredVehicles.reduce((acc, vehicle) => {
+                        acc[vehicle.status] = (acc[vehicle.status] || 0) + 1;
+                        return acc;
+                      }, {} as Record<string, number>)).map(([label, value]) => ({
+                        label,
+                        value
+                      }))}
+                    />
+                  ) : (
+                    <div style={{ height: 200, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                      <Text type="secondary">데이터가 없습니다</Text>
+                    </div>
+                  )}
                 </Card>
               </Col>
               <Col span={8}>
                 <Card title="상태 점수 분포">
-                  <div style={{ height: 200, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                    <Text type="secondary">차트 데이터 준비 중...</Text>
-                  </div>
+                  {filteredVehicles.length > 0 ? (
+                    <CostDistributionChart 
+                      data={[
+                        { label: '양호 (80-100)', value: filteredVehicles.filter(v => v.healthScore >= 80).length },
+                        { label: '주의 (50-79)', value: filteredVehicles.filter(v => v.healthScore >= 50 && v.healthScore < 80).length },
+                        { label: '위험 (0-49)', value: filteredVehicles.filter(v => v.healthScore < 50).length }
+                      ]}
+                    />
+                  ) : (
+                    <div style={{ height: 200, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                      <Text type="secondary">데이터가 없습니다</Text>
+                    </div>
+                  )}
+                </Card>
+              </Col>
+            </Row>
+            <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+              <Col span={24}>
+                <Card title="차량 상태 점수 통계">
+                  {filteredVehicles.length > 0 ? (
+                    <MaintenanceTrendChart 
+                      data={filteredVehicles.map(vehicle => ({
+                        date: vehicle.lastMaintenance,
+                        completed: 1,
+                        pending: vehicle.healthScore < 70 ? 1 : 0
+                      }))}
+                    />
+                  ) : (
+                    <div style={{ height: 200, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                      <Text type="secondary">데이터가 없습니다</Text>
+                    </div>
+                  )}
                 </Card>
               </Col>
             </Row>

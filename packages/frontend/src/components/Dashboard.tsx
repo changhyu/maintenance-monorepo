@@ -3,7 +3,7 @@ import { vehicleService } from '../services/vehicle';
 import { maintenanceService } from '../services/maintenance';
 import { Vehicle, VehicleStatus } from '../types/vehicle';
 import { MaintenanceRecord } from '../types/maintenance';
-import { DashboardDataService } from '../services/DashboardDataService';
+import { DashboardDataService } from '../services';
 
 export const Dashboard: React.FC = () => {
   const [vehicleStats, setVehicleStats] = useState({

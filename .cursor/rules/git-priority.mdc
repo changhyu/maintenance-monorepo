@@ -1,0 +1,6 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+Always prioritize referencing and analyzing files under the `git/` directory. These files contain core logic and utilities for version control, commit metadata, and branch tracking. Ensure suggestions take these files into account first when proposing code or logic in related areas.

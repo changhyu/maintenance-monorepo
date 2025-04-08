@@ -52,12 +52,12 @@ const ScrDataDashboard: React.FC<ScrDataDashboardProps> = ({
         </div>
       ) : (
         <div className={`grid ${gridCols[columns]} gap-4`}>
-          {data.map((item) => (
+          {data.map((item, index) => (
             <div
-              key={item.id}
+              key={item.id || `dashboard-item-${index}`}
               className="bg-gray-50 rounded-lg p-4 border border-gray-100"
             >
-              <h3 className="text-sm font-medium text-gray-500 mb-1">{item.label}</h3>
+              <h3 className="text-sm font-medium text-gray-500 mb-1">{item.label || item.title}</h3>
               <div className="flex justify-between items-end">
                 <div className="text-2xl font-semibold text-gray-800 flex items-baseline">
                   {typeof item.value === 'number' ? item.value.toLocaleString() : item.value}
@@ -106,6 +106,8 @@ const getColorValue = (color: string): string => {
       return '#3b82f6';
     case 'yellow':
       return '#f59e0b';
+    case 'purple':
+      return '#9333ea';
     case 'gray':
       return '#6b7280';
     default:

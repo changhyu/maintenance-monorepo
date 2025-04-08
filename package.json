@@ -13,12 +13,21 @@
     "clean": "turbo run clean"
   },
   "devDependencies": {
-    "turbo": "^1.10.16",
-    "typescript": "^5.2.2",
+    "@types/file-saver": "^2.0.7",
+    "eslint": "^8.49.0",
     "prettier": "^3.0.3",
-    "eslint": "^8.49.0"
+    "turbo": "^1.10.16",
+    "typescript": "^5.2.2"
   },
   "engines": {
     "node": ">=16.0.0"
+  },
+  "dependencies": {
+    "dayjs": "^1.11.13",
+    "file-saver": "^2.0.5",
+    "jspdf": "^3.0.1",
+    "jspdf-autotable": "^5.0.2",
+    "jwt-decode": "^4.0.0",
+    "xlsx": "^0.18.5"
   }
-} 
+}

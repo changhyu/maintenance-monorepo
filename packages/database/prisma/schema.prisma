@@ -14,19 +14,23 @@ model Vehicle {
   model             String
   year              Int
   type              VehicleType
-  status            VehicleStatus       @default(ACTIVE)
-  plate             String?
   color             String?
-  mileage           Int                 @default(0)
-  lastServiceDate   DateTime?
-  nextServiceDate   DateTime?
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
+  plate             String?
+  mileage           Int?
+  status            VehicleStatus       @default(AVAILABLE)
+  ownerID           String?             @map("owner_id")
+  lastServiceDate   DateTime?           @map("last_service_date")
+  nextServiceDate   DateTime?           @map("next_service_date")
+  createdAt         DateTime            @default(now()) @map("created_at")
+  updatedAt         DateTime            @updatedAt @map("updated_at")
+  
+  // 관계
+  owner             User?               @relation(fields: [ownerID], references: [id])
   maintenanceRecords MaintenanceRecord[]
-  ownerId           String?
-  owner             User?               @relation(fields: [ownerId], references: [id])
-  documents         Document[]
-  telemetryStatus   TelemetryStatus?
+  documents         VehicleDocument[]
+  telemetry         Telemetry?
+
+  @@map("vehicles")
 }
 
 enum VehicleType {
@@ -39,88 +43,141 @@ enum VehicleType {
 }
 
 enum VehicleStatus {
-  ACTIVE
+  AVAILABLE
   MAINTENANCE
+  RESERVED
   INACTIVE
   RECALLED
 }
 
 model MaintenanceRecord {
-  id          String    @id @default(uuid())
-  vehicle     Vehicle   @relation(fields: [vehicleId], references: [id])
-  vehicleId   String
-  type        String
+  id          String               @id @default(uuid())
+  vehicleID   String               @map("vehicle_id")
   description String
   date        DateTime
-  mileage     Int
+  mileage     Int?
   cost        Float?
-  provider    String?
+  performedBy String?              @map("performed_by")
+  status      MaintenanceStatus    @default(SCHEDULED)
   notes       String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  userId      String?
-  user        User?     @relation(fields: [userId], references: [id])
-  documents   Document[]
+  createdAt   DateTime             @default(now()) @map("created_at")
+  updatedAt   DateTime             @updatedAt @map("updated_at")
+  
+  // 관계
+  vehicle     Vehicle              @relation(fields: [vehicleID], references: [id])
   parts       MaintenancePart[]
+  documents   MaintenanceDocument[]
+
+  @@map("maintenance_records")
+}
+
+enum MaintenanceStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
 }
 
 model MaintenancePart {
-  id                String            @id @default(uuid())
-  name              String
-  partNumber        String?
-  quantity          Int
-  unitCost          Float?
-  totalCost         Float?
-  maintenanceRecord MaintenanceRecord @relation(fields: [recordId], references: [id])
-  recordId          String
+  id              String            @id @default(uuid())
+  maintenanceID   String            @map("maintenance_id")
+  name            String
+  partNumber      String?           @map("part_number")
+  quantity        Int               @default(1)
+  unitCost        Float?            @map("unit_cost")
+  totalCost       Float?            @map("total_cost")
+  
+  // 관계
+  maintenance     MaintenanceRecord @relation(fields: [maintenanceID], references: [id])
+
+  @@map("maintenance_parts")
+}
+
+model VehicleDocument {
+  id          String    @id @default(uuid())
+  vehicleID   String    @map("vehicle_id")
+  name        String
+  type        String
+  fileURL     String    @map("file_url")
+  uploadDate  DateTime  @default(now()) @map("upload_date")
+  expiryDate  DateTime? @map("expiry_date")
+  size        Int?
+  
+  // 관계
+  vehicle     Vehicle   @relation(fields: [vehicleID], references: [id])
+
+  @@map("vehicle_documents")
+}
+
+model MaintenanceDocument {
+  id            String           @id @default(uuid())
+  maintenanceID String           @map("maintenance_id")
+  name          String
+  type          String
+  fileURL       String           @map("file_url")
+  uploadDate    DateTime         @default(now()) @map("upload_date")
+  size          Int?
+  
+  // 관계
+  maintenance   MaintenanceRecord @relation(fields: [maintenanceID], references: [id])
+
+  @@map("maintenance_documents")
+}
+
+model Telemetry {
+  id              String    @id @default(uuid())
+  vehicleID       String    @unique @map("vehicle_id")
+  connectionStatus String    @map("connection_status")
+  lastPing        DateTime? @map("last_ping")
+  batteryLevel    Float?    @map("battery_level")
+  fuelLevel       Float?    @map("fuel_level")
+  engineTemp      Float?    @map("engine_temp")
+  oilLevel        Float?    @map("oil_level")
+  latitude        Float?
+  longitude       Float?
+  diagnosticCodes String[]  @map("diagnostic_codes")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  
+  // 관계
+  vehicle         Vehicle   @relation(fields: [vehicleID], references: [id])
+
+  @@map("telemetry")
 }
 
 model User {
-  id                String              @id @default(uuid())
-  name              String
-  email             String              @unique
-  password          String
-  role              UserRole            @default(USER)
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
-  vehicles          Vehicle[]
-  maintenanceRecords MaintenanceRecord[]
+  id        String      @id @default(uuid())
+  email     String      @unique
+  name      String
+  password  String
+  role      UserRole    @default(CUSTOMER)
+  isActive  Boolean     @default(true) @map("is_active")
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime    @updatedAt @map("updated_at")
+  
+  // 관계
+  vehicles   Vehicle[]
+  profile    UserProfile?
+
+  @@map("users")
 }
 
 enum UserRole {
-  SUPER_ADMIN
-  ENTERPRISE_ADMIN
-  SHOP_OWNER
+  ADMIN
+  MANAGER
   TECHNICIAN
-  USER
+  CUSTOMER
 }
 
-model Document {
-  id                String              @id @default(uuid())
-  name              String
-  type              String
-  fileUrl           String
-  uploadDate        DateTime            @default(now())
-  expiryDate        DateTime?
-  size              Int?
-  vehicle           Vehicle?            @relation(fields: [vehicleId], references: [id])
-  vehicleId         String?
-  maintenanceRecord MaintenanceRecord?  @relation(fields: [recordId], references: [id])
-  recordId          String?
-}
+model UserProfile {
+  id        String   @id @default(uuid())
+  userID    String   @unique @map("user_id")
+  phone     String?
+  address   String?
+  company   String?
+  avatarURL String?  @map("avatar_url")
+  
+  // 관계
+  user      User     @relation(fields: [userID], references: [id])
 
-model TelemetryStatus {
-  id              String    @id @default(uuid())
-  vehicleId       String    @unique
-  vehicle         Vehicle   @relation(fields: [vehicleId], references: [id])
-  connectionStatus String
-  lastPing        DateTime?
-  batteryLevel    Float?
-  fuelLevel       Float?
-  engineTemp      Float?
-  oilLevel        Float?
-  tirePressure    Json?
-  location        Json?
-  diagnosticCodes Json?
-  updatedAt       DateTime  @updatedAt
+  @@map("user_profiles")
 } 

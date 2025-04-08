@@ -1,30 +1,38 @@
+/**
+ * 데이터베이스 패키지 진입점
+ */
+
 import { PrismaClient } from '@prisma/client';
 import * as dotenv from 'dotenv';
 
 dotenv.config();
 
-// PrismaClient 싱글톤 인스턴스 생성 및 로그 활성화
+// PrismaClient 인스턴스를 싱글톤으로 내보냄
 const prismaClientSingleton = () => {
   return new PrismaClient({
-    log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+    log: process.env.NODE_ENV === 'development' 
+      ? ['query', 'error', 'warn'] 
+      : ['error'],
   });
 };
 
-// 싱글톤 패턴을 위한 전역 변수 타입 선언
-declare global {
-  var prisma: undefined | ReturnType<typeof prismaClientSingleton>;
-}
+type PrismaClientSingleton = ReturnType<typeof prismaClientSingleton>;
 
-// 개발 환경에서는 핫 리로딩을 위해 전역 객체에 저장, 
-// 프로덕션에서는 모듈 스코프에 유지
-const prisma = globalThis.prisma ?? prismaClientSingleton();
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClientSingleton | undefined;
+};
+
+// 개발 환경에서 핫 리로드 사용 시 여러 인스턴스 생성 방지
+export const prisma = globalForPrisma.prisma ?? prismaClientSingleton();
 
 if (process.env.NODE_ENV !== 'production') {
-  globalThis.prisma = prisma;
+  globalForPrisma.prisma = prisma;
 }
 
+export default prisma;
+
+// 모델 타입 다시 내보내기
 export * from '@prisma/client';
-export { prisma };
 
 // 데이터베이스 연결 테스트 유틸리티 함수
 export async function testConnection() {
