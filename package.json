@@ -1,0 +1,24 @@
+{
+  "name": "maintenance-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "clean": "turbo run clean"
+  },
+  "devDependencies": {
+    "turbo": "^1.10.16",
+    "typescript": "^5.2.2",
+    "prettier": "^3.0.3",
+    "eslint": "^8.49.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+} 

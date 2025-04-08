@@ -1,0 +1,126 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Vehicle {
+  id                String              @id @default(uuid())
+  vin               String              @unique
+  make              String
+  model             String
+  year              Int
+  type              VehicleType
+  status            VehicleStatus       @default(ACTIVE)
+  plate             String?
+  color             String?
+  mileage           Int                 @default(0)
+  lastServiceDate   DateTime?
+  nextServiceDate   DateTime?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  maintenanceRecords MaintenanceRecord[]
+  ownerId           String?
+  owner             User?               @relation(fields: [ownerId], references: [id])
+  documents         Document[]
+  telemetryStatus   TelemetryStatus?
+}
+
+enum VehicleType {
+  SEDAN
+  SUV
+  TRUCK
+  VAN
+  ELECTRIC
+  HYBRID
+}
+
+enum VehicleStatus {
+  ACTIVE
+  MAINTENANCE
+  INACTIVE
+  RECALLED
+}
+
+model MaintenanceRecord {
+  id          String    @id @default(uuid())
+  vehicle     Vehicle   @relation(fields: [vehicleId], references: [id])
+  vehicleId   String
+  type        String
+  description String
+  date        DateTime
+  mileage     Int
+  cost        Float?
+  provider    String?
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  userId      String?
+  user        User?     @relation(fields: [userId], references: [id])
+  documents   Document[]
+  parts       MaintenancePart[]
+}
+
+model MaintenancePart {
+  id                String            @id @default(uuid())
+  name              String
+  partNumber        String?
+  quantity          Int
+  unitCost          Float?
+  totalCost         Float?
+  maintenanceRecord MaintenanceRecord @relation(fields: [recordId], references: [id])
+  recordId          String
+}
+
+model User {
+  id                String              @id @default(uuid())
+  name              String
+  email             String              @unique
+  password          String
+  role              UserRole            @default(USER)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  vehicles          Vehicle[]
+  maintenanceRecords MaintenanceRecord[]
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ENTERPRISE_ADMIN
+  SHOP_OWNER
+  TECHNICIAN
+  USER
+}
+
+model Document {
+  id                String              @id @default(uuid())
+  name              String
+  type              String
+  fileUrl           String
+  uploadDate        DateTime            @default(now())
+  expiryDate        DateTime?
+  size              Int?
+  vehicle           Vehicle?            @relation(fields: [vehicleId], references: [id])
+  vehicleId         String?
+  maintenanceRecord MaintenanceRecord?  @relation(fields: [recordId], references: [id])
+  recordId          String?
+}
+
+model TelemetryStatus {
+  id              String    @id @default(uuid())
+  vehicleId       String    @unique
+  vehicle         Vehicle   @relation(fields: [vehicleId], references: [id])
+  connectionStatus String
+  lastPing        DateTime?
+  batteryLevel    Float?
+  fuelLevel       Float?
+  engineTemp      Float?
+  oilLevel        Float?
+  tirePressure    Json?
+  location        Json?
+  diagnosticCodes Json?
+  updatedAt       DateTime  @updatedAt
+} 

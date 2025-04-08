@@ -1,0 +1,19 @@
+{
+  "name": "@maintenance/shared",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "lint": "eslint src --ext .ts",
+    "clean": "rimraf dist"
+  },
+  "devDependencies": {
+    "@types/node": "^18.18.6",
+    "eslint": "^8.52.0",
+    "rimraf": "^5.0.5",
+    "typescript": "^5.2.2"
+  }
+} 
