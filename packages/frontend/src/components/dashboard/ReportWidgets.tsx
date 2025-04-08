@@ -16,7 +16,9 @@ import {
   List,
   Badge,
   Progress,
-  message
+  message,
+  Typography,
+  Space
 } from 'antd';
 import { 
   FileTextOutlined, 
@@ -30,7 +32,8 @@ import {
   ClockCircleOutlined,
   InfoCircleOutlined,
   SettingOutlined,
-  DashboardOutlined
+  DashboardOutlined,
+  ArrowRightOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import reportService, { ReportType } from '../../services/reportService';
@@ -58,9 +61,11 @@ import {
   PolarRadiusAxis
 } from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
+import DashboardChart from './DashboardChart';
 
 const { Option } = Select;
 const { TabPane } = Tabs;
+const { Title, Text } = Typography;
 
 // 차트 색상
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
@@ -180,10 +185,7 @@ const ReportWidgets: React.FC<ReportWidgetsProps> = ({ dashboardService = new Da
       setReportCards(cards);
 
       // 최근 보고서 목록
-      const reports = await reportService.getReports({ 
-        startDate: new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0],
-        endDate: new Date().toISOString().split('T')[0]
-      });
+      const reports = await reportService.getRecentReports();
       setRecentReports(reports.slice(0, 5));  // 최근 5개만
 
       // 초기 차트 데이터 로드
@@ -202,7 +204,10 @@ const ReportWidgets: React.FC<ReportWidgetsProps> = ({ dashboardService = new Da
   // 선택된 보고서 타입에 맞는 차트 데이터 로드
   const loadReportChartData = async (reportType: ReportType) => {
     try {
-      const chartData = await dashboardService.getReportChartData(reportType);
+      // ReportType을 문자열로 변환하여 전달
+      const reportTypeStr = reportType.toString();
+      const chartData = await dashboardService.getReportChartData(reportTypeStr);
+      
       // 애니메이션 효과를 위해 상태 업데이트
       setReportChartData(null);
       setTimeout(() => {
@@ -491,7 +496,7 @@ const ReportWidgets: React.FC<ReportWidgetsProps> = ({ dashboardService = new Da
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.5 }}
               >
-                <DashboardReportChart 
+                <DashboardChart 
                   data={reportChartData} 
                   type={selectedReportType} 
                   chartType={chartType}
@@ -576,161 +581,6 @@ const ReportWidgets: React.FC<ReportWidgetsProps> = ({ dashboardService = new Da
           </Card>
         </motion.div>
       </div>
-    </motion.div>
-  );
-};
-
-// 대시보드용 보고서 차트 컴포넌트
-const DashboardReportChart: React.FC<{ 
-  data: DashboardChartData, 
-  type: ReportType,
-  chartType: string,
-  animated: boolean
-}> = ({ data, type, chartType, animated }) => {
-  const renderChart = () => {
-    // 애니메이션 설정
-    const animationProps = animated ? {
-      isAnimationActive: true,
-      animationBegin: 0,
-      animationDuration: 1500
-    } : {
-      isAnimationActive: false
-    };
-
-    // 데이터 변환 
-    const transformedData = data.labels.map((label, index) => ({ 
-      name: label, 
-      value: data.datasets[0].data[index] 
-    }));
-
-    switch (chartType) {
-      case 'pie':
-        return (
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={transformedData}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                outerRadius={80}
-                fill="#8884d8"
-                dataKey="value"
-                nameKey="name"
-                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                isAnimationActive={animated}
-                animationDuration={animated ? 1500 : 0}
-              >
-                {data.labels.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <RechartsTooltip />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
-        );
-      case 'line':
-        return (
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={transformedData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis />
-              <RechartsTooltip />
-              <Legend />
-              <Line
-                type="monotone"
-                dataKey="value"
-                stroke="#8884d8"
-                activeDot={{ r: 8 }}
-                name={data.datasets[0].label}
-                isAnimationActive={animated}
-                animationDuration={animated ? 1500 : 0}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        );
-      case 'area':
-        return (
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={transformedData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis />
-              <RechartsTooltip />
-              <Legend />
-              <Area 
-                type="monotone" 
-                dataKey="value" 
-                name={data.datasets[0].label}
-                stroke="#8884d8" 
-                fill="#8884d8" 
-                fillOpacity={0.3}
-                isAnimationActive={animated}
-                animationDuration={animated ? 1500 : 0}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        );
-      case 'radar':
-        return (
-          <ResponsiveContainer width="100%" height="100%">
-            <RadarChart outerRadius={90} data={transformedData}>
-              <PolarGrid />
-              <PolarAngleAxis dataKey="name" />
-              <PolarRadiusAxis />
-              <Radar 
-                name={data.datasets[0].label} 
-                dataKey="value" 
-                stroke="#8884d8" 
-                fill="#8884d8" 
-                fillOpacity={0.6}
-                isAnimationActive={animated}
-                animationDuration={animated ? 1500 : 0}
-              />
-              <Legend />
-              <RechartsTooltip />
-            </RadarChart>
-          </ResponsiveContainer>
-        );
-      case 'bar':
-      default:
-        return (
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={transformedData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis />
-              <RechartsTooltip />
-              <Legend />
-              <Bar 
-                dataKey="value" 
-                name={data.datasets[0].label} 
-                fill="#8884d8"
-                isAnimationActive={animated}
-                animationDuration={animated ? 1500 : 0}
-              >
-                {data.labels.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        );
-    }
-  };
-
-  return (
-    <motion.div
-      key={`${type}-${chartType}-${animated}`}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.5 }}
-      style={{ width: '100%', height: '100%' }}
-    >
-      {renderChart()}
     </motion.div>
   );
 };
