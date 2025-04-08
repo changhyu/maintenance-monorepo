@@ -101,43 +101,80 @@ const ReportWidgets: React.FC<ReportWidgetsProps> = ({ dashboardService = new Da
   const [chartType, setChartType] = useState<string>('pie'); // 기본 차트 타입
   const [chartAnimation, setChartAnimation] = useState<boolean>(true); // 차트 애니메이션 활성화
   const [dataUpdated, setDataUpdated] = useState<boolean>(false); // 데이터 업데이트 상태
+  const [error, setError] = useState<string | null>(null); // 에러 상태 추가
+  
   const refreshTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const animationTimerRef = useRef<NodeJS.Timeout | null>(null); // 애니메이션 타이머 참조 추가
+  const chartLoadTimerRef = useRef<NodeJS.Timeout | null>(null); // 차트 로드 타이머 참조 추가
+  
   const navigate = useNavigate();
+
+  // 타이머 모두 정리하는 함수
+  const clearAllTimers = useCallback(() => {
+    // 새로고침 타이머 정리
+    if (refreshTimerRef.current) {
+      clearInterval(refreshTimerRef.current);
+      refreshTimerRef.current = null;
+    }
+    
+    // 애니메이션 타이머 정리
+    if (animationTimerRef.current) {
+      clearTimeout(animationTimerRef.current);
+      animationTimerRef.current = null;
+    }
+
+    // 차트 로드 타이머 정리
+    if (chartLoadTimerRef.current) {
+      clearTimeout(chartLoadTimerRef.current);
+      chartLoadTimerRef.current = null;
+    }
+  }, []);
 
   // 데이터 로드
   useEffect(() => {
-    loadReportData();
-    return () => {
-      // 컴포넌트 언마운트 시 타이머 정리
-      if (refreshTimerRef.current) {
-        clearInterval(refreshTimerRef.current);
-      }
-    };
-  }, []);
+    loadReportData().catch(err => {
+      console.error('초기 데이터 로드 실패:', err);
+      setError('초기 데이터를 불러오는 중 오류가 발생했습니다');
+      setLoading(false);
+    });
+
+    // 컴포넌트 언마운트 시 모든 타이머 정리
+    return clearAllTimers;
+  }, [clearAllTimers]);
 
   // 자동 새로고침 설정 변경 시 타이머 업데이트
   useEffect(() => {
+    // 기존 타이머 정리
     if (refreshTimerRef.current) {
       clearInterval(refreshTimerRef.current);
       refreshTimerRef.current = null;
     }
 
+    // 새로고침 활성화 및 인터벌 설정됨
     if (autoRefresh && refreshInterval > 0) {
       refreshTimerRef.current = setInterval(() => {
-        refreshData();
+        refreshData().catch(err => {
+          console.error('자동 새로고침 중 오류 발생:', err);
+          message.error('데이터 자동 새로고침 중 오류가 발생했습니다');
+        });
       }, refreshInterval * 1000);
     }
 
+    // 컴포넌트 언마운트 시 정리
     return () => {
       if (refreshTimerRef.current) {
         clearInterval(refreshTimerRef.current);
+        refreshTimerRef.current = null;
       }
     };
   }, [autoRefresh, refreshInterval]);
 
   // 보고서 타입이 변경될 때 차트 데이터 다시 로드
   useEffect(() => {
-    loadReportChartData(selectedReportType);
+    loadReportChartData(selectedReportType).catch(err => {
+      console.error('차트 데이터 로드 실패:', err);
+      setError('차트 데이터를 불러오는 중 오류가 발생했습니다');
+    });
     
     // 기본 차트 타입 설정
     if (selectedReportType === ReportType.MAINTENANCE_SUMMARY) {
@@ -150,47 +187,71 @@ const ReportWidgets: React.FC<ReportWidgetsProps> = ({ dashboardService = new Da
   }, [selectedReportType]);
 
   // 모든 데이터 새로고침
-  const refreshData = async () => {
+  const refreshData = useCallback(async () => {
+    if (refreshing) return; // 이미 새로고침 중이면 중복 실행 방지
+    
     setRefreshing(true);
+    setError(null); // 에러 상태 초기화
+    
     try {
       await loadReportData();
       setLastUpdated(new Date());
+      
       // 데이터 업데이트 애니메이션 표시
       setDataUpdated(true);
-      setTimeout(() => setDataUpdated(false), 1500);
+      
+      // 이전 애니메이션 타이머 정리 후 새로 설정
+      if (animationTimerRef.current) {
+        clearTimeout(animationTimerRef.current);
+      }
+      
+      animationTimerRef.current = setTimeout(() => {
+        setDataUpdated(false);
+        animationTimerRef.current = null;
+      }, 1500);
+      
       message.success('데이터가 성공적으로 업데이트되었습니다');
     } catch (error) {
       console.error('데이터 새로고침 중 오류 발생:', error);
       message.error('데이터 업데이트 중 오류가 발생했습니다');
+      setError('데이터를 새로고침하는 중 오류가 발생했습니다');
     } finally {
       setRefreshing(false);
     }
-  };
+  }, [refreshing]);
 
   // 수동 새로고침 핸들러
-  const handleManualRefresh = () => {
-    refreshData();
-  };
+  const handleManualRefresh = useCallback(() => {
+    refreshData().catch(err => {
+      console.error('수동 새로고침 실패:', err);
+    });
+  }, [refreshData]);
 
   // 보고서 데이터 로드
   const loadReportData = useCallback(async () => {
     if (!refreshing) setLoading(true);
+    
     try {
       // 대시보드 카드 데이터 (요약 정보)
       const cards = await dashboardService.getReportOverviewData();
-      setReportCards(cards);
+      setReportCards(Array.isArray(cards) ? cards : []);
 
       // 최근 보고서 목록
       const reports = await reportService.getRecentReports();
-      setRecentReports(reports.slice(0, 5));  // 최근 5개만
+      setRecentReports(Array.isArray(reports) ? reports.slice(0, 5) : []);  // 최근 5개만, 배열 확인
 
       // 초기 차트 데이터 로드
       await loadReportChartData(selectedReportType);
       
       // 마지막 업데이트 시간 갱신
       setLastUpdated(new Date());
+      
+      // 오류 초기화
+      setError(null);
     } catch (error) {
       console.error('보고서 위젯 데이터 로드 중 오류 발생:', error);
+      setError('데이터를 불러오는 중 오류가 발생했습니다');
+      // 에러 상태에서도 기존 데이터 유지
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -198,25 +259,34 @@ const ReportWidgets: React.FC<ReportWidgetsProps> = ({ dashboardService = new Da
   }, [dashboardService, selectedReportType]);
 
   // 선택된 보고서 타입에 맞는 차트 데이터 로드
-  const loadReportChartData = async (reportType: ReportType) => {
+  const loadReportChartData = useCallback(async (reportType: ReportType) => {
     try {
-      // ReportType을 문자열로 변환하여 전달
-      const reportTypeStr = reportType.toString();
+      // ReportType을 문자열로 변환하여 전달 (언더스코어를 하이픈으로 변환)
+      const reportTypeStr = reportType.toString().replace(/_/g, '-');
       const chartData = await dashboardService.getReportChartData(reportTypeStr);
+      
+      // 이전 타이머 정리
+      if (chartLoadTimerRef.current) {
+        clearTimeout(chartLoadTimerRef.current);
+        chartLoadTimerRef.current = null;
+      }
       
       // 애니메이션 효과를 위해 상태 업데이트
       setReportChartData(null);
-      setTimeout(() => {
+      
+      chartLoadTimerRef.current = setTimeout(() => {
         setReportChartData(chartData);
+        chartLoadTimerRef.current = null;
       }, 100);
     } catch (error) {
       console.error('보고서 차트 데이터 로드 중 오류 발생:', error);
       setReportChartData(null);
+      throw error; // 상위 호출자에게 오류 전파
     }
-  };
+  }, [dashboardService]);
 
   // 보고서 타입을 한글 이름으로 변환
-  const getReportTypeName = (type: ReportType): string => {
+  const getReportTypeName = useCallback((type: ReportType): string => {
     switch (type) {
       case ReportType.COMPLETION_RATE:
         return '완료율 보고서';
@@ -231,10 +301,10 @@ const ReportWidgets: React.FC<ReportWidgetsProps> = ({ dashboardService = new Da
       default:
         return '보고서';
     }
-  };
+  }, []);
 
   // 보고서 유형에 따른 태그 색상
-  const getReportTypeColor = (type: ReportType): string => {
+  const getReportTypeColor = useCallback((type: ReportType): string => {
     switch (type) {
       case ReportType.COMPLETION_RATE:
         return 'blue';
@@ -249,37 +319,75 @@ const ReportWidgets: React.FC<ReportWidgetsProps> = ({ dashboardService = new Da
       default:
         return 'default';
     }
-  };
+  }, []);
 
   // 보고서 페이지로 이동
-  const goToReportPage = () => {
+  const goToReportPage = useCallback(() => {
     navigate('/report');
-  };
+  }, [navigate]);
 
   // 특정 보고서 유형으로 이동
-  const goToReportWithType = (type: ReportType) => {
+  const goToReportWithType = useCallback((type: ReportType) => {
     navigate(`/report?type=${type}`);
-  };
+  }, [navigate]);
 
   // 시간을 포맷팅하는 함수
-  const formatTime = (date: Date): string => {
-    return date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  };
+  const formatTime = useCallback((date: Date): string => {
+    try {
+      return date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    } catch (error) {
+      console.error('시간 포맷팅 오류:', error);
+      return '시간 정보 없음';
+    }
+  }, []);
 
   // 날짜를 포맷팅하는 함수
-  const formatDate = (date: Date): string => {
-    return date.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
-  };
+  const formatDate = useCallback((date: Date): string => {
+    try {
+      return date.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
+    } catch (error) {
+      console.error('날짜 포맷팅 오류:', error);
+      return '날짜 정보 없음';
+    }
+  }, []);
 
   // 차트 유형 변경 핸들러
-  const handleChartTypeChange = (value: string) => {
+  const handleChartTypeChange = useCallback((value: string) => {
     setChartType(value);
-  };
+  }, []);
 
   // 차트 애니메이션 토글 핸들러
-  const toggleChartAnimation = () => {
-    setChartAnimation(!chartAnimation);
-  };
+  const toggleChartAnimation = useCallback(() => {
+    setChartAnimation(prev => !prev);
+  }, []);
+
+  // 오류 발생 시 표시
+  if (error && !loading) {
+    return (
+      <div className="mb-8">
+        <div className="flex justify-between items-center mb-3">
+          <h2 className="text-lg font-medium text-gray-900">보고서 요약</h2>
+          <Button 
+            type="primary"
+            icon={<SyncOutlined />}
+            onClick={handleManualRefresh}
+          >
+            다시 시도
+          </Button>
+        </div>
+        <div className="bg-white shadow rounded-lg p-6 flex flex-col items-center justify-center" style={{ minHeight: '200px' }}>
+          <Empty
+            description={
+              <div className="text-center">
+                <p className="text-red-500 mb-2">{error}</p>
+                <p className="text-gray-500">새로고침을 시도하거나 나중에 다시 시도해주세요.</p>
+              </div>
+            }
+          />
+        </div>
+      </div>
+    );
+  }
 
   // 상태가 로드 중이면 로딩 UI 표시
   if (loading) {
@@ -353,6 +461,7 @@ const ReportWidgets: React.FC<ReportWidgetsProps> = ({ dashboardService = new Da
               onClick={handleManualRefresh}
               loading={refreshing}
               className="mr-4"
+              disabled={refreshing} // 새로고침 중 중복 클릭 방지
             >
               새로고침
             </Button>
@@ -388,11 +497,12 @@ const ReportWidgets: React.FC<ReportWidgetsProps> = ({ dashboardService = new Da
             >
               <div className="px-4 py-5 sm:p-6">
                 <div className="flex items-center">
-                  <div className={`w-8 h-8 rounded-full bg-${card.color}-100 flex items-center justify-center mr-3`}>
-                    {card.icon === 'file' && <FileTextOutlined className={`text-${card.color}-600`} />}
-                    {card.icon === 'chart' && <BarChartOutlined className={`text-${card.color}-600`} />}
-                    {card.icon === 'calendar' && <CalendarOutlined className={`text-${card.color}-600`} />}
-                    {card.icon === 'line-chart' && <LineChartOutlined className={`text-${card.color}-600`} />}
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center mr-3`} 
+                      style={{ backgroundColor: card.color ? `var(--${card.color}-100, #f0f0f0)` : '#f0f0f0' }}>
+                    {card.icon === 'file' && <FileTextOutlined style={{ color: card.color ? `var(--${card.color}-600, #666)` : '#666' }} />}
+                    {card.icon === 'chart' && <BarChartOutlined style={{ color: card.color ? `var(--${card.color}-600, #666)` : '#666' }} />}
+                    {card.icon === 'calendar' && <CalendarOutlined style={{ color: card.color ? `var(--${card.color}-600, #666)` : '#666' }} />}
+                    {card.icon === 'line-chart' && <LineChartOutlined style={{ color: card.color ? `var(--${card.color}-600, #666)` : '#666' }} />}
                   </div>
                   <div className="truncate">
                     <p className="text-sm font-medium text-gray-500 truncate">{card.title}</p>
