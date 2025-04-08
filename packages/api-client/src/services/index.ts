@@ -7,4 +7,5 @@ export * from './dashboardService';
 export * from './todoService';
 export * from './reportService';
 export * from './telemetryService';
-export * from './bookingService'; 
+export * from './bookingService';
+export * from './fileService'; 
