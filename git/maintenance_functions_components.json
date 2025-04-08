@@ -1,0 +1,539 @@
+{
+  "projectName": "차량 정비 관리 시스템",
+  "lastUpdated": "2023-04-09",
+  "components": {
+    "MaintenanceForm": {
+      "type": "Component",
+      "path": "packages/frontend/src/components/maintenance/MaintenanceForm.tsx",
+      "description": "정비 기록 생성 및 수정을 위한 폼 컴포넌트",
+      "props": [
+        {
+          "name": "initialData",
+          "type": "Partial<MaintenanceRecord>",
+          "description": "수정 시 초기 데이터"
+        },
+        {
+          "name": "vehicleId",
+          "type": "string",
+          "description": "차량 ID"
+        },
+        {
+          "name": "onSubmit",
+          "type": "function",
+          "description": "폼 제출 시 콜백 함수"
+        },
+        {
+          "name": "onCancel",
+          "type": "function",
+          "description": "취소 시 콜백 함수"
+        },
+        {
+          "name": "isEdit",
+          "type": "boolean",
+          "description": "편집 모드 여부"
+        }
+      ],
+      "state": [
+        {
+          "name": "formData",
+          "type": "Partial<MaintenanceRecord>",
+          "description": "폼 데이터 상태"
+        },
+        {
+          "name": "vehicle",
+          "type": "Vehicle | null",
+          "description": "선택된 차량 정보"
+        },
+        {
+          "name": "isLoading",
+          "type": "boolean",
+          "description": "로딩 상태"
+        },
+        {
+          "name": "error",
+          "type": "string | null",
+          "description": "오류 메시지"
+        },
+        {
+          "name": "newPart",
+          "type": "Partial<MaintenancePart>",
+          "description": "새 부품 입력 상태"
+        },
+        {
+          "name": "fileToUpload",
+          "type": "File | null",
+          "description": "업로드할 파일"
+        }
+      ],
+      "functions": [
+        {
+          "name": "fetchVehicle",
+          "description": "차량 정보 조회",
+          "async": true
+        },
+        {
+          "name": "handleChange",
+          "description": "폼 입력 변경 처리"
+        },
+        {
+          "name": "handlePartChange",
+          "description": "부품 데이터 변경 처리"
+        },
+        {
+          "name": "addPart",
+          "description": "부품 추가"
+        },
+        {
+          "name": "removePart",
+          "description": "부품 제거",
+          "params": [
+            {
+              "name": "id",
+              "type": "string"
+            }
+          ]
+        },
+        {
+          "name": "handleFileChange",
+          "description": "파일 선택 변경 처리"
+        },
+        {
+          "name": "uploadDocument",
+          "description": "문서 업로드",
+          "async": true
+        },
+        {
+          "name": "removeDocument",
+          "description": "문서 삭제",
+          "async": true,
+          "params": [
+            {
+              "name": "docId",
+              "type": "string"
+            }
+          ]
+        },
+        {
+          "name": "handleSubmit",
+          "description": "폼 제출 처리",
+          "async": true
+        },
+        {
+          "name": "calculateTotalCost",
+          "description": "총 비용 계산",
+          "returnType": "number"
+        }
+      ]
+    }
+  },
+  "services": {
+    "maintenanceService": {
+      "type": "Service",
+      "path": "packages/frontend/src/services/maintenance.ts",
+      "description": "정비 관련 API 서비스",
+      "functions": [
+        {
+          "name": "getMaintenanceRecords",
+          "description": "모든 정비 기록 조회",
+          "async": true,
+          "params": [
+            {
+              "name": "filter",
+              "type": "any",
+              "optional": true
+            }
+          ],
+          "returnType": "Promise<MaintenanceRecord[]>"
+        },
+        {
+          "name": "getMaintenanceById",
+          "description": "ID로 특정 정비 기록 조회",
+          "async": true,
+          "params": [
+            {
+              "name": "recordId",
+              "type": "string"
+            }
+          ],
+          "returnType": "Promise<MaintenanceRecord>"
+        },
+        {
+          "name": "getVehicleMaintenanceHistory",
+          "description": "특정 차량의 정비 기록 조회",
+          "async": true,
+          "params": [
+            {
+              "name": "vehicleId",
+              "type": "string"
+            },
+            {
+              "name": "filter",
+              "type": "any",
+              "optional": true
+            }
+          ],
+          "returnType": "Promise<MaintenanceRecord[]>"
+        },
+        {
+          "name": "createMaintenanceRecord",
+          "description": "새 정비 기록 생성",
+          "async": true,
+          "params": [
+            {
+              "name": "maintenanceData",
+              "type": "Omit<MaintenanceRecord, 'id' | 'createdAt' | 'updatedAt'>"
+            }
+          ],
+          "returnType": "Promise<MaintenanceRecord>"
+        },
+        {
+          "name": "updateMaintenanceRecord",
+          "description": "정비 기록 업데이트",
+          "async": true,
+          "params": [
+            {
+              "name": "recordId",
+              "type": "string"
+            },
+            {
+              "name": "updateData",
+              "type": "Partial<Omit<MaintenanceRecord, 'id' | 'createdAt' | 'updatedAt'>>"
+            }
+          ],
+          "returnType": "Promise<MaintenanceRecord>"
+        },
+        {
+          "name": "deleteMaintenanceRecord",
+          "description": "정비 기록 삭제",
+          "async": true,
+          "params": [
+            {
+              "name": "recordId",
+              "type": "string"
+            }
+          ],
+          "returnType": "Promise<boolean>"
+        },
+        {
+          "name": "attachDocument",
+          "description": "정비 기록에 문서 첨부",
+          "async": true,
+          "params": [
+            {
+              "name": "recordId",
+              "type": "string"
+            },
+            {
+              "name": "file",
+              "type": "File"
+            }
+          ],
+          "returnType": "Promise<any>"
+        },
+        {
+          "name": "removeDocument",
+          "description": "정비 기록에서 문서 제거",
+          "async": true,
+          "params": [
+            {
+              "name": "recordId",
+              "type": "string"
+            },
+            {
+              "name": "documentId",
+              "type": "string"
+            }
+          ],
+          "returnType": "Promise<boolean>"
+        },
+        {
+          "name": "getUpcomingMaintenance",
+          "description": "예정된 정비 일정 조회",
+          "async": true,
+          "params": [
+            {
+              "name": "days",
+              "type": "number",
+              "defaultValue": 30
+            }
+          ],
+          "returnType": "Promise<any[]>"
+        },
+        {
+          "name": "getRecommendedMaintenance",
+          "description": "차량에 권장되는 정비 항목 조회",
+          "async": true,
+          "params": [
+            {
+              "name": "vehicleId",
+              "type": "string"
+            }
+          ],
+          "returnType": "Promise<any[]>"
+        }
+      ]
+    }
+  },
+  "types": {
+    "MaintenanceType": {
+      "type": "Enum",
+      "values": [
+        "REGULAR",
+        "REPAIR",
+        "INSPECTION",
+        "RECALL",
+        "UPGRADE",
+        "OTHER"
+      ]
+    },
+    "MaintenanceStatus": {
+      "type": "Enum",
+      "values": [
+        "SCHEDULED",
+        "IN_PROGRESS",
+        "COMPLETED",
+        "CANCELLED",
+        "DELAYED"
+      ]
+    },
+    "MaintenancePriority": {
+      "type": "Enum",
+      "values": [
+        "LOW",
+        "MEDIUM",
+        "HIGH",
+        "URGENT"
+      ]
+    },
+    "MaintenancePart": {
+      "type": "Interface",
+      "properties": [
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "partNumber",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "quantity",
+          "type": "number"
+        },
+        {
+          "name": "unitCost",
+          "type": "number"
+        },
+        {
+          "name": "totalCost",
+          "type": "number"
+        }
+      ]
+    },
+    "MaintenanceDocument": {
+      "type": "Interface",
+      "properties": [
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "fileUrl",
+          "type": "string"
+        },
+        {
+          "name": "uploadedAt",
+          "type": "string"
+        },
+        {
+          "name": "size",
+          "type": "number"
+        },
+        {
+          "name": "type",
+          "type": "string"
+        }
+      ]
+    },
+    "MaintenanceRecord": {
+      "type": "Interface",
+      "properties": [
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "vehicleId",
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "type": "MaintenanceType"
+        },
+        {
+          "name": "title",
+          "type": "string"
+        },
+        {
+          "name": "description",
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "type": "MaintenanceStatus"
+        },
+        {
+          "name": "priority",
+          "type": "MaintenancePriority"
+        },
+        {
+          "name": "startDate",
+          "type": "string"
+        },
+        {
+          "name": "endDate",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "mileage",
+          "type": "number"
+        },
+        {
+          "name": "cost",
+          "type": "number"
+        },
+        {
+          "name": "technicianName",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "shopName",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "notes",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "parts",
+          "type": "MaintenancePart[]",
+          "defaultValue": "[]"
+        },
+        {
+          "name": "documents",
+          "type": "MaintenanceDocument[]",
+          "defaultValue": "[]"
+        },
+        {
+          "name": "vehicle",
+          "type": "Vehicle",
+          "optional": true
+        },
+        {
+          "name": "createdAt",
+          "type": "string"
+        },
+        {
+          "name": "updatedAt",
+          "type": "string"
+        }
+      ]
+    }
+  },
+  "gitChanges": [
+    {
+      "type": "add",
+      "file": "packages/frontend/src/components/maintenance/MaintenanceForm.tsx",
+      "description": "정비 폼 컴포넌트 추가"
+    },
+    {
+      "type": "modify",
+      "file": "packages/frontend/src/services/maintenance.ts",
+      "description": "정비 서비스 함수 업데이트"
+    },
+    {
+      "type": "add",
+      "file": "packages/frontend/src/types/maintenance.ts",
+      "description": "정비 관련 타입 정의 추가"
+    }
+  ],
+  "workflowDiagram": {
+    "nodes": [
+      {
+        "id": "1",
+        "name": "사용자",
+        "type": "actor"
+      },
+      {
+        "id": "2",
+        "name": "MaintenanceForm",
+        "type": "component"
+      },
+      {
+        "id": "3",
+        "name": "maintenanceService",
+        "type": "service"
+      },
+      {
+        "id": "4",
+        "name": "vehicleService",
+        "type": "service"
+      },
+      {
+        "id": "5",
+        "name": "API 서버",
+        "type": "system"
+      },
+      {
+        "id": "6",
+        "name": "데이터베이스",
+        "type": "database"
+      }
+    ],
+    "edges": [
+      {
+        "from": "1",
+        "to": "2",
+        "label": "정비 기록 생성/수정 요청"
+      },
+      {
+        "from": "2",
+        "to": "3",
+        "label": "정비 데이터 저장/조회"
+      },
+      {
+        "from": "2",
+        "to": "4",
+        "label": "차량 정보 조회"
+      },
+      {
+        "from": "3",
+        "to": "5",
+        "label": "API 요청"
+      },
+      {
+        "from": "4",
+        "to": "5",
+        "label": "API 요청"
+      },
+      {
+        "from": "5",
+        "to": "6",
+        "label": "데이터 읽기/쓰기"
+      }
+    ]
+  }
+} 

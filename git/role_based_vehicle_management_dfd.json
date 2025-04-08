@@ -1,0 +1,48 @@
+{
+  "system": "Role-based Vehicle Management",
+  "version": "1.0",
+  "data_flows": [
+    {
+      "source": "User",
+      "process": "Vehicle Registration",
+      "data_store": "Vehicles DB",
+      "destination": "OCR Service",
+      "description": "User uploads vehicle document, OCR processes it, and saves to DB"
+    },
+    {
+      "source": "User",
+      "process": "Repair Request",
+      "data_store": "Repairs DB",
+      "destination": "Shop System",
+      "description": "User requests repair, data sent to shop for processing"
+    },
+    {
+      "source": "User",
+      "process": "Insurance Enrollment",
+      "data_store": "Insurances DB",
+      "destination": "Insurance Provider API",
+      "description": "User requests enrollment, data is sent to external insurance provider and stored"
+    },
+    {
+      "source": "Enterprise Admin",
+      "process": "Vehicle Monitoring",
+      "data_store": "Vehicles DB",
+      "destination": "Enterprise Dashboard",
+      "description": "Admin views real-time status of company vehicles"
+    },
+    {
+      "source": "Technician",
+      "process": "Repair Status Update",
+      "data_store": "Repair Status Logs",
+      "destination": "User Notification",
+      "description": "Technician updates status, user receives push notification"
+    },
+    {
+      "source": "System",
+      "process": "Periodic Inspection Reminder",
+      "data_store": "Inspections DB",
+      "destination": "Notification Queue",
+      "description": "System checks upcoming inspections and schedules reminders"
+    }
+  ]
+}

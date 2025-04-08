@@ -1,0 +1,616 @@
+{
+  "projectName": "차량 정비 관리 시스템",
+  "lastUpdated": "2023-04-09",
+  "module": "userService",
+  "description": "사용자 인증 및 권한 관리 서비스 모듈",
+  "dependencies": [
+    "axios",
+    "jwt-decode"
+  ],
+  "types": {
+    "UserRole": {
+      "type": "Enum",
+      "values": [
+        "SUPER_ADMIN",
+        "ENTERPRISE_ADMIN",
+        "SHOP_OWNER",
+        "SHOP_MANAGER",
+        "TECHNICIAN",
+        "DRIVER",
+        "CUSTOMER"
+      ]
+    },
+    "User": {
+      "type": "Interface",
+      "properties": [
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "username",
+          "type": "string"
+        },
+        {
+          "name": "email",
+          "type": "string"
+        },
+        {
+          "name": "firstName",
+          "type": "string"
+        },
+        {
+          "name": "lastName",
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "type": "UserRole"
+        },
+        {
+          "name": "isActive",
+          "type": "boolean"
+        },
+        {
+          "name": "phoneNumber",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "organizationId",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "shopId",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "profileImage",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "lastLogin",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "createdAt",
+          "type": "string"
+        },
+        {
+          "name": "updatedAt",
+          "type": "string"
+        }
+      ]
+    },
+    "UserCreate": {
+      "type": "Interface",
+      "properties": [
+        {
+          "name": "username",
+          "type": "string"
+        },
+        {
+          "name": "email",
+          "type": "string"
+        },
+        {
+          "name": "password",
+          "type": "string"
+        },
+        {
+          "name": "firstName",
+          "type": "string"
+        },
+        {
+          "name": "lastName",
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "type": "UserRole"
+        },
+        {
+          "name": "phoneNumber",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "organizationId",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "shopId",
+          "type": "string",
+          "optional": true
+        }
+      ]
+    },
+    "UserUpdate": {
+      "type": "Interface",
+      "properties": [
+        {
+          "name": "email",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "firstName",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "lastName",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "role",
+          "type": "UserRole",
+          "optional": true
+        },
+        {
+          "name": "isActive",
+          "type": "boolean",
+          "optional": true
+        },
+        {
+          "name": "phoneNumber",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "organizationId",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "shopId",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "profileImage",
+          "type": "string",
+          "optional": true
+        }
+      ]
+    },
+    "LoginCredentials": {
+      "type": "Interface",
+      "properties": [
+        {
+          "name": "username",
+          "type": "string"
+        },
+        {
+          "name": "password",
+          "type": "string"
+        }
+      ]
+    },
+    "AuthResponse": {
+      "type": "Interface",
+      "properties": [
+        {
+          "name": "accessToken",
+          "type": "string"
+        },
+        {
+          "name": "refreshToken",
+          "type": "string"
+        },
+        {
+          "name": "user",
+          "type": "User"
+        },
+        {
+          "name": "expiresIn",
+          "type": "number"
+        }
+      ]
+    },
+    "PasswordChangeRequest": {
+      "type": "Interface",
+      "properties": [
+        {
+          "name": "oldPassword",
+          "type": "string"
+        },
+        {
+          "name": "newPassword",
+          "type": "string"
+        }
+      ]
+    },
+    "PasswordResetRequest": {
+      "type": "Interface",
+      "properties": [
+        {
+          "name": "email",
+          "type": "string"
+        }
+      ]
+    },
+    "UserFilter": {
+      "type": "Interface",
+      "properties": [
+        {
+          "name": "role",
+          "type": "UserRole",
+          "optional": true
+        },
+        {
+          "name": "shopId",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "organizationId",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "isActive",
+          "type": "boolean",
+          "optional": true
+        },
+        {
+          "name": "searchTerm",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "page",
+          "type": "number",
+          "optional": true
+        },
+        {
+          "name": "limit",
+          "type": "number",
+          "optional": true
+        },
+        {
+          "name": "sortBy",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "name": "sortOrder",
+          "type": "string",
+          "optional": true
+        }
+      ]
+    }
+  },
+  "services": {
+    "userService": {
+      "functions": [
+        {
+          "name": "login",
+          "description": "사용자 로그인",
+          "params": [
+            {
+              "name": "credentials",
+              "type": "LoginCredentials"
+            }
+          ],
+          "returnType": "Promise<AuthResponse>",
+          "implementation": "API 호출 - POST /auth/login"
+        },
+        {
+          "name": "logout",
+          "description": "로그아웃",
+          "params": [],
+          "returnType": "Promise<boolean>",
+          "implementation": "API 호출 - POST /auth/logout"
+        },
+        {
+          "name": "refreshToken",
+          "description": "액세스 토큰 갱신",
+          "params": [
+            {
+              "name": "refreshToken",
+              "type": "string"
+            }
+          ],
+          "returnType": "Promise<AuthResponse>",
+          "implementation": "API 호출 - POST /auth/refresh"
+        },
+        {
+          "name": "getUsers",
+          "description": "사용자 목록 조회",
+          "params": [
+            {
+              "name": "filter",
+              "type": "UserFilter",
+              "optional": true
+            }
+          ],
+          "returnType": "Promise<User[]>",
+          "implementation": "API 호출 - GET /users"
+        },
+        {
+          "name": "getUserById",
+          "description": "특정 사용자 조회",
+          "params": [
+            {
+              "name": "userId",
+              "type": "string"
+            }
+          ],
+          "returnType": "Promise<User>",
+          "implementation": "API 호출 - GET /users/{userId}"
+        },
+        {
+          "name": "createUser",
+          "description": "새 사용자 생성",
+          "params": [
+            {
+              "name": "userData",
+              "type": "UserCreate"
+            }
+          ],
+          "returnType": "Promise<User>",
+          "implementation": "API 호출 - POST /users"
+        },
+        {
+          "name": "updateUser",
+          "description": "사용자 정보 업데이트",
+          "params": [
+            {
+              "name": "userId",
+              "type": "string"
+            },
+            {
+              "name": "updateData",
+              "type": "UserUpdate"
+            }
+          ],
+          "returnType": "Promise<User>",
+          "implementation": "API 호출 - PUT /users/{userId}"
+        },
+        {
+          "name": "deleteUser",
+          "description": "사용자 삭제",
+          "params": [
+            {
+              "name": "userId",
+              "type": "string"
+            }
+          ],
+          "returnType": "Promise<boolean>",
+          "implementation": "API 호출 - DELETE /users/{userId}"
+        },
+        {
+          "name": "changePassword",
+          "description": "비밀번호 변경",
+          "params": [
+            {
+              "name": "userId",
+              "type": "string"
+            },
+            {
+              "name": "passwordData",
+              "type": "PasswordChangeRequest"
+            }
+          ],
+          "returnType": "Promise<boolean>",
+          "implementation": "API 호출 - POST /users/{userId}/change-password"
+        },
+        {
+          "name": "resetPassword",
+          "description": "비밀번호 재설정 요청",
+          "params": [
+            {
+              "name": "resetData",
+              "type": "PasswordResetRequest"
+            }
+          ],
+          "returnType": "Promise<boolean>",
+          "implementation": "API 호출 - POST /auth/reset-password"
+        },
+        {
+          "name": "getCurrentUser",
+          "description": "현재 로그인한 사용자 정보 조회",
+          "params": [],
+          "returnType": "Promise<User>",
+          "implementation": "API 호출 - GET /users/me"
+        },
+        {
+          "name": "checkPermission",
+          "description": "사용자 권한 확인",
+          "params": [
+            {
+              "name": "permission",
+              "type": "string"
+            }
+          ],
+          "returnType": "boolean",
+          "implementation": "로컬 함수 - JWT 토큰에서 권한 추출 및 확인"
+        }
+      ]
+    },
+    "authUtils": {
+      "functions": [
+        {
+          "name": "getToken",
+          "description": "현재 저장된 액세스 토큰 조회",
+          "params": [],
+          "returnType": "string | null",
+          "implementation": "로컬 저장소에서 토큰 추출"
+        },
+        {
+          "name": "setToken",
+          "description": "액세스 토큰 저장",
+          "params": [
+            {
+              "name": "token",
+              "type": "string"
+            }
+          ],
+          "returnType": "void",
+          "implementation": "로컬 저장소에 토큰 저장"
+        },
+        {
+          "name": "clearToken",
+          "description": "토큰 삭제",
+          "params": [],
+          "returnType": "void",
+          "implementation": "로컬 저장소에서 토큰 제거"
+        },
+        {
+          "name": "isLoggedIn",
+          "description": "로그인 상태 확인",
+          "params": [],
+          "returnType": "boolean",
+          "implementation": "토큰 존재 여부 및 유효성 확인"
+        },
+        {
+          "name": "decodeToken",
+          "description": "JWT 토큰 디코딩",
+          "params": [
+            {
+              "name": "token",
+              "type": "string"
+            }
+          ],
+          "returnType": "any",
+          "implementation": "jwt-decode 라이브러리 활용"
+        },
+        {
+          "name": "getUserRole",
+          "description": "현재 사용자 역할 조회",
+          "params": [],
+          "returnType": "UserRole | null",
+          "implementation": "토큰에서 사용자 역할 추출"
+        }
+      ]
+    },
+    "permissionUtils": {
+      "functions": [
+        {
+          "name": "hasPermission",
+          "description": "특정 권한 보유 여부 확인",
+          "params": [
+            {
+              "name": "requiredRole",
+              "type": "UserRole | UserRole[]"
+            }
+          ],
+          "returnType": "boolean",
+          "implementation": "사용자 역할 및 요구 권한 비교"
+        },
+        {
+          "name": "checkVehicleAccess",
+          "description": "차량 접근 권한 확인",
+          "params": [
+            {
+              "name": "vehicleId",
+              "type": "string"
+            }
+          ],
+          "returnType": "Promise<boolean>",
+          "implementation": "사용자 역할 및 조직 기반 차량 접근 권한 확인"
+        },
+        {
+          "name": "checkMaintenanceAccess",
+          "description": "정비 기록 접근 권한 확인",
+          "params": [
+            {
+              "name": "maintenanceId",
+              "type": "string"
+            }
+          ],
+          "returnType": "Promise<boolean>",
+          "implementation": "사용자 역할 및 소속 정비소 기반 정비 기록 접근 권한 확인"
+        }
+      ]
+    }
+  },
+  "implementation": {
+    "fileStructure": [
+      {
+        "path": "src/types/user.ts",
+        "description": "사용자 관련 타입 정의"
+      },
+      {
+        "path": "src/services/userService.ts",
+        "description": "사용자 관련 API 서비스 함수 구현"
+      },
+      {
+        "path": "src/utils/authUtils.ts",
+        "description": "인증 관련 유틸리티 함수"
+      },
+      {
+        "path": "src/utils/permissionUtils.ts",
+        "description": "권한 검증 유틸리티 함수"
+      },
+      {
+        "path": "src/contexts/AuthContext.tsx",
+        "description": "인증 컨텍스트 및 프로바이더 구현"
+      }
+    ],
+    "apiEndpoints": [
+      {
+        "path": "/auth/login",
+        "method": "POST",
+        "description": "사용자 로그인"
+      },
+      {
+        "path": "/auth/logout",
+        "method": "POST",
+        "description": "로그아웃"
+      },
+      {
+        "path": "/auth/refresh",
+        "method": "POST",
+        "description": "토큰 갱신"
+      },
+      {
+        "path": "/auth/reset-password",
+        "method": "POST",
+        "description": "비밀번호 재설정"
+      },
+      {
+        "path": "/users",
+        "method": "GET",
+        "description": "사용자 목록 조회"
+      },
+      {
+        "path": "/users",
+        "method": "POST",
+        "description": "사용자 생성"
+      },
+      {
+        "path": "/users/{userId}",
+        "method": "GET",
+        "description": "특정 사용자 조회"
+      },
+      {
+        "path": "/users/{userId}",
+        "method": "PUT",
+        "description": "사용자 정보 업데이트"
+      },
+      {
+        "path": "/users/{userId}",
+        "method": "DELETE",
+        "description": "사용자 삭제"
+      },
+      {
+        "path": "/users/me",
+        "method": "GET",
+        "description": "현재 사용자 정보 조회"
+      },
+      {
+        "path": "/users/{userId}/change-password",
+        "method": "POST",
+        "description": "비밀번호 변경"
+      }
+    ]
+  }
+} 

@@ -1,0 +1,196 @@
+{
+  "version": "1.0",
+  "sprints": [
+    {
+      "name": "Sprint 1",
+      "duration": "1~2\uc8fc\ucc28",
+      "goals": "\uc778\uc99d, \ucc28\ub7c9 \ub4f1\ub85d/\uc870\ud68c, \uc815\ube44 \uc694\uccad",
+      "tasks": [
+        {
+          "domain": "Auth",
+          "task": "\ud68c\uc6d0\uac00\uc785/\ub85c\uadf8\uc778/\ud1a0\ud070 \uac80\uc99d",
+          "api": [
+            "/auth/*"
+          ]
+        },
+        {
+          "domain": "Vehicle",
+          "task": "\ucc28\ub7c9 \ub4f1\ub85d (OCR \ud3ec\ud568)",
+          "api": [
+            "/vehicle",
+            "/vehicle/ocr"
+          ]
+        },
+        {
+          "domain": "Vehicle",
+          "task": "\ucc28\ub7c9 \ubaa9\ub85d \uc870\ud68c",
+          "api": [
+            "/vehicle"
+          ]
+        },
+        {
+          "domain": "Repair",
+          "task": "\uc815\ube44 \uc694\uccad \ub4f1\ub85d",
+          "api": [
+            "/repair"
+          ]
+        },
+        {
+          "domain": "Repair",
+          "task": "\uc815\ube44 \ub0b4\uc5ed \uc870\ud68c",
+          "api": [
+            "/repair/user"
+          ]
+        },
+        {
+          "domain": "System",
+          "task": "\uc0ac\uc6a9\uc790/\uc5ed\ud560 \ud14c\uc774\ube14 \uc0dd\uc131",
+          "api": []
+        }
+      ]
+    },
+    {
+      "name": "Sprint 2",
+      "duration": "3~4\uc8fc\ucc28",
+      "goals": "\ubcf4\ud5d8, \ubc95\uc815\uac80\uc0ac, \uc8fc\uc720\u00b7\uc138\ucc28 \uad00\ub9ac",
+      "tasks": [
+        {
+          "domain": "Insurance",
+          "task": "\ubcf4\ud5d8 \uc870\ud68c \ubc0f \uac00\uc785",
+          "api": [
+            "/insurance/my",
+            "/insurance/enroll"
+          ]
+        },
+        {
+          "domain": "Inspection",
+          "task": "\uac80\uc0ac\uc18c \uc870\ud68c \ubc0f \uc608\uc57d",
+          "api": [
+            "/inspection/stations",
+            "/inspection"
+          ]
+        },
+        {
+          "domain": "Fuel",
+          "task": "\uc8fc\uc720 \ub4f1\ub85d (OCR or \uc790\ub3d9)",
+          "api": [
+            "/fuel"
+          ]
+        },
+        {
+          "domain": "Wash",
+          "task": "\uc138\ucc28\uc7a5 \uc870\ud68c \ubc0f \uc608\uc57d",
+          "api": [
+            "/wash/nearby",
+            "/wash/pay"
+          ]
+        },
+        {
+          "domain": "Payment",
+          "task": "\uc815\ube44\u00b7\uc138\ucc28 \ube44\uc6a9 \uacb0\uc81c",
+          "api": [
+            "/payment"
+          ]
+        },
+        {
+          "domain": "Notification",
+          "task": "\ud478\uc2dc \uc54c\ub9bc \uc124\uc815",
+          "api": [
+            "/notification/*"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Sprint 3",
+      "duration": "5~6\uc8fc\ucc28",
+      "goals": "\uae30\uc5c5 \uae30\ub2a5, \uc9c1\uc6d0 \uad8c\ud55c, \ube44\uc6a9 \ud1b5\uacc4, \ud0c1\uc1a1",
+      "tasks": [
+        {
+          "domain": "Enterprise",
+          "task": "\uae30\uc5c5 \ud68c\uc6d0\uac00\uc785 / \ucc28\ub7c9\ub4f1\ub85d",
+          "api": [
+            "/enterprise/register",
+            "/enterprise/vehicle"
+          ]
+        },
+        {
+          "domain": "Enterprise",
+          "task": "\uc9c1\uc6d0 \uad00\ub9ac",
+          "api": [
+            "/enterprise/staff"
+          ]
+        },
+        {
+          "domain": "Enterprise",
+          "task": "\uae30\uc5c5 \ucc28\ub7c9 \uc815\ube44 \ub0b4\uc5ed \ud655\uc778",
+          "api": [
+            "/enterprise/vehicle/:id/repair"
+          ]
+        },
+        {
+          "domain": "Statistics",
+          "task": "\ube44\uc6a9 \ud1b5\uacc4, \ubcf4\ud5d8 \ub9cc\uae30\uc728",
+          "api": [
+            "/statistics/*"
+          ]
+        },
+        {
+          "domain": "Delivery",
+          "task": "\ud0c1\uc1a1 \uc694\uccad/\uc0c1\ud0dc \ud655\uc778",
+          "api": [
+            "/delivery/request"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Sprint 4",
+      "duration": "7~8\uc8fc\ucc28",
+      "goals": "\uc815\ube44\uc18c POS \uae30\ub2a5, \uad00\ub9ac\uc790 \uc2dc\uc2a4\ud15c, \uc54c\ub9bc \uc2dc\uc2a4\ud15c",
+      "tasks": [
+        {
+          "domain": "Shop",
+          "task": "\uc815\ube44\uc18c \ub4f1\ub85d/\uc9c1\uc6d0 \uad00\ub9ac",
+          "api": [
+            "/shop",
+            "/shop/staff"
+          ]
+        },
+        {
+          "domain": "Shop",
+          "task": "\uc815\ube44 \uc694\uccad \uc218\ub77d \ubc0f \ucc98\ub9ac",
+          "api": [
+            "/repair/status"
+          ]
+        },
+        {
+          "domain": "Technician",
+          "task": "\uc815\ube44 \uc774\ub825 \uc791\uc131 \ubc0f \uc644\ub8cc \ub4f1\ub85d",
+          "api": [
+            "/repair/complete"
+          ]
+        },
+        {
+          "domain": "Admin",
+          "task": "\uc0ac\uc6a9\uc790/\uae30\uc5c5 \ubaa8\ub2c8\ud130\ub9c1",
+          "api": [
+            "/admin/*"
+          ]
+        },
+        {
+          "domain": "Admin",
+          "task": "\uac10\uc0ac \ub85c\uadf8, \uc774\uc0c1 \ud589\uc704 \ud0d0\uc9c0",
+          "api": [
+            "/admin/logs"
+          ]
+        },
+        {
+          "domain": "Notification",
+          "task": "\uac80\uc0ac\uc77c/\ubcf4\ud5d8 \ub9cc\uae30 \ud478\uc2dc \uc54c\ub9bc",
+          "api": []
+        }
+      ]
+    }
+  ]
+}

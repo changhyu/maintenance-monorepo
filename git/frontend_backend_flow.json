@@ -1,0 +1,105 @@
+{
+  "collection": "Frontend-Backend Integration Flow",
+  "version": "1.0",
+  "roles": {
+    "user": {
+      "screens": [
+        {
+          "name": "Login",
+          "events": [
+            {
+              "event": "Login Button Click",
+              "api": {
+                "method": "POST",
+                "url": "/auth/login",
+                "auth": false
+              }
+            }
+          ]
+        },
+        {
+          "name": "Vehicle List",
+          "events": [
+            {
+              "event": "On Screen Load",
+              "api": {
+                "method": "GET",
+                "url": "/vehicle",
+                "auth": true
+              }
+            }
+          ]
+        },
+        {
+          "name": "Vehicle Register via OCR",
+          "events": [
+            {
+              "event": "Image Upload",
+              "api": {
+                "method": "POST",
+                "url": "/vehicle/ocr",
+                "auth": true
+              }
+            }
+          ]
+        },
+        {
+          "name": "Repair Request",
+          "events": [
+            {
+              "event": "Submit Repair Request",
+              "api": {
+                "method": "POST",
+                "url": "/repair",
+                "auth": true
+              }
+            }
+          ]
+        },
+        {
+          "name": "Inspection Booking",
+          "events": [
+            {
+              "event": "Reserve Inspection",
+              "api": {
+                "method": "POST",
+                "url": "/inspection",
+                "auth": true
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "enterprise": {
+      "screens": [
+        {
+          "name": "Employee List",
+          "events": [
+            {
+              "event": "Load Employee Data",
+              "api": {
+                "method": "GET",
+                "url": "/enterprise/staff",
+                "auth": true
+              }
+            }
+          ]
+        },
+        {
+          "name": "Vehicle Registration",
+          "events": [
+            {
+              "event": "Register Vehicle",
+              "api": {
+                "method": "POST",
+                "url": "/enterprise/vehicle",
+                "auth": true
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
