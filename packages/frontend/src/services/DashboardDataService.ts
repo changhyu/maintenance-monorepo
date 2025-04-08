@@ -10,6 +10,7 @@ import {
   AnalyticsTimeFrame
 } from '../types/analytics';
 import { DashboardFilters } from '../components/DashboardFilter';
+import { ReportType } from './reportService';
 
 export interface DashboardCardData {
   title: string;
@@ -1252,5 +1253,209 @@ export class DashboardDataService {
     
     // 기본값: 모든 데이터 반환
     return baseData;
+  }
+
+  /**
+   * 보고서 대시보드 카드 데이터 가져오기
+   */
+  async getReportOverviewData(): Promise<DashboardCardData[]> {
+    try {
+      // API에서 보고서 관련 통계 가져오기 (현재는 임시 데이터 사용)
+      // 실제 구현에서는 API 호출로 대체
+      return [
+        {
+          title: '생성된 보고서',
+          value: 32,
+          change: 15,
+          trend: 'up',
+          icon: 'file',
+          color: 'blue'
+        },
+        {
+          title: '월간 완료율',
+          value: '85.2%',
+          change: 3.5,
+          trend: 'up',
+          icon: 'chart',
+          color: 'green'
+        },
+        {
+          title: '예정된 정비',
+          value: 8,
+          change: -2,
+          trend: 'down',
+          icon: 'calendar',
+          color: 'orange'
+        },
+        {
+          title: '월간 정비 비용',
+          value: '₩1,250,000',
+          change: 5.2,
+          trend: 'up',
+          icon: 'line-chart',
+          color: 'red'
+        }
+      ];
+    } catch (error) {
+      console.error('보고서 개요 데이터 조회 중 오류 발생:', error);
+      return this.getFallbackReportOverviewData();
+    }
+  }
+
+  /**
+   * 보고서 유형에 맞는 차트 데이터 가져오기
+   */
+  async getReportChartData(reportType: ReportType): Promise<DashboardChartData> {
+    try {
+      // API에서 보고서 차트 데이터 가져오기
+      // 실제 구현에서는 API 호출로 대체
+      switch (reportType) {
+        case ReportType.COMPLETION_RATE:
+          return this.getCompletionRateChartData();
+        case ReportType.COST_ANALYSIS:
+          return this.getCostAnalysisChartData();
+        case ReportType.MAINTENANCE_SUMMARY:
+          return this.getMaintenanceSummaryChartData();
+        default:
+          return this.getCompletionRateChartData();
+      }
+    } catch (error) {
+      console.error('보고서 차트 데이터 조회 중 오류 발생:', error);
+      return this.getFallbackChartData();
+    }
+  }
+
+  /**
+   * 완료율 보고서 차트 데이터
+   */
+  private getCompletionRateChartData(): DashboardChartData {
+    return {
+      labels: ['1월', '2월', '3월', '4월', '5월', '6월'],
+      datasets: [
+        {
+          label: '완료율',
+          data: [65, 72, 78, 75, 82, 85],
+          backgroundColor: 'rgba(54, 162, 235, 0.2)',
+          borderColor: 'rgba(54, 162, 235, 1)',
+          borderWidth: 1
+        }
+      ]
+    };
+  }
+
+  /**
+   * 비용 분석 보고서 차트 데이터
+   */
+  private getCostAnalysisChartData(): DashboardChartData {
+    return {
+      labels: ['부품', '인건비', '출장비', '기타'],
+      datasets: [
+        {
+          label: '비용 분석',
+          data: [45, 25, 15, 15],
+          backgroundColor: [
+            'rgba(255, 99, 132, 0.2)',
+            'rgba(54, 162, 235, 0.2)',
+            'rgba(255, 206, 86, 0.2)',
+            'rgba(75, 192, 192, 0.2)'
+          ],
+          borderColor: [
+            'rgba(255, 99, 132, 1)',
+            'rgba(54, 162, 235, 1)',
+            'rgba(255, 206, 86, 1)',
+            'rgba(75, 192, 192, 1)'
+          ],
+          borderWidth: 1
+        }
+      ]
+    };
+  }
+
+  /**
+   * 정비 요약 보고서 차트 데이터
+   */
+  private getMaintenanceSummaryChartData(): DashboardChartData {
+    return {
+      labels: ['정기 점검', '엔진 정비', '브레이크 시스템', '전기 시스템', '냉각 시스템'],
+      datasets: [
+        {
+          label: '정비 유형별 비율',
+          data: [35, 20, 15, 15, 15],
+          backgroundColor: [
+            'rgba(255, 99, 132, 0.2)',
+            'rgba(54, 162, 235, 0.2)',
+            'rgba(255, 206, 86, 0.2)',
+            'rgba(75, 192, 192, 0.2)',
+            'rgba(153, 102, 255, 0.2)'
+          ],
+          borderColor: [
+            'rgba(255, 99, 132, 1)',
+            'rgba(54, 162, 235, 1)',
+            'rgba(255, 206, 86, 1)',
+            'rgba(75, 192, 192, 1)',
+            'rgba(153, 102, 255, 1)'
+          ],
+          borderWidth: 1
+        }
+      ]
+    };
+  }
+
+  /**
+   * 임시 차트 데이터 (폴백)
+   */
+  private getFallbackChartData(): DashboardChartData {
+    return {
+      labels: ['A', 'B', 'C', 'D', 'E', 'F'],
+      datasets: [
+        {
+          label: '샘플 데이터',
+          data: [12, 19, 3, 5, 2, 3],
+          backgroundColor: 'rgba(75, 192, 192, 0.2)',
+          borderColor: 'rgba(75, 192, 192, 1)',
+          borderWidth: 1
+        }
+      ]
+    };
+  }
+
+  /**
+   * 임시 보고서 개요 데이터 (폴백)
+   */
+  private getFallbackReportOverviewData(): DashboardCardData[] {
+    return [
+      {
+        title: '생성된 보고서',
+        value: 25,
+        change: 0,
+        trend: 'neutral',
+        icon: 'file',
+        color: 'blue'
+      },
+      {
+        title: '월간 완료율',
+        value: '80%',
+        change: 0,
+        trend: 'neutral',
+        icon: 'chart',
+        color: 'green'
+      },
+      {
+        title: '예정된 정비',
+        value: 5,
+        change: 0,
+        trend: 'neutral',
+        icon: 'calendar',
+        color: 'orange'
+      },
+      {
+        title: '월간 정비 비용',
+        value: '₩1,000,000',
+        change: 0,
+        trend: 'neutral',
+        icon: 'line-chart',
+        color: 'red'
+      }
+    ];
   }
 } 
