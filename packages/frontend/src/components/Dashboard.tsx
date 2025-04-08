@@ -3,7 +3,8 @@ import { vehicleService } from '../services/vehicle';
 import { maintenanceService } from '../services/maintenance';
 import { Vehicle, VehicleStatus } from '../types/vehicle';
 import { MaintenanceRecord } from '../types/maintenance';
-import { DashboardDataService } from '../services';
+import { DashboardDataService, PredictiveMaintenanceCard, DashboardCardData } from '../services';
+import ReportWidgets from './dashboard/ReportWidgets';
 
 export const Dashboard: React.FC = () => {
   const [vehicleStats, setVehicleStats] = useState({
@@ -35,7 +36,7 @@ export const Dashboard: React.FC = () => {
           active: vehicles.filter(v => v.status === VehicleStatus.ACTIVE).length,
           maintenance: vehicles.filter(v => v.status === VehicleStatus.MAINTENANCE).length,
           inactive: vehicles.filter(v => v.status === VehicleStatus.INACTIVE).length,
-          recalled: vehicles.filter(v => v.status === VehicleStatus.RECALLED).length
+          recalled: vehicles.filter(v => v.status === 'recalled').length // 문자열로 직접 비교
         };
         
         setVehicleStats(stats);
@@ -64,7 +65,7 @@ export const Dashboard: React.FC = () => {
   }, []);
 
   // 상태 배지 색상 결정 함수
-  const getStatusColor = (status: VehicleStatus) => {
+  const getStatusColor = (status: VehicleStatus | string) => {
     switch (status) {
       case VehicleStatus.ACTIVE:
         return 'bg-green-100 text-green-800';
@@ -72,7 +73,7 @@ export const Dashboard: React.FC = () => {
         return 'bg-yellow-100 text-yellow-800';
       case VehicleStatus.INACTIVE:
         return 'bg-gray-100 text-gray-800';
-      case VehicleStatus.RECALLED:
+      case 'recalled': // 문자열로 직접 비교
         return 'bg-red-100 text-red-800';
       default:
         return 'bg-gray-100 text-gray-800';
@@ -189,6 +190,9 @@ export const Dashboard: React.FC = () => {
           ))}
         </div>
       </div>
+      
+      {/* 보고서 위젯 섹션 - 새로 추가 */}
+      <ReportWidgets dashboardService={dashboardService} />
       
       {/* 예정된 정비 */}
       <div className="mb-8">
