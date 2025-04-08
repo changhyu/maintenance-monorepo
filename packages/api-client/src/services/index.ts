@@ -9,4 +9,5 @@ export * from './reportService';
 export * from './telemetryService';
 export * from './bookingService';
 export * from './fileService';
-export * from './paymentService'; 
+export * from './paymentService';
+export * from './analyticsService'; 
