@@ -1,0 +1,288 @@
+.report-dashboard {
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.report-dashboard .ant-card-head {
+  border-bottom: 1px solid #f0f0f0;
+  padding: 16px 24px;
+}
+
+.report-dashboard .ant-card-head-title {
+  font-weight: 600;
+  font-size: 18px;
+}
+
+.report-dashboard .ant-tabs-tab {
+  padding: 12px 16px;
+}
+
+.report-form {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 24px 0;
+}
+
+.report-list {
+  margin-top: 16px;
+}
+
+.report-list .ant-table-thead > tr > th {
+  background-color: #f9f9f9;
+  font-weight: 600;
+}
+
+.report-chart-container {
+  margin-top: 24px;
+  height: 400px;
+}
+
+.report-summary-card {
+  margin-bottom: 16px;
+}
+
+.report-summary-card .ant-card-head {
+  background-color: #f5f5f5;
+}
+
+.report-summary-card .ant-statistic-title {
+  font-size: 14px;
+}
+
+.report-summary-card .ant-statistic-content {
+  font-size: 20px;
+}
+
+.report-action-btn {
+  margin-right: 8px;
+}
+
+.report-export-options {
+  margin-top: 16px;
+}
+
+.report-export-options .ant-checkbox-wrapper {
+  margin-bottom: 8px;
+  display: block;
+}
+
+/* 모바일 대응 */
+@media screen and (max-width: 768px) {
+  .report-form {
+    padding: 16px;
+  }
+  
+  .report-dashboard .ant-tabs-tab {
+    padding: 8px 12px;
+  }
+  
+  .report-chart-container {
+    height: 300px;
+  }
+}
+
+/* 보고서 카드 스타일 */
+.report-card {
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.report-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.report-card .ant-card-meta-title {
+  margin-bottom: 4px !important;
+}
+
+.report-card .report-type-icon {
+  font-size: 20px;
+  margin-right: 8px;
+}
+
+/* 보고서 상세 모달 */
+.report-detail-modal .ant-modal-body {
+  padding: 24px;
+}
+
+.report-detail-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.report-detail-stats .stat-item {
+  flex: 1;
+  min-width: 120px;
+  text-align: center;
+  padding: 16px;
+  background-color: #f9f9f9;
+  border-radius: 4px;
+}
+
+.report-detail-stats .stat-value {
+  font-size: 24px;
+  font-weight: 600;
+  color: #1890ff;
+  margin-bottom: 4px;
+}
+
+.report-detail-stats .stat-label {
+  font-size: 14px;
+  color: #666;
+}
+
+/* 진행 상태 표시 */
+.report-status {
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-size: 12px;
+  display: inline-block;
+}
+
+.report-status-completed {
+  background-color: #e6f7ff;
+  color: #1890ff;
+}
+
+.report-status-pending {
+  background-color: #fff7e6;
+  color: #fa8c16;
+}
+
+.report-status-overdue {
+  background-color: #fff1f0;
+  color: #f5222d;
+}
+
+/* 보고서 결과 테이블 */
+.report-result-table {
+  margin-top: 24px;
+}
+
+.report-result-table .ant-table-thead > tr > th {
+  background-color: #f5f5f5;
+  font-weight: 600;
+}
+
+/* 차량 정비 이력 타임라인 */
+.maintenance-timeline .ant-timeline-item-tail {
+  border-left: 2px solid #e8e8e8;
+}
+
+.maintenance-timeline .ant-timeline-item-head {
+  background-color: #1890ff;
+}
+
+.maintenance-timeline .timeline-content {
+  padding: 12px;
+  background-color: #f9f9f9;
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+
+.maintenance-timeline .timeline-title {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.maintenance-timeline .timeline-info {
+  font-size: 12px;
+  color: #666;
+}
+
+.maintenance-timeline .timeline-cost {
+  font-weight: 600;
+  color: #52c41a;
+}
+
+/* 보고서 헤더 */
+.report-header {
+  margin-bottom: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.report-header-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+/* 보고서 필터 영역 */
+.report-filters {
+  background-color: #f9f9f9;
+  padding: 16px;
+  border-radius: 4px;
+  margin-bottom: 24px;
+}
+
+.report-filters .ant-form-item {
+  margin-bottom: 16px;
+}
+
+.report-filters .filter-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+/* 보고서 스케줄 배지 */
+.report-schedule-badge {
+  margin-left: 8px;
+}
+
+/* 보고서 이메일 발송 폼 */
+.report-email-form .ant-form-item {
+  margin-bottom: 16px;
+}
+
+.report-email-form .email-chip {
+  display: inline-block;
+  background-color: #f0f0f0;
+  border-radius: 16px;
+  padding: 4px 12px;
+  margin-right: 8px;
+  margin-bottom: 8px;
+}
+
+.report-email-form .email-chip-close {
+  margin-left: 4px;
+  cursor: pointer;
+}
+
+/* 보고서 차트 영역 */
+.report-chart-wrapper {
+  margin-top: 24px;
+  padding: 16px;
+  background-color: #fff;
+  border-radius: 4px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+.report-chart-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+/* 보고서 이벤트 태그 */
+.report-event-tag {
+  margin-right: 8px;
+  margin-bottom: 8px;
+}
+
+/* 이슈 라벨 */
+.issue-severity-high {
+  color: #f5222d;
+}
+
+.issue-severity-medium {
+  color: #fa8c16;
+}
+
+.issue-severity-low {
+  color: #52c41a;
+} 

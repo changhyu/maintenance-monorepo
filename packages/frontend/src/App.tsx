@@ -9,6 +9,7 @@ import VehicleDetailPage from './pages/VehicleDetailPage';
 import VehicleReportPage from './pages/VehicleReportPage';
 import BookingPage from './pages/BookingPage';
 import BookingHistoryPage from './pages/BookingHistoryPage';
+import ReportPage from './pages/ReportPage';
 import './App.css';
 
 const { Content } = Layout;
@@ -26,6 +27,7 @@ const App: React.FC = () => {
           <Route path="vehicles/:vehicleId" element={<VehicleDetailPage />} />
           <Route path="booking" element={<BookingPage />} />
           <Route path="booking/history" element={<BookingHistoryPage />} />
+          <Route path="reports" element={<ReportPage />} />
         </Route>
       </Routes>
     </Router>
