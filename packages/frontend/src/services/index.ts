@@ -11,4 +11,5 @@ export { maintenanceService } from './maintenance';
 export { authService } from './auth';
 export { notificationService } from './notificationService';
 export * from './DashboardDataService';
-export * from './bookingService'; 
+export * from './bookingService';
+export * from './mileageAlertService'; 
