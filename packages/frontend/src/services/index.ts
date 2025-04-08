@@ -9,4 +9,5 @@ export { api, apiRequest } from './api';
 export { vehicleService } from './vehicle';
 export { maintenanceService } from './maintenance';
 export { authService } from './auth';
-export { notificationService } from './notificationService'; 
+export { notificationService } from './notificationService';
+export { DashboardDataService } from './DashboardDataService'; 
