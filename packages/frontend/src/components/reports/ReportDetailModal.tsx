@@ -1,5 +1,5 @@
-import React from 'react';
-import { Modal, Table, Typography, Descriptions, Space, Button, Tabs } from 'antd';
+import React, { useRef } from 'react';
+import { Modal, Table, Typography, Descriptions, Space, Button, Tabs, message } from 'antd';
 import { DownloadOutlined, FileTextOutlined, TableOutlined, BarChartOutlined, PrinterOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { Report, ReportType, ReportFormat, ExportOptions } from '../../services/reportService';
@@ -30,7 +30,8 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
   const [activeTab, setActiveTab] = React.useState<string>('overview');
   const [exportLoading, setExportLoading] = React.useState<boolean>(false);
   const [printLoading, setPrintLoading] = React.useState<boolean>(false);
-
+  const chartRef = useRef<HTMLDivElement>(null);
+  
   // 보고서 내보내기
   const handleExport = async (format: ReportFormat) => {
     if (!report) return;
@@ -47,94 +48,171 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
     }
   };
 
+  // 차트 이미지 캡처 함수
+  const captureChart = async (): Promise<string | null> => {
+    if (!chartRef.current) return null;
+    
+    try {
+      // 동적으로 html2canvas 라이브러리 로드
+      const html2canvas = (await import('html2canvas')).default;
+      const canvas = await html2canvas(chartRef.current, {
+        scale: 2, // 고해상도 출력
+        useCORS: true, // 외부 이미지 로드 허용
+        logging: false, // 콘솔 로그 비활성화
+      });
+      return canvas.toDataURL('image/png');
+    } catch (error) {
+      console.error('차트 캡처 중 오류 발생:', error);
+      message.error('차트 캡처 중 오류가 발생했습니다.');
+      return null;
+    }
+  };
+
   // 보고서 인쇄
-  const handlePrint = () => {
+  const handlePrint = async () => {
+    if (!report) return;
+    
     setPrintLoading(true);
     
-    setTimeout(() => {
-      const printContent = document.getElementById('report-print-content');
-      const originalContents = document.body.innerHTML;
+    try {
+      // 차트 캡처 시도
+      let chartImageUrl = null;
+      if (chartRef.current) {
+        chartImageUrl = await captureChart();
+      }
       
-      if (printContent) {
-        const printStyles = `
-          <style>
-            @media print {
-              body {
-                font-family: Arial, sans-serif;
-                padding: 20px;
-              }
-              h1 {
-                font-size: 24px;
-                margin-bottom: 16px;
-              }
-              h2 {
-                font-size: 18px;
-                margin-top: 20px;
-                margin-bottom: 10px;
-              }
-              p {
-                margin-bottom: 8px;
-              }
-              .print-section {
-                margin-bottom: 24px;
-                page-break-inside: avoid;
-              }
-              table {
-                width: 100%;
-                border-collapse: collapse;
-                margin-bottom: 24px;
-              }
-              table, th, td {
-                border: 1px solid #ddd;
-              }
-              th, td {
-                padding: 8px;
-                text-align: left;
-              }
-              th {
-                background-color: #f2f2f2;
-              }
-              .page-break {
-                page-break-before: always;
-              }
-            }
-          </style>
-        `;
+      setTimeout(() => {
+        const printContent = document.getElementById('report-print-content');
         
-        const printWindow = window.open('', '_blank');
-        if (printWindow) {
-          printWindow.document.write(`
-            <html>
-              <head>
-                <title>${report?.title || '보고서'}</title>
-                ${printStyles}
-              </head>
-              <body>
-                <h1>${report?.title || '보고서'}</h1>
-                <p>생성일: ${dayjs(report?.createdAt).format('YYYY년 MM월 DD일 HH:mm')}</p>
-                <hr />
-                ${printContent.innerHTML}
-              </body>
-            </html>
-          `);
+        if (printContent) {
+          // 차트 이미지 요소 추가
+          const chartContainer = document.getElementById('print-chart-container');
+          if (chartContainer && chartImageUrl) {
+            chartContainer.innerHTML = `<img src="${chartImageUrl}" style="max-width:100%; height:auto;" alt="보고서 차트" />`;
+          }
           
-          printWindow.document.close();
-          printWindow.focus();
+          const printStyles = `
+            <style>
+              @media print {
+                @page {
+                  size: A4;
+                  margin: 1.5cm;
+                }
+                body {
+                  font-family: Arial, sans-serif;
+                  color: #333;
+                  line-height: 1.5;
+                }
+                h1 {
+                  font-size: 24px;
+                  margin-bottom: 16px;
+                  color: #1890ff;
+                  text-align: center;
+                }
+                h2 {
+                  font-size: 18px;
+                  margin-top: 20px;
+                  margin-bottom: 10px;
+                  color: #333;
+                  border-bottom: 1px solid #eee;
+                  padding-bottom: 5px;
+                }
+                p {
+                  margin-bottom: 8px;
+                }
+                .print-header {
+                  text-align: center;
+                  margin-bottom: 24px;
+                }
+                .print-date {
+                  font-size: 12px;
+                  color: #666;
+                  margin-bottom: 16px;
+                  text-align: center;
+                }
+                .print-section {
+                  margin-bottom: 30px;
+                  page-break-inside: avoid;
+                }
+                .chart-section {
+                  text-align: center;
+                  margin: 30px 0;
+                }
+                table {
+                  width: 100%;
+                  border-collapse: collapse;
+                  margin-bottom: 24px;
+                }
+                table, th, td {
+                  border: 1px solid #ddd;
+                }
+                th, td {
+                  padding: 8px;
+                  text-align: left;
+                }
+                th {
+                  background-color: #f2f2f2;
+                }
+                .page-break {
+                  page-break-before: always;
+                }
+                footer {
+                  position: fixed;
+                  bottom: 0;
+                  left: 0;
+                  right: 0;
+                  text-align: center;
+                  font-size: 10px;
+                  color: #999;
+                  padding: 5px;
+                }
+              }
+            </style>
+          `;
           
-          // 잠시 후 인쇄 다이얼로그 표시
-          setTimeout(() => {
-            printWindow.print();
-            printWindow.close();
+          const printWindow = window.open('', '_blank');
+          if (printWindow) {
+            printWindow.document.write(`
+              <html>
+                <head>
+                  <title>${report?.title || '보고서'}</title>
+                  ${printStyles}
+                </head>
+                <body>
+                  <div class="print-header">
+                    <h1>${report?.title || '보고서'}</h1>
+                    <p class="print-date">생성일: ${dayjs(report?.createdAt).format('YYYY년 MM월 DD일 HH:mm')}</p>
+                  </div>
+                  ${printContent.innerHTML}
+                  <footer>
+                    © ${new Date().getFullYear()} 차량 정비 관리 시스템 - 인쇄일: ${dayjs().format('YYYY년 MM월 DD일 HH:mm')}
+                  </footer>
+                </body>
+              </html>
+            `);
+            
+            printWindow.document.close();
+            printWindow.focus();
+            
+            // 잠시 후 인쇄 다이얼로그 표시
+            setTimeout(() => {
+              printWindow.print();
+              printWindow.close();
+              setPrintLoading(false);
+            }, 1000);
+          } else {
+            window.alert('새 창을 열 수 없습니다. 팝업 차단을 확인해주세요.');
             setPrintLoading(false);
-          }, 500);
+          }
         } else {
-          window.alert('새 창을 열 수 없습니다. 팝업 차단을 확인해주세요.');
           setPrintLoading(false);
         }
-      } else {
-        setPrintLoading(false);
-      }
-    }, 300);
+      }, 500);
+    } catch (error) {
+      console.error('인쇄 준비 중 오류 발생:', error);
+      message.error('인쇄 준비 중 오류가 발생했습니다.');
+      setPrintLoading(false);
+    }
   };
 
   // 보고서 유형에 따른 개요 섹션 렌더링
@@ -356,12 +434,14 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
             </TabPane>
 
             <TabPane tab={<><BarChartOutlined /> 차트</>} key="chart">
-              <ReportChart
-                type={report.type}
-                data={getChartData()}
-                loading={loading}
-                height={400}
-              />
+              <div ref={chartRef}>
+                <ReportChart
+                  type={report.type}
+                  data={getChartData()}
+                  loading={loading}
+                  height={400}
+                />
+              </div>
             </TabPane>
           </Tabs>
 
@@ -396,6 +476,13 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                   ))}
                 </tbody>
               </table>
+            </div>
+            
+            <div className="print-section page-break">
+              <h2>차트</h2>
+              <div id="print-chart-container" className="chart-section">
+                {/* 차트 이미지가 여기에 삽입됩니다 */}
+              </div>
             </div>
           </div>
         </>
