@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useTodoService, Todo as TodoType, TodoCreateRequest, TodoFilter as FilterType } from '../hooks/useTodoService';
+import { useTodoService, Todo as TodoType, TodoCreateRequest, TodoFilter as FilterType, TodoUpdateRequest } from '../hooks/useTodoService';
 import TodoFilter from './TodoFilter';
-import TodoDetailModal from './TodoDetailModal';
 
 /**
  * Todo 컴포넌트 프롭스 인터페이스
@@ -11,21 +10,33 @@ interface TodoProps {
   vehicleId?: string;
   className?: string;
   showCompleted?: boolean;
+  onTodoClick?: (todo: TodoType) => void;
+  onCreateTodo?: (todoData: TodoCreateRequest) => Promise<TodoType>;
+  onUpdateTodo?: (id: string, updates: TodoUpdateRequest) => Promise<TodoType>;
+  onDeleteTodo?: (id: string) => Promise<void>;
 }
 
 /**
  * 정비 작업 관리를 위한 Todo 컴포넌트
  */
-const Todo: React.FC<TodoProps> = ({ vehicleId, className = '', showCompleted = true }) => {
+const Todo: React.FC<TodoProps> = ({ 
+  vehicleId, 
+  className = '', 
+  showCompleted = true,
+  onTodoClick,
+  onCreateTodo,
+  onUpdateTodo,
+  onDeleteTodo
+}) => {
   const navigate = useNavigate();
   const { 
     todos, 
     loading: serviceLoading, 
     error: serviceError, 
     fetchTodos,
-    createTodo,
-    updateTodo,
-    deleteTodo 
+    createTodo: serviceCreateTodo,
+    updateTodo: serviceUpdateTodo,
+    deleteTodo: serviceDeleteTodo 
   } = useTodoService();
   
   const [filteredTodos, setFilteredTodos] = useState<TodoType[]>([]);
@@ -37,10 +48,6 @@ const Todo: React.FC<TodoProps> = ({ vehicleId, className = '', showCompleted = 
   
   // 필터 상태
   const [currentFilter, setCurrentFilter] = useState<FilterType>({});
-  
-  // 상세보기 모달 상태
-  const [selectedTodo, setSelectedTodo] = useState<TodoType | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // 초기 데이터 로드
   useEffect(() => {
@@ -100,7 +107,13 @@ const Todo: React.FC<TodoProps> = ({ vehicleId, className = '', showCompleted = 
     };
     
     try {
-      await createTodo(todoData);
+      // 외부 핸들러 사용 또는 서비스 직접 호출
+      if (onCreateTodo) {
+        await onCreateTodo(todoData);
+      } else {
+        await serviceCreateTodo(todoData);
+      }
+      
       setNewTodo('');
       setPriority('medium');
       setDueDate('');
@@ -115,7 +128,12 @@ const Todo: React.FC<TodoProps> = ({ vehicleId, className = '', showCompleted = 
   // Todo 상태 토글
   const handleToggleComplete = async (id: string, completed: boolean) => {
     try {
-      await updateTodo(id, { completed: !completed });
+      // 외부 핸들러 사용 또는 서비스 직접 호출
+      if (onUpdateTodo) {
+        await onUpdateTodo(id, { completed: !completed });
+      } else {
+        await serviceUpdateTodo(id, { completed: !completed });
+      }
     } catch (err) {
       console.error('Failed to update todo:', err);
     }
@@ -125,7 +143,12 @@ const Todo: React.FC<TodoProps> = ({ vehicleId, className = '', showCompleted = 
   const handleRemoveTodo = async (id: string) => {
     if (window.confirm('이 정비 작업을 삭제하시겠습니까?')) {
       try {
-        await deleteTodo(id);
+        // 외부 핸들러 사용 또는 서비스 직접 호출
+        if (onDeleteTodo) {
+          await onDeleteTodo(id);
+        } else {
+          await serviceDeleteTodo(id);
+        }
       } catch (err) {
         console.error('Failed to delete todo:', err);
       }
@@ -134,14 +157,9 @@ const Todo: React.FC<TodoProps> = ({ vehicleId, className = '', showCompleted = 
 
   // Todo 클릭 시 상세보기
   const handleTodoClick = (todo: TodoType) => {
-    setSelectedTodo(todo);
-    setIsModalOpen(true);
-  };
-
-  // 모달 닫기
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setSelectedTodo(null);
+    if (onTodoClick) {
+      onTodoClick(todo);
+    }
   };
 
   // 필터 변경 처리
@@ -289,15 +307,6 @@ const Todo: React.FC<TodoProps> = ({ vehicleId, className = '', showCompleted = 
           ))}
         </ul>
       )}
-      
-      {/* 상세보기 모달 */}
-      <TodoDetailModal
-        todo={selectedTodo}
-        isOpen={isModalOpen}
-        onClose={handleCloseModal}
-        onUpdate={updateTodo}
-        isLoading={serviceLoading}
-      />
     </div>
   );
 };
