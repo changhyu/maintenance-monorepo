@@ -1,6 +1,6 @@
 import React from 'react';
 import { Modal, Table, Typography, Descriptions, Space, Button, Tabs } from 'antd';
-import { DownloadOutlined, FileTextOutlined, TableOutlined, BarChartOutlined } from '@ant-design/icons';
+import { DownloadOutlined, FileTextOutlined, TableOutlined, BarChartOutlined, PrinterOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { Report, ReportType, ReportFormat, ExportOptions } from '../../services/reportService';
 import ReportChart from './ReportChart';
@@ -29,6 +29,7 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
 }) => {
   const [activeTab, setActiveTab] = React.useState<string>('overview');
   const [exportLoading, setExportLoading] = React.useState<boolean>(false);
+  const [printLoading, setPrintLoading] = React.useState<boolean>(false);
 
   // 보고서 내보내기
   const handleExport = async (format: ReportFormat) => {
@@ -44,6 +45,96 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
     } finally {
       setExportLoading(false);
     }
+  };
+
+  // 보고서 인쇄
+  const handlePrint = () => {
+    setPrintLoading(true);
+    
+    setTimeout(() => {
+      const printContent = document.getElementById('report-print-content');
+      const originalContents = document.body.innerHTML;
+      
+      if (printContent) {
+        const printStyles = `
+          <style>
+            @media print {
+              body {
+                font-family: Arial, sans-serif;
+                padding: 20px;
+              }
+              h1 {
+                font-size: 24px;
+                margin-bottom: 16px;
+              }
+              h2 {
+                font-size: 18px;
+                margin-top: 20px;
+                margin-bottom: 10px;
+              }
+              p {
+                margin-bottom: 8px;
+              }
+              .print-section {
+                margin-bottom: 24px;
+                page-break-inside: avoid;
+              }
+              table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-bottom: 24px;
+              }
+              table, th, td {
+                border: 1px solid #ddd;
+              }
+              th, td {
+                padding: 8px;
+                text-align: left;
+              }
+              th {
+                background-color: #f2f2f2;
+              }
+              .page-break {
+                page-break-before: always;
+              }
+            }
+          </style>
+        `;
+        
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+          printWindow.document.write(`
+            <html>
+              <head>
+                <title>${report?.title || '보고서'}</title>
+                ${printStyles}
+              </head>
+              <body>
+                <h1>${report?.title || '보고서'}</h1>
+                <p>생성일: ${dayjs(report?.createdAt).format('YYYY년 MM월 DD일 HH:mm')}</p>
+                <hr />
+                ${printContent.innerHTML}
+              </body>
+            </html>
+          `);
+          
+          printWindow.document.close();
+          printWindow.focus();
+          
+          // 잠시 후 인쇄 다이얼로그 표시
+          setTimeout(() => {
+            printWindow.print();
+            printWindow.close();
+            setPrintLoading(false);
+          }, 500);
+        } else {
+          window.alert('새 창을 열 수 없습니다. 팝업 차단을 확인해주세요.');
+          setPrintLoading(false);
+        }
+      } else {
+        setPrintLoading(false);
+      }
+    }, 300);
   };
 
   // 보고서 유형에 따른 개요 섹션 렌더링
@@ -213,6 +304,14 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
           닫기
         </Button>,
         <Button
+          key="print"
+          icon={<PrinterOutlined />}
+          loading={printLoading}
+          onClick={handlePrint}
+        >
+          인쇄
+        </Button>,
+        <Button
           key="export-pdf"
           type="primary"
           icon={<FileTextOutlined />}
@@ -265,6 +364,40 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
               />
             </TabPane>
           </Tabs>
+
+          {/* 인쇄용 컨텐츠 (숨김) */}
+          <div id="report-print-content" style={{ display: 'none' }}>
+            <div className="print-section">
+              <h2>개요</h2>
+              {renderOverview()}
+            </div>
+
+            <div className="print-section page-break">
+              <h2>데이터</h2>
+              <table>
+                <thead>
+                  <tr>
+                    {columns.map((column: any) => (
+                      <th key={column.key}>{column.title}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {tableData.map((item: any, index: number) => (
+                    <tr key={getRowKey(item)}>
+                      {columns.map((column: any) => (
+                        <td key={`${index}-${column.key}`}>
+                          {column.render
+                            ? column.render(item[column.dataIndex], item)
+                            : item[column.dataIndex]}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </>
       )}
     </Modal>

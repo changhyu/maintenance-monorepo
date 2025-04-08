@@ -15,7 +15,10 @@ import {
   Tooltip,
   Empty,
   Spin,
-  Checkbox
+  Checkbox,
+  Row,
+  Col,
+  Tag
 } from 'antd';
 import { 
   FileTextOutlined, 
@@ -28,7 +31,10 @@ import {
   DeleteOutlined,
   ExportOutlined,
   MailOutlined,
-  EyeOutlined
+  EyeOutlined,
+  SearchOutlined,
+  FilterOutlined,
+  ReloadOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import reportService, { 
@@ -42,10 +48,10 @@ import ReportDetailModal from './ReportDetailModal';
 import { downloadFile, exportReportData } from '../../utils/reportUtils';
 import './styles.css';
 
-const { Title, Text } = Typography;
 const { TabPane } = Tabs;
 const { RangePicker } = DatePicker;
 const { Option } = Select;
+const { Search } = Input;
 
 /**
  * 정비 보고서 대시보드 컴포넌트
@@ -55,6 +61,7 @@ const ReportDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('create');
   const [reportType, setReportType] = useState<ReportType>(ReportType.COMPLETION_RATE);
   const [reports, setReports] = useState<Report[]>([]);
+  const [filteredReports, setFilteredReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [dateRange, setDateRange] = useState<[Date, Date]>([
     new Date(new Date().setMonth(new Date().getMonth() - 1)),
@@ -75,6 +82,10 @@ const ReportDashboard: React.FC = () => {
   const [scheduleFrequency, setScheduleFrequency] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
   const [detailModalVisible, setDetailModalVisible] = useState<boolean>(false);
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+  const [searchText, setSearchText] = useState<string>('');
+  const [filterVisible, setFilterVisible] = useState<boolean>(false);
+  const [filterReportType, setFilterReportType] = useState<ReportType | ''>('');
+  const [filterDateRange, setFilterDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null]>([null, null]);
 
   // 페이지 로드 시 보고서 목록 가져오기
   useEffect(() => {
@@ -83,12 +94,59 @@ const ReportDashboard: React.FC = () => {
     }
   }, [activeTab]);
 
+  // 보고서 필터링
+  useEffect(() => {
+    if (reports.length > 0) {
+      filterReports();
+    }
+  }, [reports, searchText, filterReportType, filterDateRange]);
+
+  // 보고서 필터링 함수
+  const filterReports = () => {
+    let filtered = [...reports];
+
+    // 검색어 필터링
+    if (searchText) {
+      const searchLower = searchText.toLowerCase();
+      filtered = filtered.filter(report => 
+        report.title.toLowerCase().includes(searchLower) || 
+        getReportTypeName(report.type).toLowerCase().includes(searchLower)
+      );
+    }
+
+    // 보고서 유형 필터링
+    if (filterReportType) {
+      filtered = filtered.filter(report => report.type === filterReportType);
+    }
+
+    // 날짜 범위 필터링
+    if (filterDateRange[0] && filterDateRange[1]) {
+      const startDate = filterDateRange[0].startOf('day');
+      const endDate = filterDateRange[1].endOf('day');
+      
+      filtered = filtered.filter(report => {
+        const reportDate = dayjs(report.createdAt);
+        return reportDate.isAfter(startDate) && reportDate.isBefore(endDate);
+      });
+    }
+
+    setFilteredReports(filtered);
+  };
+
+  // 필터 초기화
+  const resetFilters = () => {
+    setSearchText('');
+    setFilterReportType('');
+    setFilterDateRange([null, null]);
+  };
+
   // 보고서 목록 조회
   const fetchReports = async () => {
     setLoading(true);
     try {
       const reportList = await reportService.getReports();
       setReports(reportList);
+      setFilteredReports(reportList);
     } catch (error) {
       console.error('보고서 목록 조회 중 오류 발생:', error);
       message.error('보고서 목록을 불러오는 데 실패했습니다.');
@@ -292,6 +350,24 @@ const ReportDashboard: React.FC = () => {
     }
   };
 
+  // 보고서 유형에 따른 태그 색상
+  const getReportTypeColor = (type: ReportType) => {
+    switch (type) {
+      case ReportType.COMPLETION_RATE:
+        return 'blue';
+      case ReportType.VEHICLE_HISTORY:
+        return 'green';
+      case ReportType.COST_ANALYSIS:
+        return 'gold';
+      case ReportType.MAINTENANCE_SUMMARY:
+        return 'purple';
+      case ReportType.MAINTENANCE_FORECAST:
+        return 'magenta';
+      default:
+        return 'default';
+    }
+  };
+
   // 보고서 목록 테이블 컬럼
   const columns = [
     {
@@ -309,13 +385,20 @@ const ReportDashboard: React.FC = () => {
       title: '유형',
       dataIndex: 'type',
       key: 'type',
-      render: (type: ReportType) => getReportTypeName(type),
+      render: (type: ReportType) => (
+        <Tag color={getReportTypeColor(type)}>
+          {getReportTypeName(type)}
+        </Tag>
+      ),
     },
     {
       title: '생성일',
       dataIndex: 'createdAt',
       key: 'createdAt',
       render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm'),
+      sorter: (a: Report, b: Report) => {
+        return dayjs(a.createdAt).unix() - dayjs(b.createdAt).unix();
+      }
     },
     {
       title: '작업',
@@ -415,6 +498,120 @@ const ReportDashboard: React.FC = () => {
       console.error('보고서 내보내기 중 오류 발생:', error);
       message.error('보고서 내보내기에 실패했습니다.');
     }
+  };
+
+  // 필터 영역 렌더링
+  const renderFilterSection = () => {
+    return (
+      <div className="report-filters" style={{ marginBottom: 16 }}>
+        <Row gutter={[16, 16]} align="middle">
+          <Col xs={24} md={8}>
+            <Search
+              placeholder="보고서 검색"
+              allowClear
+              enterButton={<SearchOutlined />}
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              onSearch={(value) => setSearchText(value)}
+            />
+          </Col>
+          <Col xs={24} md={16}>
+            <Space>
+              <Button 
+                icon={<FilterOutlined />} 
+                onClick={() => setFilterVisible(!filterVisible)}
+                type={filterVisible ? "primary" : "default"}
+              >
+                필터
+              </Button>
+              {(filterReportType || (filterDateRange[0] && filterDateRange[1])) && (
+                <Button icon={<ReloadOutlined />} onClick={resetFilters}>
+                  필터 초기화
+                </Button>
+              )}
+              <div>
+                {filterReportType && (
+                  <Tag 
+                    color={getReportTypeColor(filterReportType)} 
+                    closable 
+                    onClose={() => setFilterReportType('')}
+                  >
+                    {getReportTypeName(filterReportType)}
+                  </Tag>
+                )}
+                {filterDateRange[0] && filterDateRange[1] && (
+                  <Tag 
+                    color="blue" 
+                    closable 
+                    onClose={() => setFilterDateRange([null, null])}
+                  >
+                    {`${filterDateRange[0].format('YYYY-MM-DD')} ~ ${filterDateRange[1].format('YYYY-MM-DD')}`}
+                  </Tag>
+                )}
+              </div>
+            </Space>
+          </Col>
+        </Row>
+        
+        {filterVisible && (
+          <div className="filter-options" style={{ marginTop: 16, padding: 16, backgroundColor: '#f7f7f7', borderRadius: 4 }}>
+            <Row gutter={[16, 16]}>
+              <Col xs={24} md={12}>
+                <Form.Item label="보고서 유형">
+                  <Select
+                    placeholder="모든 유형"
+                    value={filterReportType}
+                    onChange={setFilterReportType}
+                    style={{ width: '100%' }}
+                    allowClear
+                  >
+                    <Option value={ReportType.COMPLETION_RATE}>
+                      <Space>
+                        <BarChartOutlined />
+                        <span>완료율 보고서</span>
+                      </Space>
+                    </Option>
+                    <Option value={ReportType.VEHICLE_HISTORY}>
+                      <Space>
+                        <CarOutlined />
+                        <span>차량 정비 이력</span>
+                      </Space>
+                    </Option>
+                    <Option value={ReportType.COST_ANALYSIS}>
+                      <Space>
+                        <DollarOutlined />
+                        <span>비용 분석 보고서</span>
+                      </Space>
+                    </Option>
+                    <Option value={ReportType.MAINTENANCE_SUMMARY}>
+                      <Space>
+                        <ToolOutlined />
+                        <span>정비 요약 보고서</span>
+                      </Space>
+                    </Option>
+                    <Option value={ReportType.MAINTENANCE_FORECAST}>
+                      <Space>
+                        <CalendarOutlined />
+                        <span>정비 예측 보고서</span>
+                      </Space>
+                    </Option>
+                  </Select>
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item label="생성일">
+                  <RangePicker
+                    value={filterDateRange}
+                    onChange={(dates) => setFilterDateRange(dates as [dayjs.Dayjs | null, dayjs.Dayjs | null])}
+                    style={{ width: '100%' }}
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -541,12 +738,18 @@ const ReportDashboard: React.FC = () => {
 
         <TabPane tab="보고서 관리" key="manage">
           <div className="report-list">
+            {renderFilterSection()}
+            
             <Spin spinning={loading}>
-              {reports.length === 0 ? (
-                <Empty description="생성된 보고서가 없습니다." />
+              {filteredReports.length === 0 ? (
+                <Empty description={
+                  searchText || filterReportType || (filterDateRange[0] && filterDateRange[1]) 
+                    ? "검색 결과가 없습니다"
+                    : "생성된 보고서가 없습니다"
+                } />
               ) : (
                 <Table
-                  dataSource={reports}
+                  dataSource={filteredReports}
                   columns={columns}
                   rowKey="id"
                   pagination={{ pageSize: 10 }}

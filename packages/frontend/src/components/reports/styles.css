@@ -322,6 +322,43 @@
   margin-top: 16px;
 }
 
+/* 태그 스타일 */
+.ant-tag {
+  margin-right: 8px;
+  font-weight: 500;
+}
+
+/* 인쇄 관련 스타일 */
+@media print {
+  .report-dashboard .ant-tabs-nav,
+  .report-filters,
+  .ant-table-pagination,
+  .ant-btn {
+    display: none !important;
+  }
+  
+  .report-dashboard {
+    border: none;
+    box-shadow: none;
+    padding: 0;
+    margin: 0;
+  }
+  
+  .chart-container {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  
+  .ant-table {
+    page-break-inside: auto;
+  }
+  
+  .ant-table-tbody tr {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+}
+
 /* 반응형 조정 */
 @media (max-width: 768px) {
   .report-form {
@@ -330,5 +367,9 @@
   
   .chart-container {
     min-height: 250px;
+  }
+  
+  .filter-options {
+    padding: 12px;
   }
 } 
