@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useTodoService, Todo as TodoType, TodoCreateRequest } from '../hooks/useTodoService';
+import { useTodoService, Todo as TodoType, TodoCreateRequest, TodoFilter as FilterType } from '../hooks/useTodoService';
+import TodoFilter from './TodoFilter';
+import TodoDetailModal from './TodoDetailModal';
 
 /**
  * Todo 컴포넌트 프롭스 인터페이스
@@ -32,19 +34,26 @@ const Todo: React.FC<TodoProps> = ({ vehicleId, className = '', showCompleted = 
   const [dueDate, setDueDate] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // 필터 상태
+  const [currentFilter, setCurrentFilter] = useState<FilterType>({});
+  
+  // 상세보기 모달 상태
+  const [selectedTodo, setSelectedTodo] = useState<TodoType | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // 초기 데이터 로드
   useEffect(() => {
     const loadTodos = async () => {
       try {
-        await fetchTodos(vehicleId ? { vehicleId } : undefined);
+        await fetchTodos(vehicleId ? { vehicleId, ...currentFilter } : currentFilter);
       } catch (err) {
         console.error('Failed to load todos:', err);
       }
     };
     
     loadTodos();
-  }, [fetchTodos, vehicleId]);
+  }, [fetchTodos, vehicleId, currentFilter]);
 
   // 필터링된 Todo 항목 설정
   useEffect(() => {
@@ -52,12 +61,7 @@ const Todo: React.FC<TodoProps> = ({ vehicleId, className = '', showCompleted = 
 
     let filtered = [...todos];
     
-    // 차량 ID로 필터링
-    if (vehicleId) {
-      filtered = filtered.filter(todo => todo.vehicleId === vehicleId);
-    }
-    
-    // 완료 상태로 필터링
+    // 완료 상태로 필터링 (컴포넌트 prop 기반)
     if (!showCompleted) {
       filtered = filtered.filter(todo => !todo.completed);
     }
@@ -128,8 +132,26 @@ const Todo: React.FC<TodoProps> = ({ vehicleId, className = '', showCompleted = 
     }
   };
 
+  // Todo 클릭 시 상세보기
+  const handleTodoClick = (todo: TodoType) => {
+    setSelectedTodo(todo);
+    setIsModalOpen(true);
+  };
+
+  // 모달 닫기
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedTodo(null);
+  };
+
+  // 필터 변경 처리
+  const handleFilterChange = (filter: FilterType) => {
+    setCurrentFilter(filter);
+  };
+
   // 차량 상세 페이지로 이동
-  const handleViewVehicle = (vehicleId: string) => {
+  const handleViewVehicle = (e: React.MouseEvent, vehicleId: string) => {
+    e.stopPropagation();
     navigate(`/vehicles/${vehicleId}`);
   };
 
@@ -148,6 +170,12 @@ const Todo: React.FC<TodoProps> = ({ vehicleId, className = '', showCompleted = 
   return (
     <div className={`todo-component ${className}`}>
       <h2 className="text-xl font-bold mb-4">정비 작업</h2>
+      
+      {/* 필터링 컴포넌트 */}
+      <TodoFilter
+        onFilterChange={handleFilterChange}
+        className="mb-6"
+      />
       
       {/* 새 작업 추가 폼 */}
       <div className="flex flex-col gap-2 mb-4">
@@ -199,15 +227,19 @@ const Todo: React.FC<TodoProps> = ({ vehicleId, className = '', showCompleted = 
           {filteredTodos.map((todo) => (
             <li
               key={todo.id}
+              onClick={() => handleTodoClick(todo)}
               className={`border p-3 rounded flex items-center justify-between ${
                 todo.completed ? 'bg-gray-100' : ''
-              }`}
+              } cursor-pointer hover:bg-gray-50`}
             >
               <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
                   checked={todo.completed}
-                  onChange={() => handleToggleComplete(todo.id, todo.completed)}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    handleToggleComplete(todo.id, todo.completed);
+                  }}
                 />
                 
                 <div>
@@ -234,7 +266,7 @@ const Todo: React.FC<TodoProps> = ({ vehicleId, className = '', showCompleted = 
                     
                     {todo.vehicleId && (
                       <button
-                        onClick={() => handleViewVehicle(todo.vehicleId!)}
+                        onClick={(e) => handleViewVehicle(e, todo.vehicleId!)}
                         className="text-xs text-blue-600 hover:underline"
                       >
                         차량 보기
@@ -245,7 +277,10 @@ const Todo: React.FC<TodoProps> = ({ vehicleId, className = '', showCompleted = 
               </div>
               
               <button
-                onClick={() => handleRemoveTodo(todo.id)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleRemoveTodo(todo.id);
+                }}
                 className="text-red-500 hover:text-red-700"
               >
                 삭제
@@ -254,6 +289,15 @@ const Todo: React.FC<TodoProps> = ({ vehicleId, className = '', showCompleted = 
           ))}
         </ul>
       )}
+      
+      {/* 상세보기 모달 */}
+      <TodoDetailModal
+        todo={selectedTodo}
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        onUpdate={updateTodo}
+        isLoading={serviceLoading}
+      />
     </div>
   );
 };
