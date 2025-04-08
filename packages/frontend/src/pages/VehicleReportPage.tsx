@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Table, Card, Row, Col, Tabs, Space, Spin, 
   Alert, Typography, Badge, Select, Button, 
-  Divider, Empty
+  Divider, Empty, message
 } from 'antd';
 import { 
   CarOutlined, LineChartOutlined, 
@@ -18,6 +18,7 @@ import MaintenanceTrendChart from '../components/charts/MaintenanceTrendChart';
 import { ReportType } from '../components/common/ReportGenerator';
 import axios from 'axios';
 import apiClient from '../services/api';
+import { BookingButton } from '../components/booking/BookingModal';
 
 const { TabPane } = Tabs;
 const { Title, Text } = Typography;
@@ -226,6 +227,23 @@ const VehicleReportPage: React.FC = () => {
         </div>
       ),
     },
+    {
+      title: '정비 예약',
+      key: 'action',
+      width: 120,
+      render: (_: any, record: ReportVehicle) => (
+        <Space>
+          <BookingButton 
+            vehicleId={record.id} 
+            buttonText={record.healthScore < 50 ? '긴급 정비' : '정비 예약'} 
+            buttonType={record.healthScore < 50 ? 'primary' : 'default'}
+            onBookingCreated={(bookingId) => {
+              message.success(`차량 ${record.name}에 대한 정비 예약이 완료되었습니다. (예약 ID: ${bookingId})`);
+            }}
+          />
+        </Space>
+      ),
+    },
   ];
 
   return (
@@ -245,6 +263,14 @@ const VehicleReportPage: React.FC = () => {
               >
                 새로고침
               </Button>
+              <BookingButton 
+                buttonText="신규 정비 예약" 
+                buttonType="primary"
+                onBookingCreated={(bookingId) => {
+                  message.success(`정비 예약이 완료되었습니다. (예약 ID: ${bookingId})`);
+                  fetchVehicles();
+                }}
+              />
               <ReportGenerator
                 data={filteredVehicles}
                 availableTypes={[
@@ -322,152 +348,178 @@ const VehicleReportPage: React.FC = () => {
 
       {/* 데이터 표시 영역 */}
       {!loading && !error && (
-        <Tabs 
-          activeKey={activeTab}
-          onChange={setActiveTab}
-          style={{ marginBottom: '20px' }}
-        >
-          <TabPane tab={<span><CarOutlined /> 차량 상태</span>} key="status">
-            <Table
-              dataSource={filteredVehicles}
-              columns={columns}
-              rowKey="id"
-              pagination={{ pageSize: 10 }}
-              scroll={{ x: 1000 }}
-              loading={loading}
-              locale={{ emptyText: <Empty description="데이터가 없습니다" /> }}
+        <>
+          {!loading && !error && filteredVehicles.filter(v => v.healthScore < 50).length > 0 && (
+            <Alert
+              message="차량 상태 경고"
+              description={`${filteredVehicles.filter(v => v.healthScore < 50).length}대의 차량이 정비가 필요한 상태입니다. 해당 차량의 정비 예약을 진행해주세요.`}
+              type="warning"
+              showIcon
+              style={{ marginBottom: '20px' }}
+              action={
+                <Button 
+                  size="small" 
+                  type="primary" 
+                  danger
+                  onClick={() => {
+                    const lowHealthVehicles = filteredVehicles.filter(v => v.healthScore < 50);
+                    if (lowHealthVehicles.length > 0) {
+                      message.info(`${lowHealthVehicles[0].name} 차량의 정비 예약을 위해 목록에서 "긴급 정비" 버튼을 클릭하세요.`);
+                    }
+                  }}
+                >
+                  상세 보기
+                </Button>
+              }
             />
-          </TabPane>
-          
-          <TabPane tab={<span><LineChartOutlined /> 요약 대시보드</span>} key="dashboard">
-            <Row gutter={[16, 16]}>
-              <Col span={8}>
-                <Card title="차량 유형 분포">
-                  {filteredVehicles.length > 0 ? (
-                    <VehicleTypeChart 
-                      data={Object.entries(filteredVehicles.reduce((acc, vehicle) => {
-                        acc[vehicle.type] = (acc[vehicle.type] || 0) + 1;
-                        return acc;
-                      }, {} as Record<string, number>)).map(([label, value]) => ({
-                        label,
-                        value
-                      }))}
-                    />
-                  ) : (
-                    <div style={{ height: 200, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                      <Text type="secondary">데이터가 없습니다</Text>
-                    </div>
-                  )}
-                </Card>
-              </Col>
-              <Col span={8}>
-                <Card title="차량 상태 분포">
-                  {filteredVehicles.length > 0 ? (
-                    <MaintenanceStatusChart 
-                      data={Object.entries(filteredVehicles.reduce((acc, vehicle) => {
-                        acc[vehicle.status] = (acc[vehicle.status] || 0) + 1;
-                        return acc;
-                      }, {} as Record<string, number>)).map(([label, value]) => ({
-                        label,
-                        value
-                      }))}
-                    />
-                  ) : (
-                    <div style={{ height: 200, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                      <Text type="secondary">데이터가 없습니다</Text>
-                    </div>
-                  )}
-                </Card>
-              </Col>
-              <Col span={8}>
-                <Card title="상태 점수 분포">
-                  {filteredVehicles.length > 0 ? (
-                    <CostDistributionChart 
-                      data={[
-                        { label: '양호 (80-100)', value: filteredVehicles.filter(v => v.healthScore >= 80).length },
-                        { label: '주의 (50-79)', value: filteredVehicles.filter(v => v.healthScore >= 50 && v.healthScore < 80).length },
-                        { label: '위험 (0-49)', value: filteredVehicles.filter(v => v.healthScore < 50).length }
-                      ]}
-                    />
-                  ) : (
-                    <div style={{ height: 200, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                      <Text type="secondary">데이터가 없습니다</Text>
-                    </div>
-                  )}
-                </Card>
-              </Col>
-            </Row>
-            <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-              <Col span={24}>
-                <Card title="차량 상태 점수 통계">
-                  {filteredVehicles.length > 0 ? (
-                    <MaintenanceTrendChart 
-                      data={filteredVehicles.map(vehicle => ({
-                        date: vehicle.lastMaintenance,
-                        completed: 1,
-                        pending: vehicle.healthScore < 70 ? 1 : 0
-                      }))}
-                    />
-                  ) : (
-                    <div style={{ height: 200, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                      <Text type="secondary">데이터가 없습니다</Text>
-                    </div>
-                  )}
-                </Card>
-              </Col>
-            </Row>
-          </TabPane>
-          
-          <TabPane tab={<span><FileDoneOutlined /> 상세 분석</span>} key="analysis">
-            <Card>
+          )}
+          <Tabs 
+            activeKey={activeTab}
+            onChange={setActiveTab}
+            style={{ marginBottom: '20px' }}
+          >
+            <TabPane tab={<span><CarOutlined /> 차량 상태</span>} key="status">
+              <Table
+                dataSource={filteredVehicles}
+                columns={columns}
+                rowKey="id"
+                pagination={{ pageSize: 10 }}
+                scroll={{ x: 1000 }}
+                loading={loading}
+                locale={{ emptyText: <Empty description="데이터가 없습니다" /> }}
+              />
+            </TabPane>
+            
+            <TabPane tab={<span><LineChartOutlined /> 요약 대시보드</span>} key="dashboard">
               <Row gutter={[16, 16]}>
-                <Col span={12}>
-                  <Card title="정비 횟수 분포" type="inner">
+                <Col span={8}>
+                  <Card title="차량 유형 분포">
                     {filteredVehicles.length > 0 ? (
-                      <div>
-                        <div style={{ marginBottom: 16 }}>
-                          <Title level={4}>평균 정비 횟수: {(filteredVehicles.reduce((sum, v) => sum + (v.maintenanceCount || 0), 0) / filteredVehicles.length).toFixed(1)}회</Title>
-                        </div>
-                        <div>
-                          <Text>5회 미만: {filteredVehicles.filter(v => (v.maintenanceCount || 0) < 5).length}대</Text>
-                        </div>
-                        <div>
-                          <Text>5-10회: {filteredVehicles.filter(v => (v.maintenanceCount || 0) >= 5 && (v.maintenanceCount || 0) < 10).length}대</Text>
-                        </div>
-                        <div>
-                          <Text>10회 이상: {filteredVehicles.filter(v => (v.maintenanceCount || 0) >= 10).length}대</Text>
-                        </div>
-                      </div>
+                      <VehicleTypeChart 
+                        data={Object.entries(filteredVehicles.reduce((acc, vehicle) => {
+                          acc[vehicle.type] = (acc[vehicle.type] || 0) + 1;
+                          return acc;
+                        }, {} as Record<string, number>)).map(([label, value]) => ({
+                          label,
+                          value
+                        }))}
+                      />
                     ) : (
-                      <Empty description="데이터가 없습니다" />
+                      <div style={{ height: 200, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                        <Text type="secondary">데이터가 없습니다</Text>
+                      </div>
                     )}
                   </Card>
                 </Col>
-                <Col span={12}>
-                  <Card title="정비 비용 분석" type="inner">
+                <Col span={8}>
+                  <Card title="차량 상태 분포">
                     {filteredVehicles.length > 0 ? (
-                      <div>
-                        <div style={{ marginBottom: 16 }}>
-                          <Title level={4}>총 정비 비용: {filteredVehicles.reduce((sum, v) => sum + (v.cost || 0), 0).toLocaleString('ko-KR')}원</Title>
-                          <Title level={5}>차량당 평균: {(filteredVehicles.reduce((sum, v) => sum + (v.cost || 0), 0) / filteredVehicles.length).toLocaleString('ko-KR')}원</Title>
-                        </div>
-                        <div>
-                          <Text>최고 비용 차량: {filteredVehicles.sort((a, b) => (b.cost || 0) - (a.cost || 0))[0]?.name} ({filteredVehicles.sort((a, b) => (b.cost || 0) - (a.cost || 0))[0]?.cost?.toLocaleString('ko-KR')}원)</Text>
-                        </div>
-                      </div>
+                      <MaintenanceStatusChart 
+                        data={Object.entries(filteredVehicles.reduce((acc, vehicle) => {
+                          acc[vehicle.status] = (acc[vehicle.status] || 0) + 1;
+                          return acc;
+                        }, {} as Record<string, number>)).map(([label, value]) => ({
+                          label,
+                          value
+                        }))}
+                      />
                     ) : (
-                      <Empty description="데이터가 없습니다" />
+                      <div style={{ height: 200, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                        <Text type="secondary">데이터가 없습니다</Text>
+                      </div>
+                    )}
+                  </Card>
+                </Col>
+                <Col span={8}>
+                  <Card title="상태 점수 분포">
+                    {filteredVehicles.length > 0 ? (
+                      <CostDistributionChart 
+                        data={[
+                          { label: '양호 (80-100)', value: filteredVehicles.filter(v => v.healthScore >= 80).length },
+                          { label: '주의 (50-79)', value: filteredVehicles.filter(v => v.healthScore >= 50 && v.healthScore < 80).length },
+                          { label: '위험 (0-49)', value: filteredVehicles.filter(v => v.healthScore < 50).length }
+                        ]}
+                      />
+                    ) : (
+                      <div style={{ height: 200, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                        <Text type="secondary">데이터가 없습니다</Text>
+                      </div>
                     )}
                   </Card>
                 </Col>
               </Row>
-              <Divider />
-              <Button type="primary" icon={<DownloadOutlined />} size="large" block>
-                상세 분석 보고서 다운로드
-              </Button>
-            </Card>
-          </TabPane>
-        </Tabs>
+              <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+                <Col span={24}>
+                  <Card title="차량 상태 점수 통계">
+                    {filteredVehicles.length > 0 ? (
+                      <MaintenanceTrendChart 
+                        data={filteredVehicles.map(vehicle => ({
+                          date: vehicle.lastMaintenance,
+                          completed: 1,
+                          pending: vehicle.healthScore < 70 ? 1 : 0
+                        }))}
+                      />
+                    ) : (
+                      <div style={{ height: 200, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                        <Text type="secondary">데이터가 없습니다</Text>
+                      </div>
+                    )}
+                  </Card>
+                </Col>
+              </Row>
+            </TabPane>
+            
+            <TabPane tab={<span><FileDoneOutlined /> 상세 분석</span>} key="analysis">
+              <Card>
+                <Row gutter={[16, 16]}>
+                  <Col span={12}>
+                    <Card title="정비 횟수 분포" type="inner">
+                      {filteredVehicles.length > 0 ? (
+                        <div>
+                          <div style={{ marginBottom: 16 }}>
+                            <Title level={4}>평균 정비 횟수: {(filteredVehicles.reduce((sum, v) => sum + (v.maintenanceCount || 0), 0) / filteredVehicles.length).toFixed(1)}회</Title>
+                          </div>
+                          <div>
+                            <Text>5회 미만: {filteredVehicles.filter(v => (v.maintenanceCount || 0) < 5).length}대</Text>
+                          </div>
+                          <div>
+                            <Text>5-10회: {filteredVehicles.filter(v => (v.maintenanceCount || 0) >= 5 && (v.maintenanceCount || 0) < 10).length}대</Text>
+                          </div>
+                          <div>
+                            <Text>10회 이상: {filteredVehicles.filter(v => (v.maintenanceCount || 0) >= 10).length}대</Text>
+                          </div>
+                        </div>
+                      ) : (
+                        <Empty description="데이터가 없습니다" />
+                      )}
+                    </Card>
+                  </Col>
+                  <Col span={12}>
+                    <Card title="정비 비용 분석" type="inner">
+                      {filteredVehicles.length > 0 ? (
+                        <div>
+                          <div style={{ marginBottom: 16 }}>
+                            <Title level={4}>총 정비 비용: {filteredVehicles.reduce((sum, v) => sum + (v.cost || 0), 0).toLocaleString('ko-KR')}원</Title>
+                            <Title level={5}>차량당 평균: {(filteredVehicles.reduce((sum, v) => sum + (v.cost || 0), 0) / filteredVehicles.length).toLocaleString('ko-KR')}원</Title>
+                          </div>
+                          <div>
+                            <Text>최고 비용 차량: {filteredVehicles.sort((a, b) => (b.cost || 0) - (a.cost || 0))[0]?.name} ({filteredVehicles.sort((a, b) => (b.cost || 0) - (a.cost || 0))[0]?.cost?.toLocaleString('ko-KR')}원)</Text>
+                          </div>
+                        </div>
+                      ) : (
+                        <Empty description="데이터가 없습니다" />
+                      )}
+                    </Card>
+                  </Col>
+                </Row>
+                <Divider />
+                <Button type="primary" icon={<DownloadOutlined />} size="large" block>
+                  상세 분석 보고서 다운로드
+                </Button>
+              </Card>
+            </TabPane>
+          </Tabs>
+        </>
       )}
     </div>
   );
