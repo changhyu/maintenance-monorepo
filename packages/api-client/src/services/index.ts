@@ -8,4 +8,5 @@ export * from './todoService';
 export * from './reportService';
 export * from './telemetryService';
 export * from './bookingService';
-export * from './fileService'; 
+export * from './fileService';
+export * from './paymentService'; 
