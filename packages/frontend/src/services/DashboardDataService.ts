@@ -843,6 +843,11 @@ export class DashboardDataService {
               'rgba(255, 206, 86, 0.6)',
               'rgba(75, 192, 192, 0.6)'
             ],
+            borderColor: [
+              'rgba(255, 99, 132, 1)',
+              'rgba(255, 206, 86, 1)',
+              'rgba(75, 192, 192, 1)'
+            ],
             borderWidth: 1
           }]
         },
@@ -1262,40 +1267,7 @@ export class DashboardDataService {
     try {
       // API에서 보고서 관련 통계 가져오기 (현재는 임시 데이터 사용)
       // 실제 구현에서는 API 호출로 대체
-      return [
-        {
-          title: '생성된 보고서',
-          value: 32,
-          change: 15,
-          trend: 'up',
-          icon: 'file',
-          color: 'blue'
-        },
-        {
-          title: '월간 완료율',
-          value: '85.2%',
-          change: 3.5,
-          trend: 'up',
-          icon: 'chart',
-          color: 'green'
-        },
-        {
-          title: '예정된 정비',
-          value: 8,
-          change: -2,
-          trend: 'down',
-          icon: 'calendar',
-          color: 'orange'
-        },
-        {
-          title: '월간 정비 비용',
-          value: '₩1,250,000',
-          change: 5.2,
-          trend: 'up',
-          icon: 'line-chart',
-          color: 'red'
-        }
-      ];
+      return this.generateRandomReportOverviewData();
     } catch (error) {
       console.error('보고서 개요 데이터 조회 중 오류 발생:', error);
       return this.getFallbackReportOverviewData();
@@ -1326,15 +1298,122 @@ export class DashboardDataService {
   }
 
   /**
-   * 완료율 보고서 차트 데이터
+   * 데모 목적을 위한 랜덤 보고서 개요 데이터 생성
+   */
+  private generateRandomReportOverviewData(): DashboardCardData[] {
+    // 기존 데이터 베이스
+    const baseData = [
+      {
+        title: '생성된 보고서',
+        value: 32,
+        change: 15,
+        trend: 'up' as const,
+        icon: 'file',
+        color: 'blue'
+      },
+      {
+        title: '월간 완료율',
+        value: '85.2%',
+        change: 3.5,
+        trend: 'up' as const,
+        icon: 'chart',
+        color: 'green'
+      },
+      {
+        title: '예정된 정비',
+        value: 8,
+        change: -2,
+        trend: 'down' as const,
+        icon: 'calendar',
+        color: 'orange'
+      },
+      {
+        title: '월간 정비 비용',
+        value: '₩1,250,000',
+        change: 5.2,
+        trend: 'up' as const,
+        icon: 'line-chart',
+        color: 'red'
+      }
+    ];
+
+    // 데모 목적으로 랜덤 데이터 생성
+    return baseData.map(card => {
+      // 숫자 값인 경우 랜덤 변동 적용
+      if (typeof card.value === 'number') {
+        const randomChange = Math.floor(Math.random() * 6) - 2; // -2 ~ 3 사이의 랜덤 변화
+        const newValue = Math.max(1, card.value + randomChange);
+        
+        // 변화율 계산
+        const changePercent = card.value > 0 ? ((newValue - card.value) / card.value) * 100 : 0;
+        const trend = changePercent > 0 ? 'up' as const : changePercent < 0 ? 'down' as const : 'neutral' as const;
+
+        return {
+          ...card,
+          value: newValue,
+          change: parseFloat(changePercent.toFixed(1)),
+          trend
+        };
+      } 
+      // 비율(%) 값인 경우
+      else if (card.value.includes('%')) {
+        const currentValue = parseFloat(card.value.replace('%', ''));
+        const randomChange = (Math.random() * 3 - 1); // -1 ~ 2 사이의 랜덤 변화
+        const newValue = Math.min(100, Math.max(50, currentValue + randomChange)).toFixed(1);
+        
+        const changePercent = currentValue > 0 ? ((parseFloat(newValue) - currentValue) / currentValue) * 100 : 0;
+        const trend = changePercent > 0 ? 'up' as const : changePercent < 0 ? 'down' as const : 'neutral' as const;
+        
+        return {
+          ...card,
+          value: `${newValue}%`,
+          change: parseFloat(changePercent.toFixed(1)),
+          trend
+        };
+      } 
+      // 금액 값인 경우
+      else if (card.value.includes('₩')) {
+        const currentValue = parseInt(card.value.replace(/[^\d]/g, ''));
+        const randomChange = Math.floor(Math.random() * 200000) - 100000; // 랜덤 금액 변화
+        const newValue = Math.max(500000, currentValue + randomChange);
+        
+        const changePercent = currentValue > 0 ? ((newValue - currentValue) / currentValue) * 100 : 0;
+        const trend = changePercent > 0 ? 'up' as const : changePercent < 0 ? 'down' as const : 'neutral' as const;
+        
+        // 한글 통화 형식으로 변환
+        const formattedValue = '₩' + newValue.toLocaleString('ko-KR');
+        
+        return {
+          ...card,
+          value: formattedValue,
+          change: parseFloat(changePercent.toFixed(1)),
+          trend
+        };
+      }
+      
+      return card;
+    });
+  }
+
+  /**
+   * 데모 목적을 위한 랜덤 완료율 차트 데이터 생성
    */
   private getCompletionRateChartData(): DashboardChartData {
+    const months = ['1월', '2월', '3월', '4월', '5월', '6월'];
+    const baseData = [65, 72, 78, 75, 82, 85];
+    
+    // 기존 데이터에 약간의 랜덤 변동 추가
+    const data = baseData.map(value => {
+      const randomOffset = Math.floor(Math.random() * 10) - 5; // -5 ~ 4 사이의 랜덤 값
+      return Math.min(100, Math.max(50, value + randomOffset)); // 50~100 사이 값으로 제한
+    });
+    
     return {
-      labels: ['1월', '2월', '3월', '4월', '5월', '6월'],
+      labels: months,
       datasets: [
         {
           label: '완료율',
-          data: [65, 72, 78, 75, 82, 85],
+          data: data,
           backgroundColor: 'rgba(54, 162, 235, 0.2)',
           borderColor: 'rgba(54, 162, 235, 1)',
           borderWidth: 1
@@ -1344,15 +1423,35 @@ export class DashboardDataService {
   }
 
   /**
-   * 비용 분석 보고서 차트 데이터
+   * 데모 목적을 위한 비용 분석 차트 데이터 생성
    */
   private getCostAnalysisChartData(): DashboardChartData {
+    const categories = ['부품', '인건비', '출장비', '기타'];
+    const baseData = [45, 25, 15, 15];
+    
+    // 합계가 100이 되도록 랜덤 데이터 생성
+    let total = 0;
+    const tempData = categories.map(() => {
+      const value = Math.floor(Math.random() * 40) + 10; // 10 ~ 49 사이의 랜덤 값
+      total += value;
+      return value;
+    });
+    
+    // 백분율로 변환 (합계가 100%가 되도록)
+    const data = tempData.map(value => Math.round((value / total) * 100));
+    
+    // 마지막 값 조정으로 합계가 정확히 100이 되도록 보정
+    const sum = data.reduce((a, b) => a + b, 0);
+    if (sum !== 100) {
+      data[data.length - 1] += (100 - sum);
+    }
+    
     return {
-      labels: ['부품', '인건비', '출장비', '기타'],
+      labels: categories,
       datasets: [
         {
           label: '비용 분석',
-          data: [45, 25, 15, 15],
+          data: data,
           backgroundColor: [
             'rgba(255, 99, 132, 0.2)',
             'rgba(54, 162, 235, 0.2)',
@@ -1372,15 +1471,35 @@ export class DashboardDataService {
   }
 
   /**
-   * 정비 요약 보고서 차트 데이터
+   * 데모 목적을 위한 정비 요약 차트 데이터 생성
    */
   private getMaintenanceSummaryChartData(): DashboardChartData {
+    const categories = ['정기 점검', '엔진 정비', '브레이크 시스템', '전기 시스템', '냉각 시스템'];
+    const baseData = [35, 20, 15, 15, 15];
+    
+    // 합계가 100이 되도록 랜덤 데이터 생성
+    let total = 0;
+    const tempData = categories.map(() => {
+      const value = Math.floor(Math.random() * 30) + 5; // 5 ~ 34 사이의 랜덤 값
+      total += value;
+      return value;
+    });
+    
+    // 백분율로 변환 (합계가 100%가 되도록)
+    const data = tempData.map(value => Math.round((value / total) * 100));
+    
+    // 마지막 값 조정으로 합계가 정확히 100이 되도록 보정
+    const sum = data.reduce((a, b) => a + b, 0);
+    if (sum !== 100) {
+      data[data.length - 1] += (100 - sum);
+    }
+    
     return {
-      labels: ['정기 점검', '엔진 정비', '브레이크 시스템', '전기 시스템', '냉각 시스템'],
+      labels: categories,
       datasets: [
         {
           label: '정비 유형별 비율',
-          data: [35, 20, 15, 15, 15],
+          data: data,
           backgroundColor: [
             'rgba(255, 99, 132, 0.2)',
             'rgba(54, 162, 235, 0.2)',
