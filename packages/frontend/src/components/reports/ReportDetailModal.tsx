@@ -1,8 +1,7 @@
 import React from 'react';
 import { Modal, Table, Typography, Descriptions, Space, Button, Tabs } from 'antd';
 import { DownloadOutlined, FileTextOutlined, TableOutlined, BarChartOutlined } from '@ant-design/icons';
-import { format } from 'date-fns';
-import { ko } from 'date-fns/locale';
+import dayjs from 'dayjs';
 import { Report, ReportType, ReportFormat, ExportOptions } from '../../services/reportService';
 import ReportChart from './ReportChart';
 import './styles.css';
@@ -198,6 +197,11 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
     }
   };
 
+  // 테이블 행 키 생성 함수
+  const getRowKey = (record: any) => {
+    return record.id || record.date || record.vehicleId || Math.random().toString(36).substring(2, 9);
+  };
+
   return (
     <Modal
       title={report?.title || '보고서 상세'}
@@ -232,7 +236,7 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
           <div className="report-detail-header">
             <Space direction="vertical" size="small">
               <Title level={4}>{report.title}</Title>
-              <Text type="secondary">생성일: {format(new Date(report.createdAt), 'yyyy년 MM월 dd일 HH:mm', { locale: ko })}</Text>
+              <Text type="secondary">생성일: {dayjs(report.createdAt).format('YYYY년 MM월 DD일 HH:mm')}</Text>
             </Space>
           </div>
 
@@ -246,7 +250,7 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                 dataSource={tableData}
                 columns={columns}
                 pagination={{ pageSize: 5 }}
-                rowKey={(record) => record.id || record.date || record.vehicleId || Math.random().toString(36).substr(2, 9)}
+                rowKey={getRowKey}
                 size="small"
                 scroll={{ x: 'max-content' }}
               />

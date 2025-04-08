@@ -10,10 +10,11 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
+  Tooltip as RechartsTooltip,
   Legend,
   ResponsiveContainer,
-  Cell
+  Cell,
+  PieLabelRenderProps
 } from 'recharts';
 import { ReportType } from '../../services/reportService';
 import './styles.css';
@@ -144,6 +145,13 @@ const ReportChart: React.FC<ReportChartProps> = ({
   const chartData = getChartData();
   const { x: xLabel, y: yLabel } = getAxisLabels();
 
+  // 파이 차트 커스텀 라벨 렌더러
+  const renderCustomizedPieLabel = (props: PieLabelRenderProps) => {
+    const { name, percent } = props;
+    if (!name || percent === undefined) return null;
+    return `${name}: ${(percent * 100).toFixed(0)}%`;
+  };
+
   // 차트 내용 렌더링
   const renderChart = () => {
     if (loading) {
@@ -162,7 +170,7 @@ const ReportChart: React.FC<ReportChartProps> = ({
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="date" label={{ value: xLabel, position: 'insideBottomRight', offset: -10 }} />
               <YAxis label={{ value: yLabel, angle: -90, position: 'insideLeft' }} />
-              <Tooltip />
+              <RechartsTooltip />
               <Legend />
               <Line type="monotone" dataKey="value" stroke="#8884d8" activeDot={{ r: 8 }} />
             </LineChart>
@@ -175,7 +183,7 @@ const ReportChart: React.FC<ReportChartProps> = ({
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" label={{ value: xLabel, position: 'insideBottomRight', offset: -10 }} />
               <YAxis label={{ value: yLabel, angle: -90, position: 'insideLeft' }} />
-              <Tooltip />
+              <RechartsTooltip />
               <Legend />
               <Bar dataKey="value" fill="#8884d8">
                 {chartData.map((entry: any, index: number) => (
@@ -198,13 +206,13 @@ const ReportChart: React.FC<ReportChartProps> = ({
                 fill="#8884d8"
                 dataKey="value"
                 nameKey="name"
-                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                label={renderCustomizedPieLabel}
               >
                 {chartData.map((entry: any, index: number) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
-              <Tooltip />
+              <RechartsTooltip />
               <Legend />
             </PieChart>
           </ResponsiveContainer>
