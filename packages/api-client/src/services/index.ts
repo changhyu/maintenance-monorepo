@@ -4,4 +4,7 @@ export * from './userService';
 export * from './notificationService';
 export * from './shopService';
 export * from './dashboardService';
-export * from './todoService'; 
+export * from './todoService';
+export * from './reportService';
+export * from './telemetryService';
+export * from './bookingService'; 
