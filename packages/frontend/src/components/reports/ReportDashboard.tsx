@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   Card, 
   Tabs, 
@@ -18,7 +18,14 @@ import {
   Checkbox,
   Row,
   Col,
-  Tag
+  Tag,
+  Dropdown,
+  Menu,
+  Popconfirm,
+  List,
+  Radio,
+  Divider,
+  Progress
 } from 'antd';
 import { 
   FileTextOutlined, 
@@ -34,7 +41,17 @@ import {
   EyeOutlined,
   SearchOutlined,
   FilterOutlined,
-  ReloadOutlined
+  ReloadOutlined,
+  SaveOutlined,
+  FolderOpenOutlined,
+  EditOutlined,
+  PlusOutlined,
+  CheckOutlined,
+  LineChartOutlined,
+  PieChartOutlined,
+  PrinterOutlined,
+  SettingOutlined,
+  CloseOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import reportService, { 
@@ -42,16 +59,50 @@ import reportService, {
   ReportFilter, 
   Report, 
   ReportFormat,
-  ExportOptions
+  ExportOptions,
+  Report as ServiceReport,
+  generateReport, exportReport
 } from '../../services/reportService';
 import ReportDetailModal from './ReportDetailModal';
 import { downloadFile, exportReportData } from '../../utils/reportUtils';
 import './styles.css';
+import ReportChart from './ReportChart';
 
 const { TabPane } = Tabs;
 const { RangePicker } = DatePicker;
 const { Option } = Select;
 const { Search } = Input;
+
+// 로컬 인터페이스 정의
+interface LocalReport {
+  id: string;
+  name: string;
+  type: ReportType;
+  createdAt: string;
+  dateRange: [string, string];
+  vehicle?: string;
+  maintenanceType?: string;
+  status: string;
+  data: Array<{
+    date: string;
+    description: string;
+    status: string;
+    priority: string;
+  }>;
+}
+
+interface ReportTemplate {
+  id: string;
+  name: string;
+  type: ReportType;
+  dateRange: [string, string];
+  vehicle?: string;
+  maintenanceType?: string;
+  includeCharts: boolean;
+  includeHeader: boolean;
+  includeFooter: boolean;
+  createdAt: string;
+}
 
 /**
  * 정비 보고서 대시보드 컴포넌트
@@ -60,8 +111,8 @@ const ReportDashboard: React.FC = () => {
   // 상태 관리
   const [activeTab, setActiveTab] = useState<string>('create');
   const [reportType, setReportType] = useState<ReportType>(ReportType.COMPLETION_RATE);
-  const [reports, setReports] = useState<Report[]>([]);
-  const [filteredReports, setFilteredReports] = useState<Report[]>([]);
+  const [reports, setReports] = useState<LocalReport[]>([]);
+  const [filteredReports, setFilteredReports] = useState<LocalReport[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [dateRange, setDateRange] = useState<[Date, Date]>([
     new Date(new Date().setMonth(new Date().getMonth() - 1)),
@@ -81,11 +132,20 @@ const ReportDashboard: React.FC = () => {
   const [emailRecipients, setEmailRecipients] = useState<string>('');
   const [scheduleFrequency, setScheduleFrequency] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
   const [detailModalVisible, setDetailModalVisible] = useState<boolean>(false);
-  const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+  const [selectedReport, setSelectedReport] = useState<LocalReport | null>(null);
   const [searchText, setSearchText] = useState<string>('');
   const [filterVisible, setFilterVisible] = useState<boolean>(false);
   const [filterReportType, setFilterReportType] = useState<ReportType | ''>('');
   const [filterDateRange, setFilterDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null]>([null, null]);
+  const [templates, setTemplates] = useState<ReportTemplate[]>([]);
+  const [templateModalVisible, setTemplateModalVisible] = useState(false);
+  const [templateName, setTemplateName] = useState('');
+  const [selectedTemplate, setSelectedTemplate] = useState<ReportTemplate | null>(null);
+  const [templateManageModalVisible, setTemplateManageModalVisible] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<ReportTemplate | null>(null);
+  const [editingTemplateName, setEditingTemplateName] = useState('');
+  const [printLoading, setPrintLoading] = useState<boolean>(false);
+  const printFrameRef = useRef<HTMLIFrameElement>(null);
 
   // 페이지 로드 시 보고서 목록 가져오기
   useEffect(() => {
@@ -109,7 +169,7 @@ const ReportDashboard: React.FC = () => {
     if (searchText) {
       const searchLower = searchText.toLowerCase();
       filtered = filtered.filter(report => 
-        report.title.toLowerCase().includes(searchLower) || 
+        report.name.toLowerCase().includes(searchLower) || 
         getReportTypeName(report.type).toLowerCase().includes(searchLower)
       );
     }
@@ -222,7 +282,7 @@ const ReportDashboard: React.FC = () => {
   };
 
   // 보고서 상세 보기
-  const showReportDetail = (report: Report) => {
+  const showReportDetail = (report: LocalReport) => {
     setSelectedReport(report);
     setDetailModalVisible(true);
   };
@@ -368,13 +428,114 @@ const ReportDashboard: React.FC = () => {
     }
   };
 
+  // 인쇄 기능을 위한 상태 추가
+  const printReport = useCallback((report: LocalReport) => {
+    setPrintLoading(true);
+    
+    // 인쇄할 내용을 생성
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>${report.name} - 인쇄</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 30px; }
+          .report-header { text-align: center; margin-bottom: 30px; }
+          .report-title { font-size: 24px; font-weight: bold; margin-bottom: 10px; }
+          .report-subtitle { font-size: 16px; color: #666; margin-bottom: 5px; }
+          .report-date { font-size: 14px; color: #888; }
+          .report-content { margin-top: 20px; }
+          table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+          th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
+          th { background-color: #f5f5f5; font-weight: bold; }
+          .report-footer { margin-top: 30px; font-size: 12px; color: #888; text-align: center; }
+          @media print {
+            .no-print { display: none; }
+            body { margin: 0; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="report-header">
+          <div class="report-title">${report.name}</div>
+          <div class="report-subtitle">${getReportTypeName(report.type)}</div>
+          <div class="report-date">생성일: ${dayjs(report.createdAt).format('YYYY년 MM월 DD일')}</div>
+        </div>
+        <div class="report-content">
+          <h2>보고서 요약</h2>
+          <p>기간: ${dayjs(report.dateRange[0]).format('YYYY년 MM월 DD일')} ~ ${dayjs(report.dateRange[1]).format('YYYY년 MM월 DD일')}</p>
+          ${report.vehicle ? `<p>차량: ${report.vehicle}</p>` : ''}
+          ${report.maintenanceType ? `<p>정비 유형: ${report.maintenanceType}</p>` : ''}
+          
+          <h2>상세 정보</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>날짜</th>
+                <th>설명</th>
+                <th>상태</th>
+                <th>중요도</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${report.data.map((item: any) => `
+                <tr>
+                  <td>${dayjs(item.date).format('YYYY-MM-DD')}</td>
+                  <td>${item.description}</td>
+                  <td>${item.status}</td>
+                  <td>${item.priority}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+        <div class="report-footer">
+          <p>© ${new Date().getFullYear()} 차량 정비 관리 시스템 - 이 보고서는 시스템에서 자동 생성되었습니다.</p>
+        </div>
+        <div class="no-print">
+          <button onclick="window.print();window.close();" style="padding: 10px 20px; background: #1890ff; color: white; border: none; border-radius: 4px; cursor: pointer; display: block; margin: 20px auto;">인쇄하기</button>
+        </div>
+      </body>
+      </html>
+    `;
+    
+    // iframe을 사용하여 인쇄 내용 로드
+    if (printFrameRef.current) {
+      const iframe = printFrameRef.current;
+      const iframeWindow = iframe.contentWindow;
+      
+      if (iframeWindow) {
+        iframeWindow.document.open();
+        iframeWindow.document.write(printContent);
+        iframeWindow.document.close();
+        
+        // 인쇄 리소스 로딩이 완료되면 인쇄 다이얼로그 열기
+        iframe.onload = () => {
+          setPrintLoading(false);
+          setTimeout(() => {
+            iframeWindow.focus();
+            iframeWindow.print();
+          }, 500);
+        };
+      }
+    } else {
+      setPrintLoading(false);
+      message.error('인쇄 초기화에 실패했습니다');
+    }
+  }, []);
+  
+  // 모달에서 인쇄하기
+  const handlePrintFromModal = useCallback((report: LocalReport) => {
+    printReport(report);
+  }, [printReport]);
+
   // 보고서 목록 테이블 컬럼
   const columns = [
     {
       title: '보고서 이름',
-      dataIndex: 'title',
-      key: 'title',
-      render: (text: string, record: Report) => (
+      dataIndex: 'name',
+      key: 'name',
+      render: (text: string, record: LocalReport) => (
         <Space>
           {getReportTypeIcon(record.type)}
           <span>{text}</span>
@@ -396,36 +557,44 @@ const ReportDashboard: React.FC = () => {
       dataIndex: 'createdAt',
       key: 'createdAt',
       render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm'),
-      sorter: (a: Report, b: Report) => {
+      sorter: (a: LocalReport, b: LocalReport) => {
         return dayjs(a.createdAt).unix() - dayjs(b.createdAt).unix();
       }
     },
     {
-      title: '작업',
-      key: 'actions',
-      render: (_: any, record: Report) => (
-        <Space size="middle">
+      title: '액션',
+      key: 'action',
+      render: (_, record: LocalReport) => (
+        <Space size="small">
           <Tooltip title="상세 보기">
-            <Button
-              type="text"
-              icon={<EyeOutlined />}
-              onClick={() => showReportDetail(record)}
+            <Button 
+              icon={<EyeOutlined />} 
+              size="small" 
+              onClick={() => showReportDetail(record)} 
             />
           </Tooltip>
           <Tooltip title="내보내기">
-            <Button
-              type="text"
-              icon={<ExportOutlined />}
+            <Button 
+              icon={<ExportOutlined />} 
+              size="small" 
               onClick={() => {
                 setSelectedReportId(record.id);
                 setExportModalVisible(true);
               }}
             />
           </Tooltip>
-          <Tooltip title="이메일 발송">
-            <Button
-              type="text"
-              icon={<MailOutlined />}
+          <Tooltip title="인쇄">
+            <Button 
+              icon={<PrinterOutlined />} 
+              size="small" 
+              onClick={() => printReport(record)}
+              loading={selectedReport?.id === record.id && printLoading}
+            />
+          </Tooltip>
+          <Tooltip title="이메일">
+            <Button 
+              icon={<MailOutlined />} 
+              size="small" 
               onClick={() => {
                 setSelectedReportId(record.id);
                 setScheduleModalVisible(true);
@@ -433,20 +602,14 @@ const ReportDashboard: React.FC = () => {
             />
           </Tooltip>
           <Tooltip title="삭제">
-            <Button
-              type="text"
-              danger
-              icon={<DeleteOutlined />}
-              onClick={() => {
-                Modal.confirm({
-                  title: '보고서 삭제',
-                  content: '이 보고서를 삭제하시겠습니까?',
-                  okText: '삭제',
-                  cancelText: '취소',
-                  onOk: () => deleteReport(record.id),
-                });
-              }}
-            />
+            <Popconfirm
+              title="이 보고서를 삭제하시겠습니까?"
+              onConfirm={() => deleteReport(record.id)}
+              okText="삭제"
+              cancelText="취소"
+            >
+              <Button icon={<DeleteOutlined />} size="small" danger />
+            </Popconfirm>
           </Tooltip>
         </Space>
       ),
@@ -474,152 +637,218 @@ const ReportDashboard: React.FC = () => {
     '오일 교체'
   ];
 
-  // 상세 모달에서 보고서 내보내기
-  const handleExportFromModal = async (reportId: string, options: ExportOptions) => {
-    const report = reports.find(r => r.id === reportId);
-    if (!report) {
-      message.error('보고서를 찾을 수 없습니다.');
+  // 샘플 차량 목록
+  const sampleVehiclesDropdown = (
+    <Menu>
+      {sampleVehicles.map(vehicle => (
+        <Menu.Item key={vehicle.id} onClick={() => setSelectedVehicle(vehicle.id)}>
+          {vehicle.name}
+        </Menu.Item>
+      ))}
+    </Menu>
+  );
+
+  // 정비 유형 목록
+  const maintenanceTypesDropdown = (
+    <Menu>
+      {maintenanceTypes.map(type => (
+        <Menu.Item key={type} onClick={() => setMaintenanceType(type)}>
+          {type}
+        </Menu.Item>
+      ))}
+    </Menu>
+  );
+
+  // 샘플 차량 목록
+  const sampleVehiclesDropdown = (
+    <Menu>
+      {sampleVehicles.map(vehicle => (
+        <Menu.Item key={vehicle.id} onClick={() => setSelectedVehicle(vehicle.id)}>
+          {vehicle.name}
+        </Menu.Item>
+      ))}
+    </Menu>
+  );
+
+  // 정비 유형 목록
+  const maintenanceTypesDropdown = (
+    <Menu>
+      {maintenanceTypes.map(type => (
+        <Menu.Item key={type} onClick={() => setMaintenanceType(type)}>
+          {type}
+        </Menu.Item>
+      ))}
+    </Menu>
+  );
+
+  // 샘플 보고서 데이터
+  const sampleReports: LocalReport[] = [
+    // ... existing code ...
+  ];
+
+  // 템플릿 불러오기
+  useEffect(() => {
+    // 로컬 스토리지에서 저장된 템플릿 불러오기
+    const savedTemplates = localStorage.getItem('reportTemplates');
+    if (savedTemplates) {
+      try {
+        const parsed = JSON.parse(savedTemplates);
+        setTemplates(parsed.map((template: any) => ({
+          ...template,
+          dateRange: [new Date(template.dateRange[0]), new Date(template.dateRange[1])]
+        })));
+      } catch (error) {
+        console.error('템플릿 불러오기 오류:', error);
+      }
+    }
+  }, []);
+  
+  // 템플릿 저장
+  const saveTemplate = () => {
+    if (!templateName.trim()) {
+      message.error('템플릿 이름을 입력하세요');
       return;
     }
-
-    try {
-      if (options.format === ReportFormat.PDF) {
-        // PDF는 서버에서 생성 후 다운로드
-        const blob = await reportService.exportReport(reportId, options);
-        downloadFile(blob, `report-${reportId}`, options.format);
-      } else {
-        // 다른 형식은 클라이언트에서 생성
-        const data = exportReportData(report, options);
-        downloadFile(data, `report-${reportId}`, options.format);
-      }
-      
-      message.success('보고서를 내보냈습니다.');
-    } catch (error) {
-      console.error('보고서 내보내기 중 오류 발생:', error);
-      message.error('보고서 내보내기에 실패했습니다.');
+    
+    const newTemplate: ReportTemplate = {
+      id: `template-${Date.now()}`,
+      name: templateName,
+      reportType,
+      dateRange,
+      selectedVehicle,
+      maintenanceType,
+      priority,
+      status
+    };
+    
+    const updatedTemplates = [...templates, newTemplate];
+    setTemplates(updatedTemplates);
+    
+    // 로컬 스토리지에 저장
+    localStorage.setItem('reportTemplates', JSON.stringify(updatedTemplates));
+    
+    message.success('템플릿이 저장되었습니다');
+    setTemplateModalVisible(false);
+    setTemplateName('');
+  };
+  
+  // 템플릿 불러오기
+  const loadTemplate = (template: ReportTemplate) => {
+    setReportType(template.reportType);
+    setDateRange(template.dateRange);
+    setSelectedVehicle(template.selectedVehicle || undefined);
+    setMaintenanceType(template.maintenanceType || undefined);
+    setPriority(template.priority || undefined);
+    setStatus(template.status);
+    
+    message.success(`'${template.name}' 템플릿을 불러왔습니다`);
+    setSelectedTemplate(template);
+  };
+  
+  // 템플릿 삭제
+  const deleteTemplate = (templateId: string) => {
+    const updatedTemplates = templates.filter(template => template.id !== templateId);
+    setTemplates(updatedTemplates);
+    
+    // 로컬 스토리지 업데이트
+    localStorage.setItem('reportTemplates', JSON.stringify(updatedTemplates));
+    
+    message.success('템플릿이 삭제되었습니다');
+    
+    if (selectedTemplate?.id === templateId) {
+      setSelectedTemplate(null);
+    }
+    
+    if (editingTemplate?.id === templateId) {
+      setEditingTemplate(null);
+      setTemplateManageModalVisible(false);
     }
   };
-
-  // 필터 영역 렌더링
-  const renderFilterSection = () => {
+  
+  // 템플릿 이름 수정
+  const updateTemplateName = () => {
+    if (!editingTemplate || !editingTemplateName.trim()) {
+      message.error('템플릿 이름을 입력하세요');
+      return;
+    }
+    
+    const updatedTemplates = templates.map(template => 
+      template.id === editingTemplate.id 
+        ? { ...template, name: editingTemplateName } 
+        : template
+    );
+    
+    setTemplates(updatedTemplates);
+    
+    // 로컬 스토리지 업데이트
+    localStorage.setItem('reportTemplates', JSON.stringify(updatedTemplates));
+    
+    message.success('템플릿 이름이 수정되었습니다');
+    setEditingTemplate(null);
+    setEditingTemplateName('');
+    setTemplateManageModalVisible(false);
+    
+    if (selectedTemplate?.id === editingTemplate.id) {
+      setSelectedTemplate({ ...selectedTemplate, name: editingTemplateName });
+    }
+  };
+  
+  // 템플릿 드롭다운 메뉴 렌더링
+  const renderTemplateMenu = () => {
     return (
-      <div className="report-filters" style={{ marginBottom: 16 }}>
-        <Row gutter={[16, 16]} align="middle">
-          <Col xs={24} md={8}>
-            <Search
-              placeholder="보고서 검색"
-              allowClear
-              enterButton={<SearchOutlined />}
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              onSearch={(value) => setSearchText(value)}
-            />
-          </Col>
-          <Col xs={24} md={16}>
-            <Space>
-              <Button 
-                icon={<FilterOutlined />} 
-                onClick={() => setFilterVisible(!filterVisible)}
-                type={filterVisible ? "primary" : "default"}
-              >
-                필터
-              </Button>
-              {(filterReportType || (filterDateRange[0] && filterDateRange[1])) && (
-                <Button icon={<ReloadOutlined />} onClick={resetFilters}>
-                  필터 초기화
-                </Button>
-              )}
-              <div>
-                {filterReportType && (
-                  <Tag 
-                    color={getReportTypeColor(filterReportType)} 
-                    closable 
-                    onClose={() => setFilterReportType('')}
-                  >
-                    {getReportTypeName(filterReportType)}
-                  </Tag>
-                )}
-                {filterDateRange[0] && filterDateRange[1] && (
-                  <Tag 
-                    color="blue" 
-                    closable 
-                    onClose={() => setFilterDateRange([null, null])}
-                  >
-                    {`${filterDateRange[0].format('YYYY-MM-DD')} ~ ${filterDateRange[1].format('YYYY-MM-DD')}`}
-                  </Tag>
-                )}
-              </div>
-            </Space>
-          </Col>
-        </Row>
-        
-        {filterVisible && (
-          <div className="filter-options" style={{ marginTop: 16, padding: 16, backgroundColor: '#f7f7f7', borderRadius: 4 }}>
-            <Row gutter={[16, 16]}>
-              <Col xs={24} md={12}>
-                <Form.Item label="보고서 유형">
-                  <Select
-                    placeholder="모든 유형"
-                    value={filterReportType}
-                    onChange={setFilterReportType}
-                    style={{ width: '100%' }}
-                    allowClear
-                  >
-                    <Option value={ReportType.COMPLETION_RATE}>
-                      <Space>
-                        <BarChartOutlined />
-                        <span>완료율 보고서</span>
-                      </Space>
-                    </Option>
-                    <Option value={ReportType.VEHICLE_HISTORY}>
-                      <Space>
-                        <CarOutlined />
-                        <span>차량 정비 이력</span>
-                      </Space>
-                    </Option>
-                    <Option value={ReportType.COST_ANALYSIS}>
-                      <Space>
-                        <DollarOutlined />
-                        <span>비용 분석 보고서</span>
-                      </Space>
-                    </Option>
-                    <Option value={ReportType.MAINTENANCE_SUMMARY}>
-                      <Space>
-                        <ToolOutlined />
-                        <span>정비 요약 보고서</span>
-                      </Space>
-                    </Option>
-                    <Option value={ReportType.MAINTENANCE_FORECAST}>
-                      <Space>
-                        <CalendarOutlined />
-                        <span>정비 예측 보고서</span>
-                      </Space>
-                    </Option>
-                  </Select>
-                </Form.Item>
-              </Col>
-              <Col xs={24} md={12}>
-                <Form.Item label="생성일">
-                  <RangePicker
-                    value={filterDateRange}
-                    onChange={(dates) => setFilterDateRange(dates as [dayjs.Dayjs | null, dayjs.Dayjs | null])}
-                    style={{ width: '100%' }}
-                  />
-                </Form.Item>
-              </Col>
-            </Row>
-          </div>
+      <Menu>
+        {templates.length > 0 ? (
+          <>
+            {templates.map(template => (
+              <Menu.Item key={template.id} onClick={() => loadTemplate(template)}>
+                <Space>
+                  <CheckOutlined style={{ visibility: selectedTemplate?.id === template.id ? 'visible' : 'hidden' }} />
+                  {template.name}
+                </Space>
+              </Menu.Item>
+            ))}
+            <Menu.Divider />
+          </>
+        ) : (
+          <Menu.Item disabled>저장된 템플릿이 없습니다</Menu.Item>
         )}
-      </div>
+        <Menu.Item onClick={() => setTemplateModalVisible(true)}>
+          <Space>
+            <SaveOutlined />
+            현재 설정을 템플릿으로 저장
+          </Space>
+        </Menu.Item>
+        <Menu.Item onClick={() => setTemplateManageModalVisible(true)}>
+          <Space>
+            <EditOutlined />
+            템플릿 관리
+          </Space>
+        </Menu.Item>
+      </Menu>
     );
   };
 
   return (
     <Card title="정비 보고서" className="report-dashboard">
+      {/* 인쇄용 iframe 추가 */}
+      <iframe 
+        ref={printFrameRef}
+        style={{ position: 'absolute', width: '0', height: '0', border: '0' }}
+        title="Print Frame"
+      />
+      
       <Tabs activeKey={activeTab} onChange={setActiveTab}>
         <TabPane tab="보고서 생성" key="create">
           <div className="report-form">
             <Form layout="vertical">
+              <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'flex-end' }}>
+                <Dropdown overlay={renderTemplateMenu()} trigger={['click']}>
+                  <Button icon={<FolderOpenOutlined />}>
+                    {selectedTemplate ? selectedTemplate.name : '템플릿'} <DownloadOutlined />
+                  </Button>
+                </Dropdown>
+              </div>
+              
               <Form.Item label="보고서 유형">
                 <Select value={reportType} onChange={setReportType} style={{ width: '100%' }}>
                   <Option value={ReportType.COMPLETION_RATE}>
@@ -675,9 +904,7 @@ const ReportDashboard: React.FC = () => {
                     onChange={setSelectedVehicle}
                     style={{ width: '100%' }}
                   >
-                    {sampleVehicles.map(vehicle => (
-                      <Option key={vehicle.id} value={vehicle.id}>{vehicle.name}</Option>
-                    ))}
+                    {sampleVehiclesDropdown}
                   </Select>
                 </Form.Item>
               )}
@@ -690,9 +917,7 @@ const ReportDashboard: React.FC = () => {
                   allowClear
                   style={{ width: '100%' }}
                 >
-                  {maintenanceTypes.map(type => (
-                    <Option key={type} value={type}>{type}</Option>
-                  ))}
+                  {maintenanceTypesDropdown}
                 </Select>
               </Form.Item>
 
@@ -860,12 +1085,135 @@ const ReportDashboard: React.FC = () => {
         </Form>
       </Modal>
 
+      {/* 템플릿 저장 모달 */}
+      <Modal
+        title="템플릿 저장"
+        visible={templateModalVisible}
+        onCancel={() => setTemplateModalVisible(false)}
+        footer={[
+          <Button key="cancel" onClick={() => setTemplateModalVisible(false)}>
+            취소
+          </Button>,
+          <Button
+            key="save"
+            type="primary"
+            icon={<SaveOutlined />}
+            onClick={saveTemplate}
+          >
+            저장
+          </Button>,
+        ]}
+      >
+        <Form layout="vertical">
+          <Form.Item 
+            label="템플릿 이름" 
+            required
+            help="이 설정을 식별할 수 있는 이름을 입력하세요"
+          >
+            <Input
+              placeholder="예: 월간 차량 정비 보고서"
+              value={templateName}
+              onChange={(e) => setTemplateName(e.target.value)}
+              autoFocus
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
+      
+      {/* 템플릿 관리 모달 */}
+      <Modal
+        title="템플릿 관리"
+        visible={templateManageModalVisible}
+        onCancel={() => setTemplateManageModalVisible(false)}
+        footer={[
+          <Button key="close" onClick={() => setTemplateManageModalVisible(false)}>
+            닫기
+          </Button>
+        ]}
+      >
+        {templates.length === 0 ? (
+          <Empty description="저장된 템플릿이 없습니다" />
+        ) : (
+          <List
+            itemLayout="horizontal"
+            dataSource={templates}
+            renderItem={template => (
+              <List.Item
+                actions={[
+                  <Tooltip title="템플릿 불러오기">
+                    <Button 
+                      icon={<FolderOpenOutlined />} 
+                      size="small"
+                      onClick={() => {
+                        loadTemplate(template);
+                        setTemplateManageModalVisible(false);
+                      }}
+                    />
+                  </Tooltip>,
+                  <Tooltip title="이름 수정">
+                    <Button 
+                      icon={<EditOutlined />} 
+                      size="small"
+                      onClick={() => {
+                        setEditingTemplate(template);
+                        setEditingTemplateName(template.name);
+                      }}
+                    />
+                  </Tooltip>,
+                  <Tooltip title="템플릿 삭제">
+                    <Popconfirm
+                      title="이 템플릿을 삭제하시겠습니까?"
+                      onConfirm={() => deleteTemplate(template.id)}
+                      okText="삭제"
+                      cancelText="취소"
+                    >
+                      <Button icon={<DeleteOutlined />} size="small" danger />
+                    </Popconfirm>
+                  </Tooltip>
+                ]}
+              >
+                <List.Item.Meta
+                  title={template.name}
+                  description={`${getReportTypeName(template.reportType)} | ${dayjs(template.dateRange[0]).format('YYYY-MM-DD')} ~ ${dayjs(template.dateRange[1]).format('YYYY-MM-DD')}`}
+                />
+              </List.Item>
+            )}
+          />
+        )}
+        
+        {/* 템플릿 이름 수정 폼 */}
+        {editingTemplate && (
+          <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #f0f0f0' }}>
+            <Typography.Title level={5}>템플릿 이름 수정</Typography.Title>
+            <Form layout="inline">
+              <Form.Item style={{ flex: 1 }}>
+                <Input
+                  value={editingTemplateName}
+                  onChange={(e) => setEditingTemplateName(e.target.value)}
+                  placeholder="새 템플릿 이름"
+                />
+              </Form.Item>
+              <Form.Item>
+                <Button type="primary" onClick={updateTemplateName}>적용</Button>
+              </Form.Item>
+              <Form.Item>
+                <Button onClick={() => {
+                  setEditingTemplate(null);
+                  setEditingTemplateName('');
+                }}>취소</Button>
+              </Form.Item>
+            </Form>
+          </div>
+        )}
+      </Modal>
+      
       {/* 보고서 상세 모달 */}
       <ReportDetailModal
         visible={detailModalVisible}
         report={selectedReport}
         onClose={() => setDetailModalVisible(false)}
         onExport={handleExportFromModal}
+        onPrint={handlePrintFromModal}
         loading={loading}
       />
     </Card>
