@@ -27,10 +27,10 @@ import {
   DownloadOutlined,
   DeleteOutlined,
   ExportOutlined,
-  MailOutlined
+  MailOutlined,
+  EyeOutlined
 } from '@ant-design/icons';
-import { format } from 'date-fns';
-import { ko } from 'date-fns/locale';
+import dayjs from 'dayjs';
 import reportService, { 
   ReportType, 
   ReportFilter, 
@@ -38,6 +38,9 @@ import reportService, {
   ReportFormat,
   ExportOptions
 } from '../../services/reportService';
+import ReportDetailModal from './ReportDetailModal';
+import { downloadFile, exportReportData } from '../../utils/reportUtils';
+import './styles.css';
 
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
@@ -70,6 +73,8 @@ const ReportDashboard: React.FC = () => {
   const [scheduleModalVisible, setScheduleModalVisible] = useState<boolean>(false);
   const [emailRecipients, setEmailRecipients] = useState<string>('');
   const [scheduleFrequency, setScheduleFrequency] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
+  const [detailModalVisible, setDetailModalVisible] = useState<boolean>(false);
+  const [selectedReport, setSelectedReport] = useState<Report | null>(null);
 
   // 페이지 로드 시 보고서 목록 가져오기
   useEffect(() => {
@@ -100,8 +105,8 @@ const ReportDashboard: React.FC = () => {
     }
 
     const filter: ReportFilter = {
-      startDate: format(dateRange[0], 'yyyy-MM-dd'),
-      endDate: format(dateRange[1], 'yyyy-MM-dd'),
+      startDate: formatDate(dateRange[0]),
+      endDate: formatDate(dateRange[1]),
       vehicleId: selectedVehicle || undefined,
       maintenanceType: maintenanceType || undefined,
       priority: priority || undefined,
@@ -158,9 +163,21 @@ const ReportDashboard: React.FC = () => {
     }
   };
 
+  // 보고서 상세 보기
+  const showReportDetail = (report: Report) => {
+    setSelectedReport(report);
+    setDetailModalVisible(true);
+  };
+
   // 보고서 내보내기
   const exportReport = async () => {
     if (!selectedReportId) return;
+
+    const report = reports.find(r => r.id === selectedReportId);
+    if (!report) {
+      message.error('보고서를 찾을 수 없습니다.');
+      return;
+    }
 
     const options: ExportOptions = {
       format: exportFormat,
@@ -172,17 +189,15 @@ const ReportDashboard: React.FC = () => {
 
     setExportLoading(true);
     try {
-      const blob = await reportService.exportReport(selectedReportId, options);
-      
-      // 파일 다운로드
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `report-${selectedReportId}.${exportFormat.toLowerCase()}`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      if (exportFormat === ReportFormat.PDF) {
+        // PDF는 서버에서 생성 후 다운로드
+        const blob = await reportService.exportReport(selectedReportId, options);
+        downloadFile(blob, `report-${selectedReportId}`, exportFormat);
+      } else {
+        // 다른 형식은 클라이언트에서 생성
+        const data = exportReportData(report, options);
+        downloadFile(data, `report-${selectedReportId}`, exportFormat);
+      }
       
       setExportModalVisible(false);
       message.success('보고서를 내보냈습니다.');
@@ -209,8 +224,8 @@ const ReportDashboard: React.FC = () => {
       await reportService.scheduleReport(
         reportType,
         {
-          startDate: format(dateRange[0], 'yyyy-MM-dd'),
-          endDate: format(dateRange[1], 'yyyy-MM-dd'),
+          startDate: formatDate(dateRange[0]),
+          endDate: formatDate(dateRange[1]),
           vehicleId: selectedVehicle || undefined,
           maintenanceType: maintenanceType || undefined,
           priority: priority || undefined,
@@ -234,6 +249,11 @@ const ReportDashboard: React.FC = () => {
       console.error('보고서 스케줄 설정 중 오류 발생:', error);
       message.error('보고서 스케줄 설정에 실패했습니다.');
     }
+  };
+
+  // 날짜 포맷팅 유틸리티
+  const formatDate = (date: Date): string => {
+    return dayjs(date).format('YYYY-MM-DD');
   };
 
   // 보고서 유형 아이콘 선택
@@ -295,13 +315,20 @@ const ReportDashboard: React.FC = () => {
       title: '생성일',
       dataIndex: 'createdAt',
       key: 'createdAt',
-      render: (date: string) => format(new Date(date), 'yyyy-MM-dd HH:mm', { locale: ko }),
+      render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm'),
     },
     {
       title: '작업',
       key: 'actions',
       render: (_: any, record: Report) => (
         <Space size="middle">
+          <Tooltip title="상세 보기">
+            <Button
+              type="text"
+              icon={<EyeOutlined />}
+              onClick={() => showReportDetail(record)}
+            />
+          </Tooltip>
           <Tooltip title="내보내기">
             <Button
               type="text"
@@ -364,6 +391,32 @@ const ReportDashboard: React.FC = () => {
     '오일 교체'
   ];
 
+  // 상세 모달에서 보고서 내보내기
+  const handleExportFromModal = async (reportId: string, options: ExportOptions) => {
+    const report = reports.find(r => r.id === reportId);
+    if (!report) {
+      message.error('보고서를 찾을 수 없습니다.');
+      return;
+    }
+
+    try {
+      if (options.format === ReportFormat.PDF) {
+        // PDF는 서버에서 생성 후 다운로드
+        const blob = await reportService.exportReport(reportId, options);
+        downloadFile(blob, `report-${reportId}`, options.format);
+      } else {
+        // 다른 형식은 클라이언트에서 생성
+        const data = exportReportData(report, options);
+        downloadFile(data, `report-${reportId}`, options.format);
+      }
+      
+      message.success('보고서를 내보냈습니다.');
+    } catch (error) {
+      console.error('보고서 내보내기 중 오류 발생:', error);
+      message.error('보고서 내보내기에 실패했습니다.');
+    }
+  };
+
   return (
     <Card title="정비 보고서" className="report-dashboard">
       <Tabs activeKey={activeTab} onChange={setActiveTab}>
@@ -407,7 +460,7 @@ const ReportDashboard: React.FC = () => {
 
               <Form.Item label="기간 선택">
                 <RangePicker 
-                  value={[dateRange[0], dateRange[1]].map(date => date ? date : undefined)} 
+                  value={[dayjs(dateRange[0]), dayjs(dateRange[1])]} 
                   onChange={(dates) => {
                     if (dates && dates[0] && dates[1]) {
                       setDateRange([dates[0].toDate(), dates[1].toDate()]);
@@ -603,6 +656,15 @@ const ReportDashboard: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
+
+      {/* 보고서 상세 모달 */}
+      <ReportDetailModal
+        visible={detailModalVisible}
+        report={selectedReport}
+        onClose={() => setDetailModalVisible(false)}
+        onExport={handleExportFromModal}
+        loading={loading}
+      />
     </Card>
   );
 };
