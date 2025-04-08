@@ -16,9 +16,7 @@ import {
   List,
   Badge,
   Progress,
-  message,
-  Typography,
-  Space
+  message
 } from 'antd';
 import { 
   FileTextOutlined, 
@@ -64,8 +62,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import DashboardChart from './DashboardChart';
 
 const { Option } = Select;
-const { TabPane } = Tabs;
-const { Title, Text } = Typography;
 
 // 차트 색상
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];

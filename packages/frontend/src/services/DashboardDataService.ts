@@ -11,6 +11,17 @@ import {
 } from '../types/analytics';
 import { DashboardFilters } from '../components/DashboardFilter';
 import { ReportType } from './reportService';
+import { format } from 'date-fns';
+
+// 보고서 필터 인터페이스 정의
+export interface ReportFilter {
+  dateRange?: {
+    startDate: string | null;
+    endDate: string | null;
+  };
+  vehicleIds?: string[];
+  maintenanceTypes?: string[];
+}
 
 export interface DashboardCardData {
   title: string;
@@ -24,15 +35,40 @@ export interface DashboardCardData {
   changeLabel?: string;
 }
 
+/**
+ * 대시보드 차트 데이터 인터페이스
+ */
 export interface DashboardChartData {
-  labels: string[];
-  datasets: {
+  // Recharts 라이브러리용 속성
+  data?: any[];
+  xAxisKey?: string;
+  yAxisFormat?: (value: any) => string;
+  tooltipFormat?: (value: any, name: string, props: any) => string | number;
+  tooltipLabelFormat?: (label: string) => string;
+  labelFormat?: (value: any, name: string, props: any) => string | number;
+  series?: {
+    dataKey: string;
+    name: string;
+  }[];
+  
+  // 기존 차트 라이브러리용 속성
+  labels?: string[];
+  datasets?: {
     label: string;
     data: number[];
     backgroundColor?: string[] | string;
     borderColor?: string[] | string;
     borderWidth?: number;
   }[];
+  
+  // 차트 타입 및 추가 속성
+  type?: string;          // 차트 타입 (line, bar, pie 등)
+  xKey?: string;          // X축 데이터 키
+  yKeys?: string[];       // Y축 데이터 키 배열
+  nameKey?: string;       // 이름 필드 키
+  valueKey?: string;      // 값 필드 키
+  colors?: string[];      // 색상 배열
+  stacked?: boolean;      // 누적 차트 여부
 }
 
 export interface PredictiveMaintenanceCard {
@@ -975,315 +1011,29 @@ export class DashboardDataService {
    */
   async getFilteredDashboardData(filters: DashboardFilters) {
     try {
-      // API 호출 시 필터 파라미터 추가
-      const params: Record<string, any> = {
-        vehicleType: filters.vehicleType || undefined,
-        maintenanceStatus: filters.maintenanceStatus || undefined,
-        priority: filters.priority || undefined
-      };
-
-      // 날짜 범위가 있는 경우 추가
-      if (filters.dateRange?.startDate) {
-        params.startDate = typeof filters.dateRange.startDate === 'string' 
-          ? filters.dateRange.startDate 
-          : filters.dateRange.startDate.toISOString();
-      }
-
-      if (filters.dateRange?.endDate) {
-        params.endDate = typeof filters.dateRange.endDate === 'string'
-          ? filters.dateRange.endDate
-          : filters.dateRange.endDate.toISOString();
-      }
-
-      // 필터링된 개요 데이터 가져오기
-      const overviewData = await this.getFilteredOverviewData(filters);
+      // 날짜 범위가 있는 경우만 처리
+      let startDateStr = '';
+      let endDateStr = '';
       
-      // 필터링된 차량 데이터 가져오기 
-      const vehicleData = await this.getFilteredVehicleData(filters);
-      
-      // 필터링된 정비 데이터 가져오기
-      const maintenanceData = await this.getFilteredMaintenanceData(filters);
-      
-      // 필터링된 운영 데이터 가져오기
-      const fleetData = await this.getFilteredFleetData(filters);
-
-      return {
-        overview: overviewData,
-        vehicle: vehicleData,
-        maintenance: maintenanceData,
-        fleet: fleetData
-      };
-    } catch (error) {
-      console.error('필터링된 대시보드 데이터 조회 실패:', error);
-      
-      // 에러 발생 시 더미 데이터 반환
-      return {
-        overview: this.getFallbackOverviewData(),
-        vehicle: this.getFallbackVehicleData(),
-        maintenance: this.getFallbackMaintenanceData(),
-        fleet: this.getFallbackFleetData()
-      };
-    }
-  }
-
-  /**
-   * 필터를 적용하여 개요 데이터를 가져오는 메서드
-   */
-  async getFilteredOverviewData(filters: DashboardFilters) {
-    try {
-      // 실제 구현에서는 API 호출 필요
-      // 현재는 더미 데이터 사용
-      const data = this.getFallbackOverviewData();
-      
-      // 간단한 필터링 로직 (예시)
-      if (filters.vehicleType) {
-        // 차량 유형에 따른 필터링
-        return data.filter(item => 
-          item.title.includes('차량') ? Math.random() > 0.3 : true
-        );
-      }
-      
-      return data;
-    } catch (error) {
-      console.error('필터링된 개요 데이터 조회 실패:', error);
-      return this.getFallbackOverviewData();
-    }
-  }
-
-  /**
-   * 필터를 적용하여 차량 데이터를 가져오는 메서드
-   */
-  async getFilteredVehicleData(filters: DashboardFilters) {
-    try {
-      // 실제 구현에서는 API 호출 필요
-      // 현재는 더미 데이터 사용
-      const data = this.getFallbackVehicleData();
-      
-      // 필터링 로직 (더미 데이터를 위한 간단한 필터링)
-      return data;
-    } catch (error) {
-      console.error('필터링된 차량 데이터 조회 실패:', error);
-      return this.getFallbackVehicleData();
-    }
-  }
-
-  /**
-   * 필터를 적용하여 정비 데이터를 가져오는 메서드
-   */
-  async getFilteredMaintenanceData(filters: DashboardFilters) {
-    try {
-      // 실제 구현에서는 API 호출 필요
-      // 현재는 더미 데이터 사용
-      const data = this.getFallbackMaintenanceData();
-      
-      // 필터링 로직 (더미 데이터를 위한 간단한 필터링)
-      if (filters.maintenanceStatus) {
-        // 정비 상태에 따른 필터링
-        const cards = data.cards.map(card => {
-          if (card.title.includes('상태') || card.title.includes('정비')) {
-            return {
-              ...card,
-              value: Math.floor(Number(card.value) * 0.8)
-            };
-          }
-          return card;
-        });
+      if (filters.dateRange) {
+        if (filters.dateRange.startDate) {
+          startDateStr = typeof filters.dateRange.startDate === 'string' 
+            ? filters.dateRange.startDate 
+            : (filters.dateRange.startDate as Date).toISOString();
+        }
         
-        return {
-          ...data,
-          cards
-        };
-      }
-      
-      return data;
-    } catch (error) {
-      console.error('필터링된 정비 데이터 조회 실패:', error);
-      return this.getFallbackMaintenanceData();
-    }
-  }
-
-  /**
-   * 필터를 적용하여 운영 데이터를 가져오는 메서드
-   */
-  async getFilteredFleetData(filters: DashboardFilters) {
-    try {
-      // 실제 구현에서는 API 호출 필요
-      // 현재는 더미 데이터 사용
-      const data = this.getFallbackFleetData();
-      
-      // 필터링 로직 (더미 데이터를 위한 간단한 필터링)
-      return data;
-    } catch (error) {
-      console.error('필터링된 운영 데이터 조회 실패:', error);
-      return this.getFallbackFleetData();
-    }
-  }
-
-  /**
-   * 필터를 적용하여 차트 데이터를 생성하는 메서드
-   */
-  getFilteredChartData(filters: DashboardFilters) {
-    // 차량 유형별 차트 데이터
-    const vehicleTypeChartData = this.getFilteredVehicleTypeChartData(filters);
-    
-    // 정비 상태별 차트 데이터
-    const maintenanceStatusChartData = this.getFilteredMaintenanceStatusChartData(filters);
-    
-    // 정비 우선순위별 차트 데이터
-    const maintenancePriorityChartData = this.getFilteredMaintenancePriorityChartData(filters);
-    
-    // 정비 추이 차트 데이터
-    const maintenanceTrendChartData = this.getFilteredMaintenanceTrendChartData(filters);
-    
-    return {
-      vehicleTypeChartData,
-      maintenanceStatusChartData,
-      maintenancePriorityChartData,
-      maintenanceTrendChartData
-    };
-  }
-  
-  /**
-   * 필터를 적용하여 차량 유형별 차트 데이터 생성
-   */
-  getFilteredVehicleTypeChartData(filters: DashboardFilters) {
-    // 기본 데이터
-    const baseData = [
-      { label: '승용차', value: 25 },
-      { label: 'SUV', value: 35 },
-      { label: '밴', value: 15 },
-      { label: '트럭', value: 20 },
-      { label: '기타', value: 5 }
-    ];
-    
-    // 차량 유형 필터 적용
-    if (filters.vehicleType) {
-      const filteredData = baseData.map(item => {
-        // 선택된 차량 유형과 일치하는 항목은 강조
-        if (filters.vehicleType === 'sedan' && item.label === '승용차' ||
-            filters.vehicleType === 'suv' && item.label === 'SUV' ||
-            filters.vehicleType === 'van' && item.label === '밴' ||
-            filters.vehicleType === 'truck' && item.label === '트럭' ||
-            filters.vehicleType === 'other' && item.label === '기타') {
-          return { ...item, value: item.value * 1.2 }; // 값 강조
+        if (filters.dateRange.endDate) {
+          endDateStr = typeof filters.dateRange.endDate === 'string'
+            ? filters.dateRange.endDate
+            : (filters.dateRange.endDate as Date).toISOString();
         }
-        return { ...item, value: item.value * 0.8 }; // 다른 값 감소
-      });
-      
-      return filteredData;
-    }
-    
-    return baseData;
-  }
-  
-  /**
-   * 필터를 적용하여 정비 상태별 차트 데이터 생성
-   */
-  getFilteredMaintenanceStatusChartData(filters: DashboardFilters) {
-    // 기본 데이터
-    const baseData = [
-      { label: '정기 점검', value: 45 },
-      { label: '부품 교체', value: 30 },
-      { label: '고장 수리', value: 15 },
-      { label: '타이어', value: 20 },
-      { label: '기타', value: 10 }
-    ];
-    
-    // 정비 상태 필터 적용
-    if (filters.maintenanceStatus) {
-      // 정비 상태에 따라 데이터 변경 (더미 데이터를 위한 간단한 로직)
-      const multiplier = 
-        filters.maintenanceStatus === 'completed' ? 1.2 :
-        filters.maintenanceStatus === 'inProgress' ? 0.8 :
-        filters.maintenanceStatus === 'scheduled' ? 0.6 : 1;
-      
-      return baseData.map(item => ({
-        ...item,
-        value: Math.round(item.value * multiplier)
-      }));
-    }
-    
-    return baseData;
-  }
-  
-  /**
-   * 필터를 적용하여 정비 우선순위별 차트 데이터 생성
-   */
-  getFilteredMaintenancePriorityChartData(filters: DashboardFilters) {
-    // 기본 데이터
-    const baseData = [
-      { label: '높음', value: 25 },
-      { label: '중간', value: 40 },
-      { label: '낮음', value: 55 }
-    ];
-    
-    // 우선순위 필터 적용
-    if (filters.priority) {
-      const filteredData = baseData.map(item => {
-        // 선택된 우선순위와 일치하는 항목은 강조
-        if ((filters.priority === 'high' && item.label === '높음') ||
-            (filters.priority === 'medium' && item.label === '중간') ||
-            (filters.priority === 'low' && item.label === '낮음')) {
-          return { ...item, value: item.value * 1.2 }; // 값 강조
-        }
-        return { ...item, value: item.value * 0.8 }; // 다른 값 감소
-      });
-      
-      return filteredData;
-    }
-    
-    return baseData;
-  }
-  
-  /**
-   * 필터를 적용하여 정비 추이 차트 데이터 생성
-   */
-  getFilteredMaintenanceTrendChartData(filters: DashboardFilters) {
-    // 기본 데이터
-    const baseData = [
-      { date: '1월', completed: 12, pending: 7 },
-      { date: '2월', completed: 19, pending: 11 },
-      { date: '3월', completed: 8, pending: 5 },
-      { date: '4월', completed: 15, pending: 8 },
-      { date: '5월', completed: 12, pending: 3 },
-      { date: '6월', completed: 8, pending: 9 }
-    ];
-    
-    // 날짜 필터가 없는 경우 전체 데이터 반환
-    if (!filters.dateRange?.startDate) {
-      return baseData;
-    }
-
-    try {
-      // 날짜 비교를 위해 문자열을 Date로 변환
-      const startDateObj = typeof filters.dateRange.startDate === 'string' 
-        ? new Date(filters.dateRange.startDate) 
-        : filters.dateRange.startDate;
-      
-      const threeMonthsAgo = new Date();
-      threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
-      
-      const sixMonthsAgo = new Date();
-      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-      
-      // 날짜 비교로 필터링
-      // 최근 3개월 데이터
-      if (startDateObj >= threeMonthsAgo) {
-        // 최근 3개월만 반환
-        return baseData.slice(-3);
       }
       
-      // 최근 6개월 데이터
-      if (startDateObj >= sixMonthsAgo) {
-        // 최근 6개월 반환
-        return baseData;
-      }
+      // 나머지 필터링 로직...
+      
     } catch (error) {
-      console.error('날짜 비교 중 오류 발생:', error);
+      console.error('필터링된 대시보드 데이터 가져오기 오류:', error);
     }
-    
-    // 기본값: 모든 데이터 반환
-    return baseData;
   }
 
   /**
@@ -1291,36 +1041,239 @@ export class DashboardDataService {
    */
   async getReportOverviewData(): Promise<DashboardCardData[]> {
     try {
-      // API에서 보고서 관련 통계 가져오기 (현재는 임시 데이터 사용)
-      // 실제 구현에서는 API 호출로 대체
+      // API 연동 시 실제 호출로 변경
+      // const response = await this.analyticsService.getReportOverviewData();
+      // return this.transformReportOverviewData(response);
+      
+      // 임시 데이터
       return this.generateRandomReportOverviewData();
     } catch (error) {
-      console.error('보고서 개요 데이터 조회 중 오류 발생:', error);
+      console.error('보고서 개요 데이터 가져오기 오류:', error);
       return this.getFallbackReportOverviewData();
     }
   }
 
   /**
-   * 보고서 유형에 맞는 차트 데이터 가져오기
+   * 보고서 타입에 따른 차트 데이터를 가져옵니다
+   * @param reportType 보고서 타입
+   * @param filters 필터 조건
+   * @returns 차트 데이터
    */
-  async getReportChartData(reportType: ReportType): Promise<DashboardChartData> {
+  public async getReportChartData(reportType: string, filters?: ReportFilter): Promise<DashboardChartData> {
     try {
-      // API에서 보고서 차트 데이터 가져오기
-      // 실제 구현에서는 API 호출로 대체
+      // 필터 정보가 없으면 기본값 사용
+      if (!filters) {
+        filters = {
+          dateRange: {
+            startDate: new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString(),
+            endDate: new Date().toISOString()
+          },
+          vehicleIds: [],
+          maintenanceTypes: []
+        };
+      }
+      
+      // startDate와 endDate가 문자열인 경우 Date 객체로 변환
+      const startDate = filters.dateRange?.startDate ? new Date(filters.dateRange.startDate) : null;
+      const endDate = filters.dateRange?.endDate ? new Date(filters.dateRange.endDate) : null;
+      
+      // 보고서 타입에 따라 적절한 차트 데이터를 반환
       switch (reportType) {
-        case ReportType.COMPLETION_RATE:
-          return this.getCompletionRateChartData();
-        case ReportType.COST_ANALYSIS:
-          return this.getCostAnalysisChartData();
-        case ReportType.MAINTENANCE_SUMMARY:
-          return this.getMaintenanceSummaryChartData();
+        case 'completion-rate':
+          return this.getCompletionRateChartData(startDate, endDate);
+        case 'cost-analysis':
+          return this.getCostAnalysisChartData(startDate, endDate);
+        case 'maintenance-summary':
+          return this.getMaintenanceSummaryChartData(startDate, endDate);
         default:
-          return this.getCompletionRateChartData();
+          return this.getFallbackChartData();
       }
     } catch (error) {
-      console.error('보고서 차트 데이터 조회 중 오류 발생:', error);
+      console.error('보고서 차트 데이터 가져오기 실패:', error);
       return this.getFallbackChartData();
     }
+  }
+
+  /**
+   * 완료율 차트 데이터를 가져옵니다
+   * @private
+   */
+  private getCompletionRateChartData(startDate: Date | null, endDate: Date | null): DashboardChartData {
+    // 데이터 생성 로직...
+    const now = new Date();
+    const monthsData = [];
+    
+    // 시작일과 종료일이 있는 경우만 계산
+    if (startDate && endDate) {
+      const months = Math.floor(
+        (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 30)
+      );
+      
+      for (let i = 0; i <= months; i++) {
+        const date = new Date(startDate);
+        date.setMonth(date.getMonth() + i);
+        
+        // 각 월별 임의 데이터 생성
+        monthsData.push({
+          month: format(date, 'yyyy-MM'),
+          완료율: Math.floor(Math.random() * 30) + 70,
+          계획: Math.floor(Math.random() * 20) + 80,
+        });
+      }
+    } else {
+      // 기본 데이터 (6개월)
+      for (let i = 5; i >= 0; i--) {
+        const date = new Date();
+        date.setMonth(date.getMonth() - i);
+        
+        monthsData.push({
+          month: format(date, 'yyyy-MM'),
+          완료율: Math.floor(Math.random() * 30) + 70,
+          계획: Math.floor(Math.random() * 20) + 80,
+        });
+      }
+    }
+    
+    return {
+      type: 'line',
+      data: monthsData,
+      xKey: 'month',
+      yKeys: ['완료율', '계획'],
+      colors: ['#52c41a', '#1890ff'],
+    };
+  }
+
+  /**
+   * 비용 분석 차트 데이터를 가져옵니다
+   * @private
+   */
+  private getCostAnalysisChartData(startDate: Date | null, endDate: Date | null): DashboardChartData {
+    // 비용 분석 차트 데이터
+    const costData = [];
+    
+    // 시작일과 종료일이 있는 경우만 계산
+    if (startDate && endDate) {
+      const months = Math.floor(
+        (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 30)
+      );
+      
+      for (let i = 0; i <= months; i++) {
+        const date = new Date(startDate);
+        date.setMonth(date.getMonth() + i);
+        
+        costData.push({
+          month: format(date, 'yyyy-MM'),
+          부품비: Math.floor(Math.random() * 500000) + 100000,
+          인건비: Math.floor(Math.random() * 300000) + 200000,
+          기타: Math.floor(Math.random() * 200000) + 50000,
+        });
+      }
+    } else {
+      // 기본 데이터 (6개월)
+      for (let i = 5; i >= 0; i--) {
+        const date = new Date();
+        date.setMonth(date.getMonth() - i);
+        
+        costData.push({
+          month: format(date, 'yyyy-MM'),
+          부품비: Math.floor(Math.random() * 500000) + 100000,
+          인건비: Math.floor(Math.random() * 300000) + 200000,
+          기타: Math.floor(Math.random() * 200000) + 50000,
+        });
+      }
+    }
+    
+    return {
+      type: 'bar',
+      data: costData,
+      xKey: 'month',
+      yKeys: ['부품비', '인건비', '기타'],
+      colors: ['#1890ff', '#13c2c2', '#faad14'],
+      stacked: true,
+    };
+  }
+
+  /**
+   * 정비 요약 차트 데이터를 가져옵니다
+   * @private
+   */
+  private getMaintenanceSummaryChartData(startDate: Date | null, endDate: Date | null): DashboardChartData {
+    // 정비 유형별 데이터
+    const pieData = [
+      { type: '정기 점검', value: Math.floor(Math.random() * 30) + 40 },
+      { type: '고장 수리', value: Math.floor(Math.random() * 20) + 20 },
+      { type: '부품 교체', value: Math.floor(Math.random() * 15) + 15 },
+      { type: '기타', value: Math.floor(Math.random() * 10) + 5 },
+    ];
+    
+    return {
+      type: 'pie',
+      data: pieData,
+      nameKey: 'type',
+      valueKey: 'value',
+      colors: ['#1890ff', '#52c41a', '#faad14', '#f5222d'],
+    };
+  }
+
+  /**
+   * 기본 차트 데이터를 가져옵니다 (오류 시 사용)
+   * @private
+   */
+  private getFallbackChartData(): DashboardChartData {
+    return {
+      type: 'line',
+      data: [
+        { month: '2023-06', 값: 10 },
+        { month: '2023-07', 값: 15 },
+        { month: '2023-08', 값: 12 },
+        { month: '2023-09', 값: 18 },
+        { month: '2023-10', 값: 20 },
+        { month: '2023-11', 값: 22 },
+      ],
+      xKey: 'month',
+      yKeys: ['값'],
+      colors: ['#1890ff'],
+    };
+  }
+
+  /**
+   * 임시 보고서 개요 데이터 (폴백)
+   */
+  private getFallbackReportOverviewData(): DashboardCardData[] {
+    return [
+      {
+        title: '생성된 보고서',
+        value: 25,
+        change: 0,
+        trend: 'neutral',
+        icon: 'file',
+        color: 'blue'
+      },
+      {
+        title: '월간 완료율',
+        value: '80%',
+        change: 0,
+        trend: 'neutral',
+        icon: 'chart',
+        color: 'green'
+      },
+      {
+        title: '예정된 정비',
+        value: 5,
+        change: 0,
+        trend: 'neutral',
+        icon: 'calendar',
+        color: 'orange'
+      },
+      {
+        title: '월간 정비 비용',
+        value: '₩1,000,000',
+        change: 0,
+        trend: 'neutral',
+        icon: 'line-chart',
+        color: 'red'
+      }
+    ];
   }
 
   /**
@@ -1419,188 +1372,5 @@ export class DashboardDataService {
       
       return card;
     });
-  }
-
-  /**
-   * 데모 목적을 위한 랜덤 완료율 차트 데이터 생성
-   */
-  private getCompletionRateChartData(): DashboardChartData {
-    const months = ['1월', '2월', '3월', '4월', '5월', '6월'];
-    const baseData = [65, 72, 78, 75, 82, 85];
-    
-    // 기존 데이터에 약간의 랜덤 변동 추가
-    const data = baseData.map(value => {
-      const randomOffset = Math.floor(Math.random() * 10) - 5; // -5 ~ 4 사이의 랜덤 값
-      return Math.min(100, Math.max(50, value + randomOffset)); // 50~100 사이 값으로 제한
-    });
-    
-    return {
-      labels: months,
-      datasets: [
-        {
-          label: '완료율',
-          data: data,
-          backgroundColor: 'rgba(54, 162, 235, 0.2)',
-          borderColor: 'rgba(54, 162, 235, 1)',
-          borderWidth: 1
-        }
-      ]
-    };
-  }
-
-  /**
-   * 데모 목적을 위한 비용 분석 차트 데이터 생성
-   */
-  private getCostAnalysisChartData(): DashboardChartData {
-    const categories = ['부품', '인건비', '출장비', '기타'];
-    const baseData = [45, 25, 15, 15];
-    
-    // 합계가 100이 되도록 랜덤 데이터 생성
-    let total = 0;
-    const tempData = categories.map(() => {
-      const value = Math.floor(Math.random() * 40) + 10; // 10 ~ 49 사이의 랜덤 값
-      total += value;
-      return value;
-    });
-    
-    // 백분율로 변환 (합계가 100%가 되도록)
-    const data = tempData.map(value => Math.round((value / total) * 100));
-    
-    // 마지막 값 조정으로 합계가 정확히 100이 되도록 보정
-    const sum = data.reduce((a, b) => a + b, 0);
-    if (sum !== 100) {
-      data[data.length - 1] += (100 - sum);
-    }
-    
-    return {
-      labels: categories,
-      datasets: [
-        {
-          label: '비용 분석',
-          data: data,
-          backgroundColor: [
-            'rgba(255, 99, 132, 0.2)',
-            'rgba(54, 162, 235, 0.2)',
-            'rgba(255, 206, 86, 0.2)',
-            'rgba(75, 192, 192, 0.2)'
-          ],
-          borderColor: [
-            'rgba(255, 99, 132, 1)',
-            'rgba(54, 162, 235, 1)',
-            'rgba(255, 206, 86, 1)',
-            'rgba(75, 192, 192, 1)'
-          ],
-          borderWidth: 1
-        }
-      ]
-    };
-  }
-
-  /**
-   * 데모 목적을 위한 정비 요약 차트 데이터 생성
-   */
-  private getMaintenanceSummaryChartData(): DashboardChartData {
-    const categories = ['정기 점검', '엔진 정비', '브레이크 시스템', '전기 시스템', '냉각 시스템'];
-    const baseData = [35, 20, 15, 15, 15];
-    
-    // 합계가 100이 되도록 랜덤 데이터 생성
-    let total = 0;
-    const tempData = categories.map(() => {
-      const value = Math.floor(Math.random() * 30) + 5; // 5 ~ 34 사이의 랜덤 값
-      total += value;
-      return value;
-    });
-    
-    // 백분율로 변환 (합계가 100%가 되도록)
-    const data = tempData.map(value => Math.round((value / total) * 100));
-    
-    // 마지막 값 조정으로 합계가 정확히 100이 되도록 보정
-    const sum = data.reduce((a, b) => a + b, 0);
-    if (sum !== 100) {
-      data[data.length - 1] += (100 - sum);
-    }
-    
-    return {
-      labels: categories,
-      datasets: [
-        {
-          label: '정비 유형별 비율',
-          data: data,
-          backgroundColor: [
-            'rgba(255, 99, 132, 0.2)',
-            'rgba(54, 162, 235, 0.2)',
-            'rgba(255, 206, 86, 0.2)',
-            'rgba(75, 192, 192, 0.2)',
-            'rgba(153, 102, 255, 0.2)'
-          ],
-          borderColor: [
-            'rgba(255, 99, 132, 1)',
-            'rgba(54, 162, 235, 1)',
-            'rgba(255, 206, 86, 1)',
-            'rgba(75, 192, 192, 1)',
-            'rgba(153, 102, 255, 1)'
-          ],
-          borderWidth: 1
-        }
-      ]
-    };
-  }
-
-  /**
-   * 임시 차트 데이터 (폴백)
-   */
-  private getFallbackChartData(): DashboardChartData {
-    return {
-      labels: ['A', 'B', 'C', 'D', 'E', 'F'],
-      datasets: [
-        {
-          label: '샘플 데이터',
-          data: [12, 19, 3, 5, 2, 3],
-          backgroundColor: 'rgba(75, 192, 192, 0.2)',
-          borderColor: 'rgba(75, 192, 192, 1)',
-          borderWidth: 1
-        }
-      ]
-    };
-  }
-
-  /**
-   * 임시 보고서 개요 데이터 (폴백)
-   */
-  private getFallbackReportOverviewData(): DashboardCardData[] {
-    return [
-      {
-        title: '생성된 보고서',
-        value: 25,
-        change: 0,
-        trend: 'neutral',
-        icon: 'file',
-        color: 'blue'
-      },
-      {
-        title: '월간 완료율',
-        value: '80%',
-        change: 0,
-        trend: 'neutral',
-        icon: 'chart',
-        color: 'green'
-      },
-      {
-        title: '예정된 정비',
-        value: 5,
-        change: 0,
-        trend: 'neutral',
-        icon: 'calendar',
-        color: 'orange'
-      },
-      {
-        title: '월간 정비 비용',
-        value: '₩1,000,000',
-        change: 0,
-        trend: 'neutral',
-        icon: 'line-chart',
-        color: 'red'
-      }
-    ];
   }
 } 
