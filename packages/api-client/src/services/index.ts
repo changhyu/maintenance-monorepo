@@ -10,4 +10,7 @@ export * from './telemetryService';
 export * from './bookingService';
 export * from './fileService';
 export * from './paymentService';
-export * from './analyticsService'; 
+export * from './analyticsService';
+export * from './settingsService';
+export * from './searchService';
+export * from './importExportService'; 
