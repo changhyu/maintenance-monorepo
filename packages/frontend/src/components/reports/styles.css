@@ -2,6 +2,7 @@
   background-color: #fff;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  margin-bottom: 24px;
 }
 
 .report-dashboard .ant-card-head {
@@ -21,7 +22,7 @@
 .report-form {
   max-width: 800px;
   margin: 0 auto;
-  padding: 24px 0;
+  padding: 16px 0;
 }
 
 .report-list {
@@ -70,7 +71,7 @@
 /* 모바일 대응 */
 @media screen and (max-width: 768px) {
   .report-form {
-    padding: 16px;
+    padding: 0;
   }
   
   .report-dashboard .ant-tabs-tab {
@@ -285,4 +286,49 @@
 
 .issue-severity-low {
   color: #52c41a;
+}
+
+/* 보고서 차트 스타일 */
+.report-chart {
+  margin-bottom: 24px;
+}
+
+.chart-type-selector {
+  margin-bottom: 16px;
+  text-align: right;
+}
+
+.chart-container {
+  min-height: 300px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* 보고서 상세 모달 스타일 */
+.report-detail-header {
+  margin-bottom: 24px;
+  border-bottom: 1px solid #f0f0f0;
+  padding-bottom: 16px;
+}
+
+/* 내보내기 모달 스타일 */
+.export-options {
+  margin-bottom: 16px;
+}
+
+/* 테이블 스타일 */
+.data-table {
+  margin-top: 16px;
+}
+
+/* 반응형 조정 */
+@media (max-width: 768px) {
+  .report-form {
+    padding: 0;
+  }
+  
+  .chart-container {
+    min-height: 250px;
+  }
 } 
