@@ -1,22 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useTodoContext } from '../context/TodoContext';
-
-/**
- * TodoItem 인터페이스 정의
- */
-interface TodoItem {
-  id: string;
-  title: string;
-  description?: string;
-  completed: boolean;
-  priority: 'low' | 'medium' | 'high';
-  dueDate?: string;
-  assignedTo?: string;
-  vehicleId?: string;
-  createdAt: string;
-  updatedAt: string;
-}
+import { useTodoService, Todo as TodoType, TodoCreateRequest } from '../hooks/useTodoService';
 
 /**
  * Todo 컴포넌트 프롭스 인터페이스
@@ -32,13 +16,35 @@ interface TodoProps {
  */
 const Todo: React.FC<TodoProps> = ({ vehicleId, className = '', showCompleted = true }) => {
   const navigate = useNavigate();
-  const { todos, addTodo, updateTodo, removeTodo } = useTodoContext();
-  const [filteredTodos, setFilteredTodos] = useState<TodoItem[]>([]);
+  const { 
+    todos, 
+    loading: serviceLoading, 
+    error: serviceError, 
+    fetchTodos,
+    createTodo,
+    updateTodo,
+    deleteTodo 
+  } = useTodoService();
+  
+  const [filteredTodos, setFilteredTodos] = useState<TodoType[]>([]);
   const [newTodo, setNewTodo] = useState('');
   const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium');
   const [dueDate, setDueDate] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // 초기 데이터 로드
+  useEffect(() => {
+    const loadTodos = async () => {
+      try {
+        await fetchTodos(vehicleId ? { vehicleId } : undefined);
+      } catch (err) {
+        console.error('Failed to load todos:', err);
+      }
+    };
+    
+    loadTodos();
+  }, [fetchTodos, vehicleId]);
 
   // 필터링된 Todo 항목 설정
   useEffect(() => {
@@ -75,13 +81,13 @@ const Todo: React.FC<TodoProps> = ({ vehicleId, className = '', showCompleted = 
   }, [todos, vehicleId, showCompleted]);
 
   // 새 Todo 추가
-  const handleAddTodo = () => {
+  const handleAddTodo = async () => {
     if (!newTodo.trim()) return;
     
     setLoading(true);
     setError(null);
     
-    const todoItem: Omit<TodoItem, 'id' | 'createdAt' | 'updatedAt'> = {
+    const todoData: TodoCreateRequest = {
       title: newTodo.trim(),
       completed: false,
       priority,
@@ -90,7 +96,7 @@ const Todo: React.FC<TodoProps> = ({ vehicleId, className = '', showCompleted = 
     };
     
     try {
-      addTodo(todoItem);
+      await createTodo(todoData);
       setNewTodo('');
       setPriority('medium');
       setDueDate('');
@@ -103,14 +109,22 @@ const Todo: React.FC<TodoProps> = ({ vehicleId, className = '', showCompleted = 
   };
 
   // Todo 상태 토글
-  const handleToggleComplete = (id: string, completed: boolean) => {
-    updateTodo(id, { completed: !completed });
+  const handleToggleComplete = async (id: string, completed: boolean) => {
+    try {
+      await updateTodo(id, { completed: !completed });
+    } catch (err) {
+      console.error('Failed to update todo:', err);
+    }
   };
 
   // Todo 삭제
-  const handleRemoveTodo = (id: string) => {
+  const handleRemoveTodo = async (id: string) => {
     if (window.confirm('이 정비 작업을 삭제하시겠습니까?')) {
-      removeTodo(id);
+      try {
+        await deleteTodo(id);
+      } catch (err) {
+        console.error('Failed to delete todo:', err);
+      }
     }
   };
 
@@ -127,6 +141,9 @@ const Todo: React.FC<TodoProps> = ({ vehicleId, className = '', showCompleted = 
       default: return 'bg-gray-100 text-gray-800';
     }
   };
+
+  // 서비스 에러 표시
+  const displayError = serviceError || error;
 
   return (
     <div className={`todo-component ${className}`}>
@@ -162,18 +179,20 @@ const Todo: React.FC<TodoProps> = ({ vehicleId, className = '', showCompleted = 
           
           <button
             onClick={handleAddTodo}
-            disabled={loading || !newTodo.trim()}
+            disabled={loading || serviceLoading || !newTodo.trim()}
             className="bg-blue-500 text-white px-4 py-2 rounded disabled:bg-gray-300"
           >
-            {loading ? '추가 중...' : '추가'}
+            {loading || serviceLoading ? '처리 중...' : '추가'}
           </button>
         </div>
         
-        {error && <p className="text-red-500 text-sm">{error}</p>}
+        {displayError && <p className="text-red-500 text-sm">{displayError}</p>}
       </div>
 
       {/* Todo 목록 */}
-      {filteredTodos.length === 0 ? (
+      {serviceLoading ? (
+        <p className="text-gray-500">로딩 중...</p>
+      ) : filteredTodos.length === 0 ? (
         <p className="text-gray-500">등록된 정비 작업이 없습니다.</p>
       ) : (
         <ul className="space-y-2">
