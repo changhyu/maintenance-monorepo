@@ -592,8 +592,7 @@ const DashboardReportChart: React.FC<{
     const animationProps = animated ? {
       isAnimationActive: true,
       animationBegin: 0,
-      animationDuration: 1500,
-      animationEasing: "ease-in-out" as const
+      animationDuration: 1500
     } : {
       isAnimationActive: false
     };
@@ -619,7 +618,8 @@ const DashboardReportChart: React.FC<{
                 dataKey="value"
                 nameKey="name"
                 label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                {...animationProps}
+                isAnimationActive={animated}
+                animationDuration={animated ? 1500 : 0}
               >
                 {data.labels.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -645,7 +645,8 @@ const DashboardReportChart: React.FC<{
                 stroke="#8884d8"
                 activeDot={{ r: 8 }}
                 name={data.datasets[0].label}
-                {...animationProps}
+                isAnimationActive={animated}
+                animationDuration={animated ? 1500 : 0}
               />
             </LineChart>
           </ResponsiveContainer>
@@ -666,7 +667,8 @@ const DashboardReportChart: React.FC<{
                 stroke="#8884d8" 
                 fill="#8884d8" 
                 fillOpacity={0.3}
-                {...animationProps} 
+                isAnimationActive={animated}
+                animationDuration={animated ? 1500 : 0}
               />
             </AreaChart>
           </ResponsiveContainer>
@@ -684,7 +686,8 @@ const DashboardReportChart: React.FC<{
                 stroke="#8884d8" 
                 fill="#8884d8" 
                 fillOpacity={0.6}
-                {...animationProps} 
+                isAnimationActive={animated}
+                animationDuration={animated ? 1500 : 0}
               />
               <Legend />
               <RechartsTooltip />
@@ -705,7 +708,8 @@ const DashboardReportChart: React.FC<{
                 dataKey="value" 
                 name={data.datasets[0].label} 
                 fill="#8884d8"
-                {...animationProps}
+                isAnimationActive={animated}
+                animationDuration={animated ? 1500 : 0}
               >
                 {data.labels.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />

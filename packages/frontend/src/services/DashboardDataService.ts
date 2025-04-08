@@ -976,13 +976,24 @@ export class DashboardDataService {
   async getFilteredDashboardData(filters: DashboardFilters) {
     try {
       // API 호출 시 필터 파라미터 추가
-      const params = {
-        startDate: filters.dateRange.startDate.toISOString(),
-        endDate: filters.dateRange.endDate.toISOString(),
+      const params: Record<string, any> = {
         vehicleType: filters.vehicleType || undefined,
         maintenanceStatus: filters.maintenanceStatus || undefined,
         priority: filters.priority || undefined
       };
+
+      // 날짜 범위가 있는 경우 추가
+      if (filters.dateRange?.startDate) {
+        params.startDate = typeof filters.dateRange.startDate === 'string' 
+          ? filters.dateRange.startDate 
+          : filters.dateRange.startDate.toISOString();
+      }
+
+      if (filters.dateRange?.endDate) {
+        params.endDate = typeof filters.dateRange.endDate === 'string'
+          ? filters.dateRange.endDate
+          : filters.dateRange.endDate.toISOString();
+      }
 
       // 필터링된 개요 데이터 가져오기
       const overviewData = await this.getFilteredOverviewData(filters);
@@ -1228,32 +1239,47 @@ export class DashboardDataService {
    * 필터를 적용하여 정비 추이 차트 데이터 생성
    */
   getFilteredMaintenanceTrendChartData(filters: DashboardFilters) {
-    // 기본 데이터 가져오기
-    const baseData = this.formatMaintenanceTrendChartData();
+    // 기본 데이터
+    const baseData = [
+      { date: '1월', completed: 12, pending: 7 },
+      { date: '2월', completed: 19, pending: 11 },
+      { date: '3월', completed: 8, pending: 5 },
+      { date: '4월', completed: 15, pending: 8 },
+      { date: '5월', completed: 12, pending: 3 },
+      { date: '6월', completed: 8, pending: 9 }
+    ];
     
-    // 날짜 필터 적용
-    const startDate = filters.dateRange.startDate;
-    const endDate = filters.dateRange.endDate;
-    
-    // 날짜에 따른 필터링 (간단한 데모 로직)
-    // 실제 구현에서는 API 호출 필요
-    
-    // 날짜 범위가 지난 3개월 이내인 경우, 최근 데이터만 반환
-    const threeMonthsAgo = new Date();
-    threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
-    
-    if (startDate > threeMonthsAgo) {
-      // 최근 데이터만 반환 (최근 3개월)
-      return baseData.slice(-3);
+    // 날짜 필터가 없는 경우 전체 데이터 반환
+    if (!filters.dateRange?.startDate) {
+      return baseData;
     }
-    
-    // 날짜 범위가 지난 6개월 이내인 경우, 최근 6개월 데이터 반환
-    const sixMonthsAgo = new Date();
-    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-    
-    if (startDate > sixMonthsAgo) {
-      // 최근 데이터만 반환 (최근 6개월)
-      return baseData.slice(-6);
+
+    try {
+      // 날짜 비교를 위해 문자열을 Date로 변환
+      const startDateObj = typeof filters.dateRange.startDate === 'string' 
+        ? new Date(filters.dateRange.startDate) 
+        : filters.dateRange.startDate;
+      
+      const threeMonthsAgo = new Date();
+      threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+      
+      const sixMonthsAgo = new Date();
+      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+      
+      // 날짜 비교로 필터링
+      // 최근 3개월 데이터
+      if (startDateObj >= threeMonthsAgo) {
+        // 최근 3개월만 반환
+        return baseData.slice(-3);
+      }
+      
+      // 최근 6개월 데이터
+      if (startDateObj >= sixMonthsAgo) {
+        // 최근 6개월 반환
+        return baseData;
+      }
+    } catch (error) {
+      console.error('날짜 비교 중 오류 발생:', error);
     }
     
     // 기본값: 모든 데이터 반환

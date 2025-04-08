@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { 
   Card, 
   Tabs, 
@@ -27,7 +27,8 @@ import {
   Divider,
   Progress,
   Descriptions,
-  Text
+  Text,
+  Badge
 } from 'antd';
 import { 
   FileTextOutlined, 
@@ -53,8 +54,10 @@ import {
   PieChartOutlined,
   PrinterOutlined,
   SettingOutlined,
-  CloseOutlined
+  CloseOutlined,
+  SyncOutlined
 } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import reportService, { 
   ReportType, 
@@ -66,17 +69,22 @@ import reportService, {
   ReportTemplate,
   generateReport, exportReport
 } from '../../services/reportService';
+import VehicleService from '../../services/vehicle';
 import ReportDetailModal from './ReportDetailModal';
 import { downloadFile, exportReportData } from '../../utils/reportUtils';
 import './styles.css';
-import ReportChart from './ReportChart';
+import ScheduleReportModal from './ScheduleReportModal';
+import ExportModal from './ExportModal';
 
 const { TabPane } = Tabs;
 const { RangePicker } = DatePicker;
 const { Option } = Select;
 const { Search } = Input;
+const { Title } = Typography;
 
-// 로컬 인터페이스 정의
+/**
+ * 로컬 보고서 타입 (UI 표시용)
+ */
 interface LocalReport {
   id: string;
   name: string;
@@ -92,19 +100,6 @@ interface LocalReport {
     status: string;
     priority: string;
   }>;
-}
-
-interface ReportTemplate {
-  id: string;
-  name: string;
-  type: ReportType;
-  dateRange: [string, string];
-  vehicle?: string;
-  maintenanceType?: string;
-  includeCharts: boolean;
-  includeHeader: boolean;
-  includeFooter: boolean;
-  createdAt: string;
 }
 
 /**
@@ -668,11 +663,6 @@ const ReportDashboard: React.FC = () => {
   ];
 
   // 템플릿 목록 로드
-  useEffect(() => {
-    loadTemplates();
-  }, []);
-  
-  // 템플릿 목록 로드
   const loadTemplates = () => {
     try {
       const templateList = reportService.getTemplates();
@@ -710,7 +700,7 @@ const ReportDashboard: React.FC = () => {
         }
       };
       
-      const newTemplate = await reportService.saveTemplate(templateData);
+      await reportService.saveTemplate(templateData);
       
       // 템플릿 목록 업데이트
       loadTemplates();
@@ -729,32 +719,32 @@ const ReportDashboard: React.FC = () => {
     try {
       setReportType(template.type);
       
-      if (template.filter.startDate && template.filter.endDate) {
+      if (template.filter?.startDate && template.filter?.endDate) {
         setDateRange([
           new Date(template.filter.startDate),
           new Date(template.filter.endDate)
         ]);
       }
       
-      if (template.filter.vehicleId) {
+      if (template.filter?.vehicleId) {
         setSelectedVehicle(template.filter.vehicleId);
       } else {
         setSelectedVehicle('');
       }
       
-      if (template.filter.maintenanceType) {
+      if (template.filter?.maintenanceType) {
         setMaintenanceType(template.filter.maintenanceType);
       } else {
         setMaintenanceType('');
       }
       
-      if (template.filter.priority) {
+      if (template.filter?.priority) {
         setPriority(template.filter.priority);
       } else {
         setPriority('');
       }
       
-      if (template.filter.status) {
+      if (template.filter?.status) {
         setStatus(template.filter.status === 'all' ? 'all' : template.filter.status);
       } else {
         setStatus('all');
@@ -909,6 +899,65 @@ const ReportDashboard: React.FC = () => {
           </Space>
         </Menu.Item>
       </Menu>
+    );
+  };
+
+  // 템플릿 관리 모달의 템플릿 목록 렌더링
+  const renderTemplateList = () => {
+    return (
+      <List
+        dataSource={templates}
+        renderItem={(template) => (
+          <List.Item
+            actions={[
+              <Button 
+                icon={<ToolOutlined />} 
+                onClick={() => startEditingTemplate(template)} 
+                type="link"
+              >
+                편집
+              </Button>,
+              <Button 
+                danger 
+                icon={<CloseOutlined />} 
+                onClick={() => deleteTemplate(template.id)} 
+                type="link"
+              >
+                삭제
+              </Button>,
+              <Button 
+                type="link" 
+                onClick={() => {
+                  loadTemplate(template);
+                  setTemplateManageModalVisible(false);
+                }}
+              >
+                사용하기
+              </Button>
+            ]}
+          >
+            <List.Item.Meta
+              title={template.name}
+              description={
+                <div>
+                  <div>유형: {getReportTypeName(template.type)}</div>
+                  <div>
+                    생성일: {dayjs(template.createdAt).format('YYYY-MM-DD')}
+                  </div>
+                  {template.lastUsed && (
+                    <div>
+                      마지막 사용: {dayjs(template.lastUsed).format('YYYY-MM-DD HH:mm')}
+                    </div>
+                  )}
+                  <div>
+                    기간: {template.filter?.startDate} ~ {template.filter?.endDate}
+                  </div>
+                </div>
+              }
+            />
+          </List.Item>
+        )}
+      />
     );
   };
 
@@ -1257,62 +1306,7 @@ const ReportDashboard: React.FC = () => {
         ) : templates.length === 0 ? (
           <Empty description="저장된 템플릿이 없습니다" />
         ) : (
-          <List
-            dataSource={templates}
-            renderItem={template => (
-              <List.Item
-                key={template.id}
-                actions={[
-                  <Tooltip title="이 템플릿으로 보고서 생성">
-                    <Button
-                      icon={<FileTextOutlined />}
-                      onClick={() => generateReportFromTemplate(template.id)}
-                    />
-                  </Tooltip>,
-                  <Tooltip title="템플릿 수정">
-                    <Button
-                      icon={<EditOutlined />}
-                      onClick={() => startEditingTemplate(template)}
-                    />
-                  </Tooltip>,
-                  <Popconfirm
-                    title="이 템플릿을 삭제하시겠습니까?"
-                    onConfirm={() => deleteTemplate(template.id)}
-                    okText="삭제"
-                    cancelText="취소"
-                  >
-                    <Button icon={<DeleteOutlined />} danger />
-                  </Popconfirm>
-                ]}
-              >
-                <List.Item.Meta
-                  title={
-                    <Space>
-                      <span>{template.name}</span>
-                      <Tag color={getReportTypeColor(template.type)}>
-                        {getReportTypeName(template.type)}
-                      </Tag>
-                    </Space>
-                  }
-                  description={
-                    <Space direction="vertical" size={0}>
-                      <Text type="secondary">
-                        생성일: {dayjs(template.createdAt).format('YYYY-MM-DD HH:mm')}
-                      </Text>
-                      {template.lastUsed && (
-                        <Text type="secondary">
-                          마지막 사용: {dayjs(template.lastUsed).format('YYYY-MM-DD HH:mm')}
-                        </Text>
-                      )}
-                      <Text type="secondary">
-                        기간: {template.filter.startDate} ~ {template.filter.endDate}
-                      </Text>
-                    </Space>
-                  }
-                />
-              </List.Item>
-            )}
-          />
+          renderTemplateList()
         )}
       </Modal>
       
