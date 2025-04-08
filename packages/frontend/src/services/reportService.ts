@@ -28,6 +28,24 @@ export interface ReportFilter {
 }
 
 /**
+ * 보고서 템플릿 인터페이스
+ */
+export interface ReportTemplate {
+  id: string;
+  name: string;
+  type: ReportType;
+  filter: ReportFilter;
+  options: {
+    includeCharts: boolean;
+    includeRawData: boolean;
+    paperSize?: 'a4' | 'letter' | 'legal';
+    landscape?: boolean;
+  };
+  createdAt: string;
+  lastUsed?: string;
+}
+
+/**
  * 기본 보고서 인터페이스
  */
 export interface Report {
@@ -202,6 +220,7 @@ export interface ExportOptions {
  */
 class ReportService {
   private apiUrl = '/api/reports';
+  private readonly TEMPLATES_STORAGE_KEY = 'reportTemplates';
 
   /**
    * 완료율 보고서 생성
@@ -337,6 +356,148 @@ class ReportService {
       console.error('보고서 스케줄 설정 중 오류 발생:', error);
       // 임시 데이터로 대체
       return { id: `schedule-${Date.now()}` };
+    }
+  }
+
+  /**
+   * 보고서 템플릿 저장
+   */
+  async saveTemplate(template: Omit<ReportTemplate, 'id' | 'createdAt'>): Promise<ReportTemplate> {
+    try {
+      // API가 구현되어 있다면 서버에 저장
+      // const response = await axios.post(`${this.apiUrl}/templates`, template);
+      // return response.data;
+      
+      // 로컬 스토리지에 저장하는 임시 구현
+      const templates = this.getTemplates();
+      const newTemplate: ReportTemplate = {
+        ...template,
+        id: `template-${Date.now()}`,
+        createdAt: new Date().toISOString(),
+      };
+      
+      templates.push(newTemplate);
+      localStorage.setItem(this.TEMPLATES_STORAGE_KEY, JSON.stringify(templates));
+      
+      return newTemplate;
+    } catch (error) {
+      console.error('템플릿 저장 중 오류 발생:', error);
+      throw new Error('템플릿을 저장할 수 없습니다.');
+    }
+  }
+
+  /**
+   * 모든 보고서 템플릿 조회
+   */
+  getTemplates(): ReportTemplate[] {
+    try {
+      const templatesJson = localStorage.getItem(this.TEMPLATES_STORAGE_KEY);
+      return templatesJson ? JSON.parse(templatesJson) : [];
+    } catch (error) {
+      console.error('템플릿 조회 중 오류 발생:', error);
+      return [];
+    }
+  }
+
+  /**
+   * 템플릿 ID로 단일 템플릿 조회
+   */
+  getTemplateById(templateId: string): ReportTemplate | null {
+    const templates = this.getTemplates();
+    return templates.find(template => template.id === templateId) || null;
+  }
+
+  /**
+   * 템플릿 업데이트
+   */
+  updateTemplate(templateId: string, updates: Partial<Omit<ReportTemplate, 'id' | 'createdAt'>>): ReportTemplate | null {
+    try {
+      const templates = this.getTemplates();
+      const templateIndex = templates.findIndex(template => template.id === templateId);
+      
+      if (templateIndex === -1) {
+        return null;
+      }
+      
+      const updatedTemplate = {
+        ...templates[templateIndex],
+        ...updates,
+      };
+      
+      templates[templateIndex] = updatedTemplate;
+      localStorage.setItem(this.TEMPLATES_STORAGE_KEY, JSON.stringify(templates));
+      
+      return updatedTemplate;
+    } catch (error) {
+      console.error('템플릿 업데이트 중 오류 발생:', error);
+      return null;
+    }
+  }
+
+  /**
+   * 템플릿 삭제
+   */
+  deleteTemplate(templateId: string): boolean {
+    try {
+      const templates = this.getTemplates();
+      const filteredTemplates = templates.filter(template => template.id !== templateId);
+      
+      if (filteredTemplates.length === templates.length) {
+        return false; // 삭제할 템플릿이 없음
+      }
+      
+      localStorage.setItem(this.TEMPLATES_STORAGE_KEY, JSON.stringify(filteredTemplates));
+      return true;
+    } catch (error) {
+      console.error('템플릿 삭제 중 오류 발생:', error);
+      return false;
+    }
+  }
+
+  /**
+   * 템플릿 사용 시간 업데이트
+   */
+  updateTemplateUsage(templateId: string): ReportTemplate | null {
+    return this.updateTemplate(templateId, { lastUsed: new Date().toISOString() });
+  }
+
+  /**
+   * 템플릿으로 보고서 생성
+   */
+  async generateReportFromTemplate(templateId: string): Promise<Report | null> {
+    const template = this.getTemplateById(templateId);
+    
+    if (!template) {
+      return null;
+    }
+    
+    // 템플릿 사용 시간 업데이트
+    this.updateTemplateUsage(templateId);
+    
+    try {
+      switch (template.type) {
+        case ReportType.COMPLETION_RATE:
+          return await this.generateCompletionRateReport(template.filter);
+        case ReportType.VEHICLE_HISTORY:
+          if (!template.filter.vehicleId) {
+            throw new Error('차량 ID가 필요합니다.');
+          }
+          return await this.generateVehicleHistoryReport(
+            template.filter.vehicleId, 
+            { ...template.filter, vehicleId: undefined }
+          );
+        case ReportType.COST_ANALYSIS:
+          return await this.generateCostAnalysisReport(template.filter);
+        case ReportType.MAINTENANCE_SUMMARY:
+          return await this.generateMaintenanceSummaryReport(template.filter);
+        case ReportType.MAINTENANCE_FORECAST:
+          return await this.generateMaintenanceForecastReport(template.filter);
+        default:
+          throw new Error('지원되지 않는 보고서 유형입니다.');
+      }
+    } catch (error) {
+      console.error('템플릿으로 보고서 생성 중 오류 발생:', error);
+      return null;
     }
   }
 
@@ -795,5 +956,5 @@ class ReportService {
   }
 }
 
-export const reportService = new ReportService();
+const reportService = new ReportService();
 export default reportService; 

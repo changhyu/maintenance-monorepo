@@ -25,7 +25,9 @@ import {
   List,
   Radio,
   Divider,
-  Progress
+  Progress,
+  Descriptions,
+  Text
 } from 'antd';
 import { 
   FileTextOutlined, 
@@ -61,6 +63,7 @@ import reportService, {
   ReportFormat,
   ExportOptions,
   Report as ServiceReport,
+  ReportTemplate,
   generateReport, exportReport
 } from '../../services/reportService';
 import ReportDetailModal from './ReportDetailModal';
@@ -659,137 +662,215 @@ const ReportDashboard: React.FC = () => {
     </Menu>
   );
 
-  // 샘플 차량 목록
-  const sampleVehiclesDropdown = (
-    <Menu>
-      {sampleVehicles.map(vehicle => (
-        <Menu.Item key={vehicle.id} onClick={() => setSelectedVehicle(vehicle.id)}>
-          {vehicle.name}
-        </Menu.Item>
-      ))}
-    </Menu>
-  );
-
-  // 정비 유형 목록
-  const maintenanceTypesDropdown = (
-    <Menu>
-      {maintenanceTypes.map(type => (
-        <Menu.Item key={type} onClick={() => setMaintenanceType(type)}>
-          {type}
-        </Menu.Item>
-      ))}
-    </Menu>
-  );
-
   // 샘플 보고서 데이터
   const sampleReports: LocalReport[] = [
     // ... existing code ...
   ];
 
-  // 템플릿 불러오기
+  // 템플릿 목록 로드
   useEffect(() => {
-    // 로컬 스토리지에서 저장된 템플릿 불러오기
-    const savedTemplates = localStorage.getItem('reportTemplates');
-    if (savedTemplates) {
-      try {
-        const parsed = JSON.parse(savedTemplates);
-        setTemplates(parsed.map((template: any) => ({
-          ...template,
-          dateRange: [new Date(template.dateRange[0]), new Date(template.dateRange[1])]
-        })));
-      } catch (error) {
-        console.error('템플릿 불러오기 오류:', error);
-      }
-    }
+    loadTemplates();
   }, []);
   
+  // 템플릿 목록 로드
+  const loadTemplates = () => {
+    try {
+      const templateList = reportService.getTemplates();
+      setTemplates(templateList);
+    } catch (error) {
+      console.error('템플릿 로드 오류:', error);
+      message.error('템플릿 목록을 불러오는 데 실패했습니다.');
+    }
+  };
+  
   // 템플릿 저장
-  const saveTemplate = () => {
+  const saveTemplate = async () => {
     if (!templateName.trim()) {
       message.error('템플릿 이름을 입력하세요');
       return;
     }
     
-    const newTemplate: ReportTemplate = {
-      id: `template-${Date.now()}`,
-      name: templateName,
-      reportType,
-      dateRange,
-      selectedVehicle,
-      maintenanceType,
-      priority,
-      status
-    };
-    
-    const updatedTemplates = [...templates, newTemplate];
-    setTemplates(updatedTemplates);
-    
-    // 로컬 스토리지에 저장
-    localStorage.setItem('reportTemplates', JSON.stringify(updatedTemplates));
-    
-    message.success('템플릿이 저장되었습니다');
-    setTemplateModalVisible(false);
-    setTemplateName('');
+    try {
+      const filter: ReportFilter = {
+        startDate: formatDate(dateRange[0]),
+        endDate: formatDate(dateRange[1]),
+        vehicleId: selectedVehicle || undefined,
+        maintenanceType: maintenanceType || undefined,
+        priority: priority || undefined,
+        status: status === 'all' ? undefined : status
+      };
+      
+      const templateData = {
+        name: templateName,
+        type: reportType,
+        filter,
+        options: {
+          includeCharts: includeCharts,
+          includeRawData: includeRawData
+        }
+      };
+      
+      const newTemplate = await reportService.saveTemplate(templateData);
+      
+      // 템플릿 목록 업데이트
+      loadTemplates();
+      
+      message.success('템플릿이 저장되었습니다');
+      setTemplateModalVisible(false);
+      setTemplateName('');
+    } catch (error) {
+      console.error('템플릿 저장 오류:', error);
+      message.error('템플릿 저장에 실패했습니다.');
+    }
   };
   
   // 템플릿 불러오기
   const loadTemplate = (template: ReportTemplate) => {
-    setReportType(template.reportType);
-    setDateRange(template.dateRange);
-    setSelectedVehicle(template.selectedVehicle || undefined);
-    setMaintenanceType(template.maintenanceType || undefined);
-    setPriority(template.priority || undefined);
-    setStatus(template.status);
-    
-    message.success(`'${template.name}' 템플릿을 불러왔습니다`);
-    setSelectedTemplate(template);
+    try {
+      setReportType(template.type);
+      
+      if (template.filter.startDate && template.filter.endDate) {
+        setDateRange([
+          new Date(template.filter.startDate),
+          new Date(template.filter.endDate)
+        ]);
+      }
+      
+      if (template.filter.vehicleId) {
+        setSelectedVehicle(template.filter.vehicleId);
+      } else {
+        setSelectedVehicle('');
+      }
+      
+      if (template.filter.maintenanceType) {
+        setMaintenanceType(template.filter.maintenanceType);
+      } else {
+        setMaintenanceType('');
+      }
+      
+      if (template.filter.priority) {
+        setPriority(template.filter.priority);
+      } else {
+        setPriority('');
+      }
+      
+      if (template.filter.status) {
+        setStatus(template.filter.status === 'all' ? 'all' : template.filter.status);
+      } else {
+        setStatus('all');
+      }
+      
+      if (template.options) {
+        setIncludeCharts(template.options.includeCharts);
+        setIncludeRawData(template.options.includeRawData);
+      }
+      
+      // 템플릿 사용 시간 업데이트
+      reportService.updateTemplateUsage(template.id);
+      
+      message.success(`'${template.name}' 템플릿을 불러왔습니다`);
+      setSelectedTemplate(template);
+    } catch (error) {
+      console.error('템플릿 불러오기 오류:', error);
+      message.error('템플릿을 불러오는 데 실패했습니다.');
+    }
   };
   
   // 템플릿 삭제
-  const deleteTemplate = (templateId: string) => {
-    const updatedTemplates = templates.filter(template => template.id !== templateId);
-    setTemplates(updatedTemplates);
-    
-    // 로컬 스토리지 업데이트
-    localStorage.setItem('reportTemplates', JSON.stringify(updatedTemplates));
-    
-    message.success('템플릿이 삭제되었습니다');
-    
-    if (selectedTemplate?.id === templateId) {
-      setSelectedTemplate(null);
-    }
-    
-    if (editingTemplate?.id === templateId) {
-      setEditingTemplate(null);
-      setTemplateManageModalVisible(false);
+  const deleteTemplate = async (templateId: string) => {
+    try {
+      const success = reportService.deleteTemplate(templateId);
+      
+      if (success) {
+        // 템플릿 목록 업데이트
+        loadTemplates();
+        
+        message.success('템플릿이 삭제되었습니다');
+        
+        if (selectedTemplate?.id === templateId) {
+          setSelectedTemplate(null);
+        }
+        
+        if (editingTemplate?.id === templateId) {
+          setEditingTemplate(null);
+          setTemplateManageModalVisible(false);
+        }
+      } else {
+        message.error('템플릿 삭제에 실패했습니다');
+      }
+    } catch (error) {
+      console.error('템플릿 삭제 오류:', error);
+      message.error('템플릿 삭제 중 오류가 발생했습니다.');
     }
   };
   
   // 템플릿 이름 수정
-  const updateTemplateName = () => {
+  const updateTemplateName = async () => {
     if (!editingTemplate || !editingTemplateName.trim()) {
       message.error('템플릿 이름을 입력하세요');
       return;
     }
     
-    const updatedTemplates = templates.map(template => 
-      template.id === editingTemplate.id 
-        ? { ...template, name: editingTemplateName } 
-        : template
-    );
+    try {
+      const updatedTemplate = reportService.updateTemplate(
+        editingTemplate.id,
+        { name: editingTemplateName }
+      );
+      
+      if (updatedTemplate) {
+        // 템플릿 목록 업데이트
+        loadTemplates();
+        
+        message.success('템플릿 이름이 수정되었습니다');
+        
+        if (selectedTemplate?.id === editingTemplate.id) {
+          setSelectedTemplate(updatedTemplate);
+        }
+      } else {
+        message.error('템플릿 이름 수정에 실패했습니다');
+      }
+      
+      setEditingTemplate(null);
+      setEditingTemplateName('');
+      setTemplateManageModalVisible(false);
+    } catch (error) {
+      console.error('템플릿 이름 수정 오류:', error);
+      message.error('템플릿 이름 수정 중 오류가 발생했습니다.');
+    }
+  };
+  
+  // 템플릿 관리 모달 열기
+  const openTemplateManageModal = () => {
+    loadTemplates(); // 최신 템플릿 목록 로드
+    setTemplateManageModalVisible(true);
+  };
+  
+  // 템플릿 편집 시작
+  const startEditingTemplate = (template: ReportTemplate) => {
+    setEditingTemplate(template);
+    setEditingTemplateName(template.name);
+  };
+  
+  // 템플릿으로 보고서 생성
+  const generateReportFromTemplate = async (templateId: string) => {
+    setLoading(true);
     
-    setTemplates(updatedTemplates);
-    
-    // 로컬 스토리지 업데이트
-    localStorage.setItem('reportTemplates', JSON.stringify(updatedTemplates));
-    
-    message.success('템플릿 이름이 수정되었습니다');
-    setEditingTemplate(null);
-    setEditingTemplateName('');
-    setTemplateManageModalVisible(false);
-    
-    if (selectedTemplate?.id === editingTemplate.id) {
-      setSelectedTemplate({ ...selectedTemplate, name: editingTemplateName });
+    try {
+      const report = await reportService.generateReportFromTemplate(templateId);
+      
+      if (report) {
+        // 보고서 생성 성공 처리
+        message.success('보고서가 생성되었습니다');
+        // 보고서 상세 모달 열기
+        showReportDetail(report as any);
+      } else {
+        message.error('보고서 생성에 실패했습니다');
+      }
+    } catch (error) {
+      console.error('템플릿으로 보고서 생성 오류:', error);
+      message.error('템플릿으로 보고서 생성 중 오류가 발생했습니다.');
+    } finally {
+      setLoading(false);
     }
   };
   
@@ -804,6 +885,9 @@ const ReportDashboard: React.FC = () => {
                 <Space>
                   <CheckOutlined style={{ visibility: selectedTemplate?.id === template.id ? 'visible' : 'hidden' }} />
                   {template.name}
+                  <Tag color={getReportTypeColor(template.type)} style={{ marginLeft: 8 }}>
+                    {getReportTypeName(template.type)}
+                  </Tag>
                 </Space>
               </Menu.Item>
             ))}
@@ -818,7 +902,7 @@ const ReportDashboard: React.FC = () => {
             현재 설정을 템플릿으로 저장
           </Space>
         </Menu.Item>
-        <Menu.Item onClick={() => setTemplateManageModalVisible(true)}>
+        <Menu.Item onClick={openTemplateManageModal}>
           <Space>
             <EditOutlined />
             템플릿 관리
@@ -1087,35 +1171,61 @@ const ReportDashboard: React.FC = () => {
 
       {/* 템플릿 저장 모달 */}
       <Modal
-        title="템플릿 저장"
+        title="보고서 템플릿 저장"
         visible={templateModalVisible}
         onCancel={() => setTemplateModalVisible(false)}
-        footer={[
-          <Button key="cancel" onClick={() => setTemplateModalVisible(false)}>
-            취소
-          </Button>,
-          <Button
-            key="save"
-            type="primary"
-            icon={<SaveOutlined />}
-            onClick={saveTemplate}
-          >
-            저장
-          </Button>,
-        ]}
+        onOk={saveTemplate}
+        okText="저장"
+        cancelText="취소"
       >
         <Form layout="vertical">
-          <Form.Item 
-            label="템플릿 이름" 
+          <Form.Item
+            label="템플릿 이름"
             required
-            help="이 설정을 식별할 수 있는 이름을 입력하세요"
+            rules={[{ required: true, message: '템플릿 이름을 입력하세요' }]}
           >
             <Input
-              placeholder="예: 월간 차량 정비 보고서"
+              placeholder="템플릿 이름 입력"
               value={templateName}
               onChange={(e) => setTemplateName(e.target.value)}
-              autoFocus
+              maxLength={50}
+              suffix={<span style={{ color: '#ccc' }}>{templateName.length}/50</span>}
             />
+          </Form.Item>
+          
+          <Form.Item label="현재 보고서 설정">
+            <Descriptions bordered size="small" column={1}>
+              <Descriptions.Item label="보고서 유형">{getReportTypeName(reportType)}</Descriptions.Item>
+              <Descriptions.Item label="기간">
+                {`${formatDate(dateRange[0])} ~ ${formatDate(dateRange[1])}`}
+              </Descriptions.Item>
+              {selectedVehicle && (
+                <Descriptions.Item label="차량 ID">{selectedVehicle}</Descriptions.Item>
+              )}
+              {maintenanceType && (
+                <Descriptions.Item label="정비 유형">{maintenanceType}</Descriptions.Item>
+              )}
+              {priority && (
+                <Descriptions.Item label="우선순위">{priority}</Descriptions.Item>
+              )}
+              <Descriptions.Item label="상태">{status}</Descriptions.Item>
+            </Descriptions>
+          </Form.Item>
+          
+          <Form.Item label="보고서 옵션">
+            <Checkbox
+              checked={includeCharts}
+              onChange={(e) => setIncludeCharts(e.target.checked)}
+            >
+              차트 포함
+            </Checkbox>
+            <Checkbox
+              checked={includeRawData}
+              onChange={(e) => setIncludeRawData(e.target.checked)}
+              style={{ marginLeft: 16 }}
+            >
+              원본 데이터 포함
+            </Checkbox>
           </Form.Item>
         </Form>
       </Modal>
@@ -1125,85 +1235,84 @@ const ReportDashboard: React.FC = () => {
         title="템플릿 관리"
         visible={templateManageModalVisible}
         onCancel={() => setTemplateManageModalVisible(false)}
-        footer={[
-          <Button key="close" onClick={() => setTemplateManageModalVisible(false)}>
-            닫기
-          </Button>
-        ]}
+        footer={null}
+        width={700}
       >
-        {templates.length === 0 ? (
+        {editingTemplate ? (
+          <div style={{ marginBottom: 16 }}>
+            <Input
+              value={editingTemplateName}
+              onChange={(e) => setEditingTemplateName(e.target.value)}
+              style={{ width: 'calc(100% - 8px)', marginBottom: 8 }}
+              placeholder="템플릿 이름"
+            />
+            <Space>
+              <Button type="primary" onClick={updateTemplateName}>저장</Button>
+              <Button onClick={() => {
+                setEditingTemplate(null);
+                setEditingTemplateName('');
+              }}>취소</Button>
+            </Space>
+          </div>
+        ) : templates.length === 0 ? (
           <Empty description="저장된 템플릿이 없습니다" />
         ) : (
           <List
-            itemLayout="horizontal"
             dataSource={templates}
             renderItem={template => (
               <List.Item
+                key={template.id}
                 actions={[
-                  <Tooltip title="템플릿 불러오기">
-                    <Button 
-                      icon={<FolderOpenOutlined />} 
-                      size="small"
-                      onClick={() => {
-                        loadTemplate(template);
-                        setTemplateManageModalVisible(false);
-                      }}
+                  <Tooltip title="이 템플릿으로 보고서 생성">
+                    <Button
+                      icon={<FileTextOutlined />}
+                      onClick={() => generateReportFromTemplate(template.id)}
                     />
                   </Tooltip>,
-                  <Tooltip title="이름 수정">
-                    <Button 
-                      icon={<EditOutlined />} 
-                      size="small"
-                      onClick={() => {
-                        setEditingTemplate(template);
-                        setEditingTemplateName(template.name);
-                      }}
+                  <Tooltip title="템플릿 수정">
+                    <Button
+                      icon={<EditOutlined />}
+                      onClick={() => startEditingTemplate(template)}
                     />
                   </Tooltip>,
-                  <Tooltip title="템플릿 삭제">
-                    <Popconfirm
-                      title="이 템플릿을 삭제하시겠습니까?"
-                      onConfirm={() => deleteTemplate(template.id)}
-                      okText="삭제"
-                      cancelText="취소"
-                    >
-                      <Button icon={<DeleteOutlined />} size="small" danger />
-                    </Popconfirm>
-                  </Tooltip>
+                  <Popconfirm
+                    title="이 템플릿을 삭제하시겠습니까?"
+                    onConfirm={() => deleteTemplate(template.id)}
+                    okText="삭제"
+                    cancelText="취소"
+                  >
+                    <Button icon={<DeleteOutlined />} danger />
+                  </Popconfirm>
                 ]}
               >
                 <List.Item.Meta
-                  title={template.name}
-                  description={`${getReportTypeName(template.reportType)} | ${dayjs(template.dateRange[0]).format('YYYY-MM-DD')} ~ ${dayjs(template.dateRange[1]).format('YYYY-MM-DD')}`}
+                  title={
+                    <Space>
+                      <span>{template.name}</span>
+                      <Tag color={getReportTypeColor(template.type)}>
+                        {getReportTypeName(template.type)}
+                      </Tag>
+                    </Space>
+                  }
+                  description={
+                    <Space direction="vertical" size={0}>
+                      <Text type="secondary">
+                        생성일: {dayjs(template.createdAt).format('YYYY-MM-DD HH:mm')}
+                      </Text>
+                      {template.lastUsed && (
+                        <Text type="secondary">
+                          마지막 사용: {dayjs(template.lastUsed).format('YYYY-MM-DD HH:mm')}
+                        </Text>
+                      )}
+                      <Text type="secondary">
+                        기간: {template.filter.startDate} ~ {template.filter.endDate}
+                      </Text>
+                    </Space>
+                  }
                 />
               </List.Item>
             )}
           />
-        )}
-        
-        {/* 템플릿 이름 수정 폼 */}
-        {editingTemplate && (
-          <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #f0f0f0' }}>
-            <Typography.Title level={5}>템플릿 이름 수정</Typography.Title>
-            <Form layout="inline">
-              <Form.Item style={{ flex: 1 }}>
-                <Input
-                  value={editingTemplateName}
-                  onChange={(e) => setEditingTemplateName(e.target.value)}
-                  placeholder="새 템플릿 이름"
-                />
-              </Form.Item>
-              <Form.Item>
-                <Button type="primary" onClick={updateTemplateName}>적용</Button>
-              </Form.Item>
-              <Form.Item>
-                <Button onClick={() => {
-                  setEditingTemplate(null);
-                  setEditingTemplateName('');
-                }}>취소</Button>
-              </Form.Item>
-            </Form>
-          </div>
         )}
       </Modal>
       
