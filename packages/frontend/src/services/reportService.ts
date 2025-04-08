@@ -12,19 +12,25 @@ export enum ReportType {
   VEHICLE_HISTORY = 'vehicle_history',
   COST_ANALYSIS = 'cost_analysis',
   MAINTENANCE_SUMMARY = 'maintenance_summary',
-  MAINTENANCE_FORECAST = 'maintenance_forecast'
+  MAINTENANCE_FORECAST = 'maintenance_forecast',
+  VEHICLE_UTILIZATION = 'vehicle_utilization',
+  MAINTENANCE_COMPLETION_RATE = 'maintenance_completion_rate',
+  PREDICTIVE_MAINTENANCE = 'predictive_maintenance',
+  PARTS_USAGE = 'parts_usage'
 }
 
 /**
- * 보고서 데이터 필터
+ * 보고서 필터 인터페이스
  */
 export interface ReportFilter {
-  startDate?: string;
-  endDate?: string;
-  vehicleId?: string;
-  maintenanceType?: string;
-  priority?: 'low' | 'medium' | 'high';
-  status?: 'pending' | 'completed' | 'all';
+  dateRange: {
+    startDate: string | null;
+    endDate: string | null;
+  };
+  vehicleTypes?: string[];
+  maintenanceTypes?: string[];
+  statuses?: string[];
+  vehicleId?: string; // 차량 ID 추가
 }
 
 /**
@@ -213,6 +219,16 @@ export interface ExportOptions {
   includeRawData?: boolean;
   paperSize?: 'a4' | 'letter' | 'legal';
   landscape?: boolean;
+}
+
+/**
+ * 최근 보고서 인터페이스
+ */
+export interface RecentReport {
+  id: string;
+  name: string;
+  type: ReportType;
+  createdAt: string;
 }
 
 /**
@@ -512,6 +528,39 @@ class ReportService {
     }
   }
 
+  /**
+   * 최근 보고서 가져오기
+   * @returns 최근 보고서 목록
+   */
+  async getRecentReports(): Promise<RecentReport[]> {
+    try {
+      // 여기서는 임시 데이터를 반환합니다. 실제로는 API 호출을 통해 데이터를 가져와야 합니다.
+      return [
+        {
+          id: '1',
+          name: '월간 정비 요약 보고서',
+          type: ReportType.MAINTENANCE_SUMMARY,
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: '2',
+          name: '차량 비용 분석',
+          type: ReportType.COST_ANALYSIS,
+          createdAt: new Date(Date.now() - 86400000).toISOString()
+        },
+        {
+          id: '3',
+          name: '부품 사용 현황',
+          type: ReportType.PARTS_USAGE,
+          createdAt: new Date(Date.now() - 172800000).toISOString()
+        }
+      ];
+    } catch (error) {
+      console.error('최근 보고서를 가져오는 중 오류가 발생했습니다:', error);
+      return [];
+    }
+  }
+
   // ============= 임시 데이터 생성 메서드 =============
 
   /**
@@ -519,8 +568,8 @@ class ReportService {
    */
   private getMockCompletionRateReport(filter: ReportFilter): CompletionRateReport {
     const today = new Date();
-    const startDate = filter.startDate ? new Date(filter.startDate) : new Date(today.setMonth(today.getMonth() - 1));
-    const endDate = filter.endDate ? new Date(filter.endDate) : new Date();
+    const startDate = filter.dateRange.startDate ? new Date(filter.dateRange.startDate) : new Date(today.setMonth(today.getMonth() - 1));
+    const endDate = filter.dateRange.endDate ? new Date(filter.dateRange.endDate) : new Date();
     
     // 날짜 간격 계산
     const dayDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
@@ -635,7 +684,7 @@ class ReportService {
    */
   private getMockCostAnalysisReport(filter: ReportFilter): CostAnalysisReport {
     const today = new Date();
-    const startDate = filter.startDate ? new Date(filter.startDate) : new Date(today.setMonth(today.getMonth() - 6));
+    const startDate = filter.dateRange.startDate ? new Date(filter.dateRange.startDate) : new Date(today.setMonth(today.getMonth() - 6));
     
     // 월별 비용 트렌드 생성
     const costTrend = [];
@@ -703,8 +752,8 @@ class ReportService {
    */
   private getMockMaintenanceSummaryReport(filter: ReportFilter): MaintenanceSummaryReport {
     const today = new Date();
-    const startDate = filter.startDate ? filter.startDate : format(new Date(today.setMonth(today.getMonth() - 3)), 'yyyy-MM-dd');
-    const endDate = filter.endDate ? filter.endDate : format(new Date(), 'yyyy-MM-dd');
+    const startDate = filter.dateRange.startDate ? filter.dateRange.startDate : format(new Date(today.setMonth(today.getMonth() - 3)), 'yyyy-MM-dd');
+    const endDate = filter.dateRange.endDate ? filter.dateRange.endDate : format(new Date(), 'yyyy-MM-dd');
     
     // 유형별 정비 데이터
     const maintenanceTypes = [
