@@ -1,8 +1,8 @@
 import axios from 'axios';
 import { format } from 'date-fns';
-import { Todo } from '../hooks/useTodoService';
-import { Vehicle } from './vehicle';
-import { Maintenance } from './maintenance';
+// import { Todo } from '../hooks/useTodoService';
+// import { Vehicle } from './vehicle';
+// import { Maintenance } from './maintenance';
 
 /**
  * 정비 보고서 유형
@@ -462,41 +462,52 @@ class ReportService {
   }
 
   /**
-   * 템플릿으로 보고서 생성
+   * 템플릿에서 보고서 생성
    */
   async generateReportFromTemplate(templateId: string): Promise<Report | null> {
-    const template = this.getTemplateById(templateId);
-    
-    if (!template) {
-      return null;
-    }
-    
-    // 템플릿 사용 시간 업데이트
-    this.updateTemplateUsage(templateId);
-    
     try {
+      const template = this.getTemplateById(templateId);
+      
+      if (!template) {
+        throw new Error('템플릿을 찾을 수 없습니다');
+      }
+      
+      // 템플릿 사용 기록 업데이트
+      this.updateTemplateUsage(templateId);
+      
+      // 템플릿 유형에 따라 적절한 보고서 생성 함수 호출
+      let report: Report;
+      
       switch (template.type) {
         case ReportType.COMPLETION_RATE:
-          return await this.generateCompletionRateReport(template.filter);
+          report = await this.generateCompletionRateReport(template.filter);
+          break;
         case ReportType.VEHICLE_HISTORY:
-          if (!template.filter.vehicleId) {
-            throw new Error('차량 ID가 필요합니다.');
+          if (template.filter.vehicleId) {
+            report = await this.generateVehicleHistoryReport(
+              template.filter.vehicleId,
+              { ...template.filter, vehicleId: undefined } // vehicleId 속성 제거된 필터
+            );
+          } else {
+            throw new Error('차량 정비 이력 보고서에는 차량 ID가 필요합니다');
           }
-          return await this.generateVehicleHistoryReport(
-            template.filter.vehicleId, 
-            { ...template.filter, vehicleId: undefined }
-          );
+          break;
         case ReportType.COST_ANALYSIS:
-          return await this.generateCostAnalysisReport(template.filter);
+          report = await this.generateCostAnalysisReport(template.filter);
+          break;
         case ReportType.MAINTENANCE_SUMMARY:
-          return await this.generateMaintenanceSummaryReport(template.filter);
+          report = await this.generateMaintenanceSummaryReport(template.filter);
+          break;
         case ReportType.MAINTENANCE_FORECAST:
-          return await this.generateMaintenanceForecastReport(template.filter);
+          report = await this.generateMaintenanceForecastReport(template.filter);
+          break;
         default:
-          throw new Error('지원되지 않는 보고서 유형입니다.');
+          throw new Error('지원되지 않는 보고서 유형입니다');
       }
+      
+      return report;
     } catch (error) {
-      console.error('템플릿으로 보고서 생성 중 오류 발생:', error);
+      console.error('템플릿에서 보고서 생성 중 오류 발생:', error);
       return null;
     }
   }
