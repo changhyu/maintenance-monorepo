@@ -21,7 +21,9 @@ import {
   RadarChart,
   PolarGrid,
   PolarAngleAxis,
-  PolarRadiusAxis
+  PolarRadiusAxis,
+  ScatterChart,
+  Scatter
 } from 'recharts';
 import { Empty, message } from 'antd';
 
@@ -33,15 +35,17 @@ interface DashboardChartProps {
   type: ReportType;
   chartType: string;
   animated: boolean;
+  onChartElementClick?: (element: any) => void;
 }
 
 const DashboardChart: React.FC<DashboardChartProps> = ({ 
   data, 
   type, 
   chartType = 'bar',
-  animated = true 
+  animated = true,
+  onChartElementClick
 }) => {
-  // 데이터 처리는 useMemo로 최적화
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   const { chartData, xAxisKey, series, hasData } = useMemo(() => {
     try {
       if (!data) {
@@ -317,6 +321,36 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
                 labelFormatter={data.tooltipLabelFormat}
               />
             </RadarChart>
+          </ResponsiveContainer>
+        );
+
+      case 'scatter':
+        return (
+          <ResponsiveContainer width="100%" height="100%">
+            <ScatterChart>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis dataKey="x" tick={{ fontSize: 12 }} />
+              <YAxis dataKey="y" tick={{ fontSize: 12 }} />
+              <Tooltip />
+              <Scatter 
+                data={chartData} 
+                fill="#8884d8" 
+                onClick={(entry) => { if(onChartElementClick) { onChartElementClick(entry) } }}
+              />
+            </ScatterChart>
+          </ResponsiveContainer>
+        );
+
+      case 'heatmap':
+        return (
+          <ResponsiveContainer width="100%" height="100%">
+            <div style={{ display: 'flex', flexWrap: 'wrap' }}>
+              {chartData.map((item, index) => (
+                <div key={`heatmap-${index}`} style={{ width: '20%', height: 50, backgroundColor: item.value > 50 ? '#ff0000' : '#00ff00', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #fff' }}>
+                  {item.value}
+                </div>
+              ))}
+            </div>
           </ResponsiveContainer>
         );
 
