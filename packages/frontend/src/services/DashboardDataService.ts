@@ -1054,55 +1054,58 @@ export class DashboardDataService {
   }
 
   /**
-   * 보고서 타입에 따른 차트 데이터를 가져옵니다
-   * @param reportType 보고서 타입
-   * @param filters 필터 조건
-   * @returns 차트 데이터
+   * 보고서 차트 데이터 조회
    */
   public async getReportChartData(reportType: string, filters?: ReportFilter): Promise<DashboardChartData> {
     try {
-      // 필터 정보가 없으면 기본값 사용
-      if (!filters) {
-        filters = {
-          dateRange: {
-            startDate: new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString(),
-            endDate: new Date().toISOString()
-          },
-          vehicleIds: [],
-          maintenanceTypes: []
-        };
+      // API 호출 시뮬레이션
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // 필터에서 날짜 범위 추출
+      const { startDate, endDate } = filters?.dateRange || { startDate: null, endDate: null };
+      
+      let startDateObj: Date | null = null;
+      let endDateObj: Date | null = null;
+      
+      try {
+        // 날짜 문자열을 Date 객체로 변환 (오류 방지)
+        if (startDate) startDateObj = new Date(startDate);
+        if (endDate) endDateObj = new Date(endDate);
+      } catch (error) {
+        console.error('날짜 변환 오류:', error);
       }
       
-      // startDate와 endDate가 문자열인 경우 Date 객체로 변환
-      const startDate = filters.dateRange?.startDate ? new Date(filters.dateRange.startDate) : null;
-      const endDate = filters.dateRange?.endDate ? new Date(filters.dateRange.endDate) : null;
-      
-      // 보고서 타입에 따라 적절한 차트 데이터를 반환
+      // 보고서 유형에 따라 차트 데이터 반환
       switch (reportType) {
         case 'completion-rate':
-          return this.getCompletionRateChartData(startDate, endDate);
+          return this.getCompletionRateChartData(startDateObj, endDateObj);
         case 'cost-analysis':
-          return this.getCostAnalysisChartData(startDate, endDate);
+          return this.getCostAnalysisChartData(startDateObj, endDateObj);
         case 'maintenance-summary':
-          return this.getMaintenanceSummaryChartData(startDate, endDate);
+          return this.getMaintenanceSummaryChartData(startDateObj, endDateObj);
+        case 'vehicle-history':
+          // 차량 ID 확인 (배열의 첫 번째 항목 사용)
+          const vehicleId = filters?.vehicleIds && filters.vehicleIds.length > 0 ? filters.vehicleIds[0] : '';
+          return this.getVehicleHistoryChartData(vehicleId, startDateObj, endDateObj);
+        case 'maintenance-forecast':
+          return this.getMaintenanceForecastChartData(startDateObj, endDateObj);
         default:
           return this.getFallbackChartData();
       }
     } catch (error) {
-      console.error('보고서 차트 데이터 가져오기 실패:', error);
+      console.error('차트 데이터 조회 오류:', error);
       return this.getFallbackChartData();
     }
   }
 
   /**
-   * 완료율 차트 데이터를 가져옵니다
-   * @private
+   * 완료율 차트 데이터 생성
    */
   private getCompletionRateChartData(startDate: Date | null, endDate: Date | null): DashboardChartData {
     // 데이터 생성 로직...
     const now = new Date();
     const monthsData = [];
-    
+     
     // 시작일과 종료일이 있는 경우만 계산
     if (startDate && endDate) {
       const months = Math.floor(
@@ -1112,7 +1115,7 @@ export class DashboardDataService {
       for (let i = 0; i <= months; i++) {
         const date = new Date(startDate);
         date.setMonth(date.getMonth() + i);
-        
+         
         // 각 월별 임의 데이터 생성
         monthsData.push({
           month: format(date, 'yyyy-MM'),
@@ -1125,7 +1128,7 @@ export class DashboardDataService {
       for (let i = 5; i >= 0; i--) {
         const date = new Date();
         date.setMonth(date.getMonth() - i);
-        
+         
         monthsData.push({
           month: format(date, 'yyyy-MM'),
           완료율: Math.floor(Math.random() * 30) + 70,
@@ -1133,24 +1136,28 @@ export class DashboardDataService {
         });
       }
     }
-    
+  
     return {
       type: 'line',
       data: monthsData,
-      xKey: 'month',
-      yKeys: ['완료율', '계획'],
+      xAxisKey: 'month',
+      yAxisFormat: (value) => `${value}%`,
+      tooltipFormat: (value) => `${value}%`,
       colors: ['#52c41a', '#1890ff'],
+      series: [
+        { dataKey: '완료율', name: '완료율' },
+        { dataKey: '계획', name: '계획' }
+      ]
     };
   }
 
   /**
-   * 비용 분석 차트 데이터를 가져옵니다
-   * @private
+   * 비용 분석 차트 데이터 생성
    */
   private getCostAnalysisChartData(startDate: Date | null, endDate: Date | null): DashboardChartData {
     // 비용 분석 차트 데이터
     const costData = [];
-    
+     
     // 시작일과 종료일이 있는 경우만 계산
     if (startDate && endDate) {
       const months = Math.floor(
@@ -1160,7 +1167,7 @@ export class DashboardDataService {
       for (let i = 0; i <= months; i++) {
         const date = new Date(startDate);
         date.setMonth(date.getMonth() + i);
-        
+         
         costData.push({
           month: format(date, 'yyyy-MM'),
           부품비: Math.floor(Math.random() * 500000) + 100000,
@@ -1173,7 +1180,7 @@ export class DashboardDataService {
       for (let i = 5; i >= 0; i--) {
         const date = new Date();
         date.setMonth(date.getMonth() - i);
-        
+         
         costData.push({
           month: format(date, 'yyyy-MM'),
           부품비: Math.floor(Math.random() * 500000) + 100000,
@@ -1182,20 +1189,25 @@ export class DashboardDataService {
         });
       }
     }
-    
+  
     return {
-      type: 'bar',
       data: costData,
-      xKey: 'month',
-      yKeys: ['부품비', '인건비', '기타'],
+      type: 'bar',
+      xAxisKey: 'month',
+      yAxisFormat: (value) => `${value.toLocaleString()}원`,
+      tooltipFormat: (value) => `${value.toLocaleString()}원`,
       colors: ['#1890ff', '#13c2c2', '#faad14'],
       stacked: true,
+      series: [
+        { dataKey: '부품비', name: '부품비' },
+        { dataKey: '인건비', name: '인건비' },
+        { dataKey: '기타', name: '기타' }
+      ]
     };
   }
 
   /**
-   * 정비 요약 차트 데이터를 가져옵니다
-   * @private
+   * 정비 요약 차트 데이터 생성
    */
   private getMaintenanceSummaryChartData(startDate: Date | null, endDate: Date | null): DashboardChartData {
     // 정비 유형별 데이터
@@ -1205,14 +1217,134 @@ export class DashboardDataService {
       { type: '부품 교체', value: Math.floor(Math.random() * 15) + 15 },
       { type: '기타', value: Math.floor(Math.random() * 10) + 5 },
     ];
-    
+     
     return {
       type: 'pie',
       data: pieData,
       nameKey: 'type',
       valueKey: 'value',
       colors: ['#1890ff', '#52c41a', '#faad14', '#f5222d'],
+      labelFormat: (value, name) => `${name}: ${value}건`
     };
+  }
+
+  /**
+   * 차량 정비 이력 차트 데이터 생성
+   */
+  private getVehicleHistoryChartData(vehicleId: string, startDate: Date | null, endDate: Date | null): DashboardChartData {
+    // 차량 ID가 없으면 빈 데이터 반환
+    if (!vehicleId) {
+      return {
+        data: [],
+        type: 'bar',
+        xAxisKey: 'date',
+        labelFormat: (value) => `${value}`,
+        colors: ['#8884d8', '#82ca9d', '#ffc658'],
+        series: [
+          { dataKey: 'cost', name: '비용' }
+        ]
+      };
+    }
+
+    // 임의의 차트 데이터 생성
+    const data = [];
+    const now = new Date();
+    const monthNames = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
+    
+    for (let i = 0; i < 12; i++) {
+      const date = new Date(now.getFullYear(), now.getMonth() - 11 + i, 1);
+      data.push({
+        date: monthNames[date.getMonth()],
+        cost: Math.floor(Math.random() * 300000) + 50000,
+        count: Math.floor(Math.random() * 5) + 1
+      });
+    }
+
+    return {
+      data,
+      type: 'bar',
+      xAxisKey: 'date',
+      yAxisFormat: (value) => `${value.toLocaleString()}원`,
+      tooltipFormat: (value) => `${value.toLocaleString()}원`,
+      colors: ['#8884d8', '#82ca9d'],
+      series: [
+        { dataKey: 'cost', name: '비용' },
+        { dataKey: 'count', name: '정비 건수' }
+      ]
+    };
+  }
+
+  /**
+   * 정비 예측 차트 데이터 생성
+   */
+  private getMaintenanceForecastChartData(startDate: Date | null, endDate: Date | null): DashboardChartData {
+    const data = [];
+    const components = ['엔진', '브레이크', '타이어', '배터리', '변속기', '에어컨'];
+    
+    for (const component of components) {
+      data.push({
+        name: component,
+        probability: Math.random() * 100,
+        urgency: Math.floor(Math.random() * 10) + 1
+      });
+    }
+
+    return {
+      data,
+      type: 'bar',
+      xAxisKey: 'name',
+      yAxisFormat: (value) => `${value.toFixed(1)}%`,
+      tooltipFormat: (value) => `${value.toFixed(1)}%`,
+      labelFormat: (value) => `${value.toFixed(1)}%`,
+      colors: ['#ff7300', '#0088FE'],
+      series: [
+        { dataKey: 'probability', name: '고장 확률' }
+      ]
+    };
+  }
+
+  /**
+   * 랜덤 보고서 개요 데이터 생성
+   */
+  private generateRandomReportOverviewData(): DashboardCardData[] {
+    return [
+      {
+        title: '생성된 보고서',
+        value: Math.floor(Math.random() * 50) + 10,
+        change: Math.floor(Math.random() * 30) - 10,
+        trend: Math.random() > 0.5 ? 'up' : 'down',
+        icon: 'file-text',
+        color: '#1890ff',
+        changeLabel: '지난 달 대비'
+      },
+      {
+        title: '정비 완료율',
+        value: `${Math.floor(Math.random() * 30) + 70}%`,
+        change: Math.floor(Math.random() * 15),
+        trend: 'up',
+        icon: 'check-circle',
+        color: '#52c41a',
+        changeLabel: '지난 달 대비'
+      },
+      {
+        title: '차량당 유지비',
+        value: `${(Math.floor(Math.random() * 50) + 30).toLocaleString()}만원`,
+        change: Math.floor(Math.random() * 20) - 10,
+        trend: Math.random() > 0.7 ? 'up' : 'down',
+        icon: 'dollar',
+        color: '#faad14',
+        changeLabel: '지난 달 대비'
+      },
+      {
+        title: '예측 정비 건수',
+        value: Math.floor(Math.random() * 15) + 5,
+        change: Math.floor(Math.random() * 8) - 4,
+        trend: Math.random() > 0.4 ? 'up' : 'down',
+        icon: 'calendar',
+        color: '#722ed1',
+        changeLabel: '지난 달 대비'
+      }
+    ];
   }
 
   /**
@@ -1274,103 +1406,5 @@ export class DashboardDataService {
         color: 'red'
       }
     ];
-  }
-
-  /**
-   * 데모 목적을 위한 랜덤 보고서 개요 데이터 생성
-   */
-  private generateRandomReportOverviewData(): DashboardCardData[] {
-    // 기존 데이터 베이스
-    const baseData = [
-      {
-        title: '생성된 보고서',
-        value: 32,
-        change: 15,
-        trend: 'up' as const,
-        icon: 'file',
-        color: 'blue'
-      },
-      {
-        title: '월간 완료율',
-        value: '85.2%',
-        change: 3.5,
-        trend: 'up' as const,
-        icon: 'chart',
-        color: 'green'
-      },
-      {
-        title: '예정된 정비',
-        value: 8,
-        change: -2,
-        trend: 'down' as const,
-        icon: 'calendar',
-        color: 'orange'
-      },
-      {
-        title: '월간 정비 비용',
-        value: '₩1,250,000',
-        change: 5.2,
-        trend: 'up' as const,
-        icon: 'line-chart',
-        color: 'red'
-      }
-    ];
-
-    // 데모 목적으로 랜덤 데이터 생성
-    return baseData.map(card => {
-      // 숫자 값인 경우 랜덤 변동 적용
-      if (typeof card.value === 'number') {
-        const randomChange = Math.floor(Math.random() * 6) - 2; // -2 ~ 3 사이의 랜덤 변화
-        const newValue = Math.max(1, card.value + randomChange);
-        
-        // 변화율 계산
-        const changePercent = card.value > 0 ? ((newValue - card.value) / card.value) * 100 : 0;
-        const trend = changePercent > 0 ? 'up' as const : changePercent < 0 ? 'down' as const : 'neutral' as const;
-
-        return {
-          ...card,
-          value: newValue,
-          change: parseFloat(changePercent.toFixed(1)),
-          trend
-        };
-      } 
-      // 비율(%) 값인 경우
-      else if (card.value.includes('%')) {
-        const currentValue = parseFloat(card.value.replace('%', ''));
-        const randomChange = (Math.random() * 3 - 1); // -1 ~ 2 사이의 랜덤 변화
-        const newValue = Math.min(100, Math.max(50, currentValue + randomChange)).toFixed(1);
-        
-        const changePercent = currentValue > 0 ? ((parseFloat(newValue) - currentValue) / currentValue) * 100 : 0;
-        const trend = changePercent > 0 ? 'up' as const : changePercent < 0 ? 'down' as const : 'neutral' as const;
-        
-        return {
-          ...card,
-          value: `${newValue}%`,
-          change: parseFloat(changePercent.toFixed(1)),
-          trend
-        };
-      } 
-      // 금액 값인 경우
-      else if (card.value.includes('₩')) {
-        const currentValue = parseInt(card.value.replace(/[^\d]/g, ''));
-        const randomChange = Math.floor(Math.random() * 200000) - 100000; // 랜덤 금액 변화
-        const newValue = Math.max(500000, currentValue + randomChange);
-        
-        const changePercent = currentValue > 0 ? ((newValue - currentValue) / currentValue) * 100 : 0;
-        const trend = changePercent > 0 ? 'up' as const : changePercent < 0 ? 'down' as const : 'neutral' as const;
-        
-        // 한글 통화 형식으로 변환
-        const formattedValue = '₩' + newValue.toLocaleString('ko-KR');
-        
-        return {
-          ...card,
-          value: formattedValue,
-          change: parseFloat(changePercent.toFixed(1)),
-          trend
-        };
-      }
-      
-      return card;
-    });
   }
 } 
