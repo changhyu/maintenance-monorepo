@@ -1,0 +1,19 @@
+/* 대시보드 필터 스타일 */
+.filter-label {
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 8px;
+  color: rgba(0, 0, 0, 0.85);
+}
+
+/* 필터 컨테이너 스타일 */
+.dashboard-filters-card {
+  margin-bottom: 16px;
+}
+
+/* 반응형 레이아웃 */
+@media (max-width: 768px) {
+  .filter-label {
+    margin-bottom: 4px;
+  }
+} 

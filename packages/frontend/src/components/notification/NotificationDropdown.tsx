@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { notificationService } from '../../services/notificationService';
-import { Notification, NotificationType } from '../../types/notification';
+import { Notification, NotificationStatus } from '../../types/notification';
 import { formatNotificationDate, getNotificationIcon, getNotificationColor } from '../../utils/notificationUtils';
 
 interface NotificationDropdownProps {
@@ -34,7 +34,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
         setLoading(true);
         const result = await notificationService.getNotifications({
           userId,
-          status: ['UNREAD'],
+          status: [NotificationStatus.UNREAD],
           limit: maxItems + 1, // 추가로 하나 더 로드하여 "더 보기" 표시 여부 결정
           order: 'desc'
         });
@@ -49,7 +49,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
     fetchNotifications();
     
     // 실시간 알림 업데이트
-    const handleNotificationUpdate = (data: any) => {
+    const handleNotificationUpdate = (_: any) => {
       fetchNotifications();
     };
 
@@ -86,7 +86,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
       // 알림 목록 다시 로드
       const result = await notificationService.getNotifications({
         userId,
-        status: ['UNREAD'],
+        status: [NotificationStatus.UNREAD],
         limit: maxItems,
         order: 'desc'
       });

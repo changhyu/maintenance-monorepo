@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Form, Input, Select, DatePicker, TimePicker, Button, Row, Col, Card, Alert, Spin } from 'antd';
 import dayjs from 'dayjs';
-import { BookingService, CreateBookingRequest, ServiceType, TimeSlot } from '../../services/bookingService';
+import { bookingService, CreateBookingRequest, ServiceType, TimeSlot } from '../../services/bookingService';
 import { ApiClient } from '../../../../api-client/src/client';
 
 const { Option } = Select;
@@ -41,8 +41,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
   onCancel
 }) => {
   const [form] = Form.useForm();
-  const bookingService = new BookingService(apiClient);
-
+  
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedVehicle, setSelectedVehicle] = useState<string>('');

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { DateRangePicker, FilterSelect, DateRange, FilterOption } from './common';
+import './dashboard/Dashboard.css';
 
 export interface DashboardFilterProps {
   onFilterChange: (filters: DashboardFilters) => void;
@@ -7,7 +8,7 @@ export interface DashboardFilterProps {
 }
 
 export interface DashboardFilters {
-  dateRange: DateRange;
+  dateRange: DateRange | null;
   vehicleType?: string;
   maintenanceStatus?: string;
   priority?: string;
@@ -22,8 +23,8 @@ const DashboardFilter: React.FC<DashboardFilterProps> = ({
 }) => {
   const [filters, setFilters] = useState<DashboardFilters>({
     dateRange: {
-      startDate: new Date(new Date().setMonth(new Date().getMonth() - 1)),
-      endDate: new Date(),
+      startDate: new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString().split('T')[0],
+      endDate: new Date().toISOString().split('T')[0],
     },
     vehicleType: '',
     maintenanceStatus: '',
@@ -58,7 +59,7 @@ const DashboardFilter: React.FC<DashboardFilterProps> = ({
   ];
 
   // 날짜 범위 변경 핸들러
-  const handleDateRangeChange = (dateRange: DateRange) => {
+  const handleDateRangeChange = (dateRange: DateRange | null) => {
     const newFilters = { ...filters, dateRange };
     setFilters(newFilters);
     onFilterChange(newFilters);
@@ -75,8 +76,8 @@ const DashboardFilter: React.FC<DashboardFilterProps> = ({
   const handleResetFilters = () => {
     const defaultFilters: DashboardFilters = {
       dateRange: {
-        startDate: new Date(new Date().setMonth(new Date().getMonth() - 1)),
-        endDate: new Date(),
+        startDate: new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString().split('T')[0],
+        endDate: new Date().toISOString().split('T')[0],
       },
       vehicleType: '',
       maintenanceStatus: '',
@@ -99,30 +100,33 @@ const DashboardFilter: React.FC<DashboardFilterProps> = ({
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <DateRangePicker
-          initialRange={filters.dateRange}
-          onChange={handleDateRangeChange}
-          label="날짜 범위"
-        />
+        <div>
+          <div className="filter-label">날짜 범위</div>
+          <DateRangePicker
+            value={filters.dateRange}
+            defaultValue={filters.dateRange}
+            onChange={handleDateRangeChange}
+          />
+        </div>
         
         <FilterSelect
           options={vehicleTypeOptions}
-          value={filters.vehicleType || ''}
-          onChange={(value) => handleFilterChange('vehicleType', value)}
+          value={[filters.vehicleType || '']}
+          onChange={(values) => handleFilterChange('vehicleType', values[0] || '')}
           label="차량 유형"
         />
         
         <FilterSelect
           options={maintenanceStatusOptions}
-          value={filters.maintenanceStatus || ''}
-          onChange={(value) => handleFilterChange('maintenanceStatus', value)}
+          value={[filters.maintenanceStatus || '']}
+          onChange={(values) => handleFilterChange('maintenanceStatus', values[0] || '')}
           label="정비 상태"
         />
         
         <FilterSelect
           options={priorityOptions}
-          value={filters.priority || ''}
-          onChange={(value) => handleFilterChange('priority', value)}
+          value={[filters.priority || '']}
+          onChange={(values) => handleFilterChange('priority', values[0] || '')}
           label="우선순위"
         />
       </div>

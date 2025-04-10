@@ -1,11 +1,22 @@
-import React, { useState, useEffect } from 'react';
-import todoTemplateService, { TodoTemplate } from '../services/todoTemplateService';
-import { TodoCreateRequest } from '../hooks/useTodoService';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import { Typography, Button, Row, Col, Card, Tabs, Tag, Input, Select, Empty, Space, Tooltip, Divider } from 'antd';
+import { FolderOutlined, StarOutlined, StarFilled, PlusOutlined, SettingOutlined, FilterOutlined, SortAscendingOutlined, SortDescendingOutlined } from '@ant-design/icons';
+import { TodoTemplate } from '../context/TodoContext';
+import TemplateManageDrawer from './todo/TemplateManageDrawer';
+import TemplateSelectionDrawer from './todo/TemplateSelectionDrawer';
+import logger from '../utils/logger';
 
+const { Title, Text } = Typography;
+const { TabPane } = Tabs;
+const { Option } = Select;
+
+/**
+ * Todo 템플릿 관리 컴포넌트 프롭스
+ */
 interface TodoTemplatesProps {
   className?: string;
-  onApplyTemplate?: (todoData: TodoCreateRequest) => Promise<void>;
-  vehicleId?: string;
+  onTemplateSelect?: (template: TodoTemplate) => void;
+  initialTemplates?: TodoTemplate[];
 }
 
 /**
@@ -13,432 +24,325 @@ interface TodoTemplatesProps {
  */
 const TodoTemplates: React.FC<TodoTemplatesProps> = ({ 
   className = '', 
-  onApplyTemplate,
-  vehicleId 
+  onTemplateSelect, 
+  initialTemplates = [] 
 }) => {
-  const [templates, setTemplates] = useState<TodoTemplate[]>([]);
-  const [categories, setCategories] = useState<string[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string>('');
-  const [showNewTemplateForm, setShowNewTemplateForm] = useState(false);
-  const [editingTemplate, setEditingTemplate] = useState<TodoTemplate | null>(null);
+  // 상태 관리
+  const [templates, setTemplates] = useState<TodoTemplate[]>(initialTemplates);
+  const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<string>('');
+  const [favoriteTemplates, setFavoriteTemplates] = useState<string[]>([]);
+  const [activeTab, setActiveTab] = useState<string>('all');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   
-  // 템플릿 폼 상태
-  const [templateName, setTemplateName] = useState('');
-  const [templateDescription, setTemplateDescription] = useState('');
-  const [templateTitle, setTemplateTitle] = useState('');
-  const [templateCategory, setTemplateCategory] = useState('');
-  const [templatePriority, setTemplatePriority] = useState<'low' | 'medium' | 'high'>('medium');
-  const [newCategory, setNewCategory] = useState('');
-  const [templateDescriptionDetail, setTemplateDescriptionDetail] = useState('');
+  // 드로어 상태
+  const [manageDrawerVisible, setManageDrawerVisible] = useState(false);
+  const [selectionDrawerVisible, setSelectionDrawerVisible] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<TodoTemplate | null>(null);
   
-  // 템플릿 적용 상태
-  const [selectedTemplate, setSelectedTemplate] = useState<string>('');
-  const [dueDate, setDueDate] = useState('');
-  
-  // 템플릿 변경사항 구독
+  // 샘플 템플릿 생성
   useEffect(() => {
-    const unsubscribe = todoTemplateService.subscribeToTemplates(
-      (updatedTemplates) => {
-        setTemplates(updatedTemplates);
-        const allCategories = todoTemplateService.getAllCategories();
-        setCategories(allCategories);
-        
-        if (allCategories.length > 0 && !selectedCategory) {
-          setSelectedCategory(allCategories[0]);
+    if (templates.length === 0) {
+      const sampleTemplates: TodoTemplate[] = [
+        {
+          id: 'template-1',
+          name: '정기 엔진 오일 교체',
+          description: '엔진 오일 및 필터 교체를 위한 표준 절차',
+          category: '정기 정비',
+          items: [
+            { title: '엔진 오일 교체', priority: 'medium' },
+            { title: '오일 필터 교체', priority: 'medium' },
+            { title: '엔진 오일 레벨 확인', priority: 'high' }
+          ]
+        },
+        {
+          id: 'template-2',
+          name: '타이어 로테이션',
+          description: '타이어 교체 및 위치 조정 작업',
+          category: '정기 정비',
+          items: [
+            { title: '타이어 공기압 점검', priority: 'medium' },
+            { title: '타이어 위치 교환', priority: 'medium' },
+            { title: '휠 밸런스 조정', priority: 'low' }
+          ]
+        },
+        {
+          id: 'template-3',
+          name: '브레이크 점검',
+          description: '브레이크 시스템 종합 점검',
+          category: '안전 점검',
+          items: [
+            { title: '브레이크 패드 점검', priority: 'high' },
+            { title: '브레이크 오일 점검', priority: 'high' },
+            { title: '브레이크 디스크 점검', priority: 'medium' }
+          ]
         }
+      ];
+      
+      setTemplates(sampleTemplates);
+    }
+  }, [templates.length]);
+  
+  // 즐겨찾기 템플릿 로드
+  useEffect(() => {
+    try {
+      const savedFavorites = localStorage.getItem('favorite-templates');
+      if (savedFavorites) {
+        setFavoriteTemplates(JSON.parse(savedFavorites));
       }
-    );
+    } catch (error) {
+      logger.error('즐겨찾기 템플릿 로드 오류:', error);
+    }
+  }, []);
+  
+  // 템플릿 즐겨찾기 토글
+  const toggleFavorite = useCallback((templateId: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
     
-    return unsubscribe;
-  }, [selectedCategory]);
+    setFavoriteTemplates(prev => {
+      const isCurrentlyFavorite = prev.includes(templateId);
+      const newFavorites = isCurrentlyFavorite
+        ? prev.filter(id => id !== templateId)
+        : [...prev, templateId];
+      
+      // 로컬 스토리지에 저장
+      try {
+        localStorage.setItem('favorite-templates', JSON.stringify(newFavorites));
+      } catch (error) {
+        logger.error('즐겨찾기 저장 오류:', error);
+      }
+      
+      return newFavorites;
+    });
+  }, []);
   
-  /**
-   * 신규 템플릿 폼 초기화
-   */
-  const initNewTemplateForm = () => {
-    setTemplateName('');
-    setTemplateDescription('');
-    setTemplateTitle('');
-    setTemplateCategory(categories.length > 0 ? categories[0] : '');
-    setTemplatePriority('medium');
-    setNewCategory('');
-    setTemplateDescriptionDetail('');
-    setEditingTemplate(null);
-    setShowNewTemplateForm(true);
-  };
-  
-  /**
-   * 템플릿 편집 폼 초기화
-   */
-  const initEditTemplateForm = (template: TodoTemplate) => {
-    setTemplateName(template.name);
-    setTemplateDescription(template.description || '');
-    setTemplateTitle(template.template.title);
-    setTemplateCategory(template.category);
-    setTemplatePriority(template.template.priority || 'medium');
-    setTemplateDescriptionDetail(template.template.description || '');
-    setEditingTemplate(template);
-    setShowNewTemplateForm(true);
-  };
-  
-  /**
-   * 템플릿 폼 취소
-   */
-  const handleCancelForm = () => {
-    setShowNewTemplateForm(false);
-    setEditingTemplate(null);
-  };
-  
-  /**
-   * 템플릿 저장
-   */
-  const handleSaveTemplate = () => {
-    if (!templateName || !templateTitle || !templateCategory) {
-      alert('이름, 제목, 카테고리는 필수 입력 항목입니다.');
-      return;
+  // 템플릿 선택 처리
+  const handleSelectTemplate = useCallback((template: TodoTemplate) => {
+    setSelectedTemplate(template);
+    
+    if (onTemplateSelect) {
+      onTemplateSelect(template);
     }
     
-    const templateData: Omit<TodoCreateRequest, 'vehicleId'> = {
-      title: templateTitle,
-      description: templateDescriptionDetail || undefined,
-      priority: templatePriority,
-      completed: false
-    };
+    setSelectionDrawerVisible(false);
+  }, [onTemplateSelect]);
+  
+  // 모든 카테고리 배열
+  const categories = useMemo(() => {
+    const categorySet = new Set(templates.map(template => template.category));
+    return Array.from(categorySet).sort();
+  }, [templates]);
+  
+  // 필터링된 템플릿 목록
+  const filteredTemplates = useMemo(() => {
+    let filtered = [...templates];
     
-    // 카테고리가 새로운 카테고리인 경우
-    const category = newCategory.trim() ? newCategory.trim() : templateCategory;
+    // 탭 필터링
+    if (activeTab === 'favorites') {
+      filtered = filtered.filter(template => favoriteTemplates.includes(template.id));
+    }
     
-    if (editingTemplate) {
-      // 템플릿 업데이트
-      todoTemplateService.updateTemplate(editingTemplate.id, {
-        name: templateName,
-        description: templateDescription || undefined,
-        template: templateData,
-        category
-      });
-    } else {
-      // 새 템플릿 생성
-      todoTemplateService.createTemplate(
-        templateName,
-        templateData,
-        category,
-        templateDescription || undefined
+    // 검색어 필터링
+    if (search) {
+      const searchLower = search.toLowerCase();
+      filtered = filtered.filter(template => 
+        template.name.toLowerCase().includes(searchLower) ||
+        template.description?.toLowerCase().includes(searchLower) ||
+        template.category.toLowerCase().includes(searchLower)
       );
     }
     
-    setShowNewTemplateForm(false);
-    setEditingTemplate(null);
-    
-    // 새 카테고리를 만든 경우 선택
-    if (newCategory.trim()) {
-      setSelectedCategory(newCategory.trim());
-      setNewCategory('');
-    }
-  };
-  
-  /**
-   * 템플릿 삭제
-   */
-  const handleDeleteTemplate = (templateId: string) => {
-    if (window.confirm('이 템플릿을 삭제하시겠습니까?')) {
-      todoTemplateService.deleteTemplate(templateId);
-    }
-  };
-  
-  /**
-   * 템플릿 적용
-   */
-  const handleApplyTemplate = () => {
-    if (!selectedTemplate) {
-      alert('템플릿을 선택해주세요.');
-      return;
+    // 카테고리 필터링
+    if (categoryFilter) {
+      filtered = filtered.filter(template => template.category === categoryFilter);
     }
     
-    const todoData = todoTemplateService.applyTemplate(
-      selectedTemplate,
-      vehicleId,
-      dueDate || undefined
-    );
+    // 정렬
+    filtered.sort((a, b) => {
+      // 먼저 즐겨찾기 항목을 위로
+      const aFavorite = favoriteTemplates.includes(a.id);
+      const bFavorite = favoriteTemplates.includes(b.id);
+      
+      if (aFavorite && !bFavorite) return -1;
+      if (!aFavorite && bFavorite) return 1;
+      
+      // 이름 기준 정렬
+      const comparison = a.name.localeCompare(b.name);
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
     
-    if (!todoData) {
-      alert('템플릿을 적용하는 중 오류가 발생했습니다.');
-      return;
-    }
-    
-    if (onApplyTemplate) {
-      onApplyTemplate(todoData);
-      setSelectedTemplate('');
-      setDueDate('');
-    }
-  };
-  
-  const filteredTemplates = selectedCategory 
-    ? templates.filter(t => t.category === selectedCategory)
-    : templates;
+    return filtered;
+  }, [templates, search, categoryFilter, activeTab, favoriteTemplates, sortOrder]);
   
   return (
     <div className={`todo-templates ${className}`}>
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-bold">정비 작업 템플릿</h2>
-        <button 
-          onClick={initNewTemplateForm}
-          className="bg-blue-500 text-white px-3 py-1 rounded"
-        >
-          + 새 템플릿
-        </button>
-      </div>
-      
-      {/* 카테고리 탭 */}
-      <div className="categories-tabs flex flex-wrap mb-4 border-b">
-        {categories.map(category => (
-          <button
-            key={category}
-            onClick={() => setSelectedCategory(category)}
-            className={`px-3 py-2 mr-2 ${
-              selectedCategory === category
-                ? 'border-b-2 border-blue-500 font-medium'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            {category}
-          </button>
-        ))}
+        <Title level={4}>정비 작업 템플릿</Title>
         
-        <button
-          onClick={() => setSelectedCategory('')}
-          className={`px-3 py-2 ${
-            selectedCategory === ''
-              ? 'border-b-2 border-blue-500 font-medium'
-              : 'text-gray-500 hover:text-gray-700'
-          }`}
-        >
-          모든 템플릿
-        </button>
+        <div className="flex gap-2">
+          <Button 
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => setManageDrawerVisible(true)}
+          >
+            템플릿 관리
+          </Button>
+          
+          <Button
+            onClick={() => setSelectionDrawerVisible(true)}
+          >
+            템플릿 적용
+          </Button>
+        </div>
       </div>
       
-      {/* 템플릿 적용 폼 */}
-      {onApplyTemplate && (
-        <div className="apply-template bg-gray-50 p-4 rounded-lg mb-6">
-          <h3 className="font-medium mb-2">템플릿으로 정비 작업 생성</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <select
-              value={selectedTemplate}
-              onChange={(e) => setSelectedTemplate(e.target.value)}
-              className="border p-2 rounded"
-            >
-              <option value="">템플릿 선택...</option>
-              {templates.map(template => (
-                <option key={template.id} value={template.id}>
-                  {template.category} - {template.name}
-                </option>
-              ))}
-            </select>
-            
-            <input
-              type="date"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-              placeholder="마감일(선택)"
-              className="border p-2 rounded"
-            />
-            
-            <button
-              onClick={handleApplyTemplate}
-              disabled={!selectedTemplate}
-              className="bg-green-500 text-white px-4 py-2 rounded disabled:bg-gray-300"
-            >
-              템플릿 적용
-            </button>
-          </div>
-        </div>
-      )}
-      
-      {/* 템플릿 목록 */}
-      <div className="templates-list">
-        {filteredTemplates.length === 0 ? (
-          <p className="text-gray-500 text-center py-4">
-            {selectedCategory 
-              ? `'${selectedCategory}' 카테고리에 템플릿이 없습니다.` 
-              : '등록된 템플릿이 없습니다.'}
-          </p>
-        ) : (
-          <ul className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filteredTemplates.map(template => (
-              <li key={template.id} className="border rounded-lg p-4 bg-white hover:shadow-md">
-                <div className="flex justify-between">
-                  <h3 className="font-bold">{template.name}</h3>
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => initEditTemplateForm(template)}
-                      className="text-blue-500 hover:text-blue-700"
-                    >
-                      수정
-                    </button>
-                    <button
-                      onClick={() => handleDeleteTemplate(template.id)}
-                      className="text-red-500 hover:text-red-700"
-                    >
-                      삭제
-                    </button>
-                  </div>
-                </div>
-                
-                <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded inline-block mt-1">
-                  {template.category}
-                </span>
-                
-                {template.description && (
-                  <p className="text-gray-600 text-sm mt-2">{template.description}</p>
-                )}
-                
-                <div className="mt-3 border-t pt-2">
-                  <p className="font-medium">{template.template.title}</p>
-                  
-                  {template.template.description && (
-                    <p className="text-sm text-gray-600 mt-1">{template.template.description}</p>
-                  )}
-                  
-                  <div className="text-xs text-gray-500 mt-2">
-                    <span className={`inline-block px-2 py-1 rounded mr-2 ${
-                      template.template.priority === 'high'
-                        ? 'bg-red-100 text-red-800'
-                        : template.template.priority === 'medium'
-                        ? 'bg-yellow-100 text-yellow-800'
-                        : 'bg-green-100 text-green-800'
-                    }`}>
-                      {template.template.priority === 'high'
-                        ? '높음'
-                        : template.template.priority === 'medium'
-                        ? '중간'
-                        : '낮음'}
-                    </span>
-                    
-                    <span>
-                      마지막 수정: {new Date(template.updatedAt).toLocaleDateString()}
-                    </span>
-                  </div>
-                </div>
-              </li>
+      <div className="mb-4 flex flex-col md:flex-row gap-4">
+        <Input.Search
+          placeholder="템플릿 검색..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          style={{ maxWidth: 300 }}
+          allowClear
+        />
+        
+        <div className="flex gap-2 items-center">
+          <Select
+            placeholder="카테고리 필터"
+            style={{ width: 180 }}
+            value={categoryFilter || undefined}
+            onChange={setCategoryFilter}
+            allowClear
+          >
+            {categories.map(category => (
+              <Option key={category} value={category}>{category}</Option>
             ))}
-          </ul>
-        )}
+          </Select>
+          
+          <Button
+            icon={sortOrder === 'asc' ? <SortAscendingOutlined /> : <SortDescendingOutlined />}
+            onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+            size="middle"
+          />
+        </div>
       </div>
       
-      {/* 템플릿 생성/수정 모달 */}
-      {showNewTemplateForm && (
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg">
-            <h2 className="text-xl font-bold mb-4">
-              {editingTemplate ? '템플릿 수정' : '새 템플릿 만들기'}
-            </h2>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">템플릿 이름</label>
-                <input
-                  type="text"
-                  value={templateName}
-                  onChange={(e) => setTemplateName(e.target.value)}
-                  className="w-full border p-2 rounded"
-                  placeholder="예: 정기 오일 교체"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-1">템플릿 설명(선택)</label>
-                <input
-                  type="text"
-                  value={templateDescription}
-                  onChange={(e) => setTemplateDescription(e.target.value)}
-                  className="w-full border p-2 rounded"
-                  placeholder="예: 5,000km 주행 후 엔진 오일 교체"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-1">카테고리</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <select
-                    value={templateCategory}
-                    onChange={(e) => setTemplateCategory(e.target.value)}
-                    className="border p-2 rounded"
-                    disabled={!!newCategory.trim()}
-                  >
-                    {categories.map(category => (
-                      <option key={category} value={category}>{category}</option>
-                    ))}
-                    {categories.length === 0 && (
-                      <option value="">새 카테고리 추가...</option>
-                    )}
-                  </select>
-                  
-                  <input
-                    type="text"
-                    value={newCategory}
-                    onChange={(e) => setNewCategory(e.target.value)}
-                    className="border p-2 rounded"
-                    placeholder="새 카테고리..."
-                  />
-                </div>
-              </div>
-              
-              <div className="border-t pt-4">
-                <h3 className="font-medium mb-2">템플릿 내용</h3>
-                
-                <div>
-                  <label className="block text-sm font-medium mb-1">제목</label>
-                  <input
-                    type="text"
-                    value={templateTitle}
-                    onChange={(e) => setTemplateTitle(e.target.value)}
-                    className="w-full border p-2 rounded"
-                    placeholder="예: 엔진 오일 교체"
-                  />
-                </div>
-                
-                <div className="mt-2">
-                  <label className="block text-sm font-medium mb-1">세부 내용(선택)</label>
-                  <textarea
-                    value={templateDescriptionDetail}
-                    onChange={(e) => setTemplateDescriptionDetail(e.target.value)}
-                    className="w-full border p-2 rounded"
-                    rows={3}
-                    placeholder="예: 5,000km 주행 후 엔진 오일 및 필터 교체"
-                  />
-                </div>
-                
-                <div className="mt-2">
-                  <label className="block text-sm font-medium mb-1">우선순위</label>
-                  <select
-                    value={templatePriority}
-                    onChange={(e) => setTemplatePriority(e.target.value as 'low' | 'medium' | 'high')}
-                    className="border p-2 rounded"
-                  >
-                    <option value="low">낮음</option>
-                    <option value="medium">중간</option>
-                    <option value="high">높음</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex justify-end mt-6 space-x-2">
-              <button
-                onClick={handleCancelForm}
-                className="px-4 py-2 border rounded text-gray-700 hover:bg-gray-100"
+      <Tabs 
+        activeKey={activeTab} 
+        onChange={setActiveTab}
+        className="mb-4"
+      >
+        <TabPane tab="모든 템플릿" key="all" />
+        <TabPane 
+          tab={
+            <span>
+              즐겨찾기 
+              <Tag color="blue" className="ml-1">{favoriteTemplates.length}</Tag>
+            </span>
+          } 
+          key="favorites" 
+        />
+      </Tabs>
+      
+      {filteredTemplates.length === 0 ? (
+        <Empty description="표시할 템플릿이 없습니다" />
+      ) : (
+        <Row gutter={[16, 16]}>
+          {filteredTemplates.map(template => (
+            <Col xs={24} sm={12} md={8} lg={6} key={template.id}>
+              <Card
+                hoverable
+                onClick={() => handleSelectTemplate(template)}
+                className="h-full"
+                title={
+                  <div className="flex justify-between items-center">
+                    <Tooltip title={template.name}>
+                      <span className="truncate">{template.name}</span>
+                    </Tooltip>
+                    <Tooltip title={favoriteTemplates.includes(template.id) ? "즐겨찾기 제거" : "즐겨찾기 추가"}>
+                      <Button
+                        type="text"
+                        size="small"
+                        icon={
+                          favoriteTemplates.includes(template.id) 
+                            ? <StarFilled style={{ color: '#faad14' }} /> 
+                            : <StarOutlined />
+                        }
+                        onClick={(e) => toggleFavorite(template.id, e)}
+                      />
+                    </Tooltip>
+                  </div>
+                }
+                extra={
+                  <Tag color="blue">{template.items.length}</Tag>
+                }
               >
-                취소
-              </button>
-              <button
-                onClick={handleSaveTemplate}
-                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-              >
-                저장
-              </button>
-            </div>
-          </div>
-        </div>
+                <div className="mb-2">
+                  <Text type="secondary" ellipsis={{ tooltip: template.description }}>
+                    {template.description || '설명 없음'}
+                  </Text>
+                </div>
+                
+                <Divider className="my-2" />
+                
+                <div className="flex justify-between">
+                  <Tag icon={<FolderOutlined />} color="cyan">
+                    {template.category}
+                  </Tag>
+                </div>
+              </Card>
+            </Col>
+          ))}
+        </Row>
       )}
+      
+      {/* 템플릿 관리 드로어 */}
+      <TemplateManageDrawer
+        visible={manageDrawerVisible}
+        templateState={{
+          templates: templates,
+          selectedTemplate: null,
+          editingTemplate: null,
+          templateForm: {
+            name: '',
+            description: '',
+            category: '일반',
+            items: []
+          },
+          templateVisible: false,
+          templateManageVisible: true
+        }}
+        onClose={() => setManageDrawerVisible(false)}
+        onCancelEdit={() => {}}
+        onSaveEdit={() => {}}
+        onItemChange={() => {}}
+        onRemoveItem={() => {}}
+        onAddItem={() => {}}
+        onAddTemplate={() => {}}
+        onTemplateSelect={() => {}}
+        onEditTemplate={() => {}}
+        onDeleteTemplate={() => {}}
+        templateSearch=""
+        setTemplateSearch={() => {}}
+        categories={categories}
+        filteredTemplates={templates}
+      />
+      
+      {/* 템플릿 선택 드로어 */}
+      <TemplateSelectionDrawer
+        visible={selectionDrawerVisible}
+        templates={templates}
+        selectedTemplate={selectedTemplate}
+        onClose={() => setSelectionDrawerVisible(false)}
+        onSelect={handleSelectTemplate}
+        onConfirm={async () => {}}
+        loading={false}
+        templateSearch={search}
+        setTemplateSearch={setSearch}
+        templateCategoryFilter={categoryFilter}
+        setTemplateCategoryFilter={setCategoryFilter}
+        categories={categories}
+        filteredTemplates={filteredTemplates}
+      />
     </div>
   );
 };

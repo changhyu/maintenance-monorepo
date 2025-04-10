@@ -23,6 +23,8 @@ module.exports = {
   ],
   rules: {
     // 사용자 정의 옵션 추가 가능
+    '@typescript-eslint/no-explicit-any': 'warn',
+    '@typescript-eslint/ban-types': 'warn'
   },
   settings: {
     react: {

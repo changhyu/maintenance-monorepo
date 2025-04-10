@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
+import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import styled from 'styled-components';
 
 interface Widget {
@@ -10,6 +10,21 @@ interface Widget {
 interface DashboardLayoutProps {
   widgets: Widget[];
   onLayoutChange?: (newOrder: Widget[]) => void;
+}
+
+// DropResult 인터페이스 직접 정의
+interface DropResult {
+  draggableId: string;
+  type: string;
+  source: {
+    index: number;
+    droppableId: string;
+  };
+  destination?: {
+    index: number;
+    droppableId: string;
+  };
+  reason: 'DROP' | 'CANCEL';
 }
 
 const Container = styled.div`
@@ -38,11 +53,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ widgets, onLayoutChan
   return (
     <DragDropContext onDragEnd={handleDragEnd}>
       <Droppable droppableId="dashboard" direction="horizontal">
-        {(provided) => (
+        {(provided: any) => (
           <Container ref={provided.innerRef} {...provided.droppableProps}>
             {items.map((item, index) => (
               <Draggable key={item.id} draggableId={item.id} index={index}>
-                {(providedDrag) => (
+                {(providedDrag: any) => (
                   <WidgetWrapper ref={providedDrag.innerRef} {...providedDrag.draggableProps} {...providedDrag.dragHandleProps}>
                     {item.content}
                   </WidgetWrapper>

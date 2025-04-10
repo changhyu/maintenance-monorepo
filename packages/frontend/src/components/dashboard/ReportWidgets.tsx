@@ -3,68 +3,77 @@ import {
   Card, 
   Spin, 
   Empty, 
-  Statistic, 
-  Row, 
-  Col, 
-  Tag, 
   Button, 
   Tooltip,
   Select,
   Skeleton,
   Switch,
-  Tabs,
   List,
   Badge,
-  Progress,
+  Tag,
   message
 } from 'antd';
 import { 
   FileTextOutlined, 
   BarChartOutlined, 
   LineChartOutlined, 
-  PieChartOutlined, 
   CalendarOutlined, 
   ArrowUpOutlined, 
   ArrowDownOutlined,
   SyncOutlined,
   ClockCircleOutlined,
-  InfoCircleOutlined,
   SettingOutlined,
-  DashboardOutlined,
-  ArrowRightOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import reportService, { ReportType } from '../../services/reportService';
+import { ReportType } from '../../services/reportService';
 import { DashboardDataService, DashboardChartData, DashboardCardData } from '../../services/DashboardDataService';
-import {
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip as RechartsTooltip,
-  Legend,
-  ResponsiveContainer,
-  Cell,
-  AreaChart,
-  Area,
-  Radar,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis
-} from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
 import DashboardChart from './DashboardChart';
 
 const { Option } = Select;
 
-// 차트 색상
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
+// 모의 reportService 구현
+const reportService = {
+  getRecentReports: async () => {
+    return [
+      {
+        id: 'r001',
+        title: '월간 차량 정비 보고서',
+        date: '2023-08-15',
+        type: 'maintenance',
+        status: 'completed'
+      },
+      {
+        id: 'r002',
+        title: '분기별 비용 분석 보고서',
+        date: '2023-08-01',
+        type: 'cost',
+        status: 'completed'
+      },
+      {
+        id: 'r003',
+        title: '주간 정비 완료율 보고서',
+        date: '2023-08-10',
+        type: 'completion',
+        status: 'completed'
+      },
+      {
+        id: 'r004',
+        title: '차량별 정비 이력 보고서',
+        date: '2023-08-05',
+        type: 'history',
+        status: 'completed'
+      },
+      {
+        id: 'r005',
+        title: '정비 예측 보고서',
+        date: '2023-08-12',
+        type: 'forecast',
+        status: 'completed'
+      }
+    ];
+  }
+};
 
 // 새로고침 주기 옵션 (초 단위)
 const REFRESH_INTERVALS = [
@@ -130,61 +139,63 @@ const ReportWidgets: React.FC<ReportWidgetsProps> = ({ dashboardService = new Da
     }
   }, []);
 
-  // 데이터 로드
-  useEffect(() => {
-    loadReportData().catch(err => {
-      console.error('초기 데이터 로드 실패:', err);
-      setError('초기 데이터를 불러오는 중 오류가 발생했습니다');
-      setLoading(false);
-    });
-
-    // 컴포넌트 언마운트 시 모든 타이머 정리
-    return clearAllTimers;
-  }, [clearAllTimers]);
-
-  // 자동 새로고침 설정 변경 시 타이머 업데이트
-  useEffect(() => {
-    // 기존 타이머 정리
-    if (refreshTimerRef.current) {
-      clearInterval(refreshTimerRef.current);
-      refreshTimerRef.current = null;
-    }
-
-    // 새로고침 활성화 및 인터벌 설정됨
-    if (autoRefresh && refreshInterval > 0) {
-      refreshTimerRef.current = setInterval(() => {
-        refreshData().catch(err => {
-          console.error('자동 새로고침 중 오류 발생:', err);
-          message.error('데이터 자동 새로고침 중 오류가 발생했습니다');
-        });
-      }, refreshInterval * 1000);
-    }
-
-    // 컴포넌트 언마운트 시 정리
-    return () => {
-      if (refreshTimerRef.current) {
-        clearInterval(refreshTimerRef.current);
-        refreshTimerRef.current = null;
+  // 선택된 보고서 타입에 맞는 차트 데이터 로드
+  const loadReportChartData = useCallback(async (reportType: ReportType) => {
+    try {
+      // ReportType을 문자열로 변환하여 전달 (언더스코어를 하이픈으로 변환)
+      const reportTypeStr = reportType.toString().replace(/_/g, '-');
+      const chartData = await dashboardService.getReportChartData(reportTypeStr);
+      
+      // 이전 타이머 정리
+      if (chartLoadTimerRef.current) {
+        clearTimeout(chartLoadTimerRef.current);
+        chartLoadTimerRef.current = null;
       }
-    };
-  }, [autoRefresh, refreshInterval]);
-
-  // 보고서 타입이 변경될 때 차트 데이터 다시 로드
-  useEffect(() => {
-    loadReportChartData(selectedReportType).catch(err => {
-      console.error('차트 데이터 로드 실패:', err);
-      setError('차트 데이터를 불러오는 중 오류가 발생했습니다');
-    });
-    
-    // 기본 차트 타입 설정
-    if (selectedReportType === ReportType.MAINTENANCE_SUMMARY) {
-      setChartType('pie');
-    } else if (selectedReportType === ReportType.COMPLETION_RATE) {
-      setChartType('line');
-    } else if (selectedReportType === ReportType.COST_ANALYSIS) {
-      setChartType('bar');
+      
+      // 애니메이션 효과를 위해 상태 업데이트
+      setReportChartData(null);
+      
+      chartLoadTimerRef.current = setTimeout(() => {
+        setReportChartData(chartData);
+        chartLoadTimerRef.current = null;
+      }, 100);
+    } catch (error) {
+      console.error('보고서 차트 데이터 로드 중 오류 발생:', error);
+      setReportChartData(null);
+      throw error; // 상위 호출자에게 오류 전파
     }
-  }, [selectedReportType]);
+  }, [dashboardService]);
+
+  // 보고서 데이터 로드
+  const loadReportData = useCallback(async () => {
+    if (!refreshing) setLoading(true);
+    
+    try {
+      // 대시보드 카드 데이터 (요약 정보)
+      const cards = await dashboardService.getReportOverviewData();
+      setReportCards(Array.isArray(cards) ? cards : []);
+
+      // 최근 보고서 목록
+      const reports = await reportService.getRecentReports();
+      setRecentReports(Array.isArray(reports) ? reports.slice(0, 5) : []);  // 최근 5개만, 배열 확인
+
+      // 초기 차트 데이터 로드
+      await loadReportChartData(selectedReportType);
+      
+      // 마지막 업데이트 시간 갱신
+      setLastUpdated(new Date());
+      
+      // 오류 초기화
+      setError(null);
+    } catch (error) {
+      console.error('보고서 위젯 데이터 로드 중 오류 발생:', error);
+      setError('데이터를 불러오는 중 오류가 발생했습니다');
+      // 에러 상태에서도 기존 데이터 유지
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [dashboardService, selectedReportType, loadReportChartData, refreshing]);
 
   // 모든 데이터 새로고침
   const refreshData = useCallback(async () => {
@@ -218,7 +229,63 @@ const ReportWidgets: React.FC<ReportWidgetsProps> = ({ dashboardService = new Da
     } finally {
       setRefreshing(false);
     }
-  }, [refreshing]);
+  }, [loadReportData, refreshing]);
+
+  // 데이터 로드
+  useEffect(() => {
+    loadReportData().catch(err => {
+      console.error('초기 데이터 로드 실패:', err);
+      setError('초기 데이터를 불러오는 중 오류가 발생했습니다');
+      setLoading(false);
+    });
+
+    // 컴포넌트 언마운트 시 모든 타이머 정리
+    return clearAllTimers;
+  }, [clearAllTimers, loadReportData]);
+
+  // 자동 새로고침 설정 변경 시 타이머 업데이트
+  useEffect(() => {
+    // 기존 타이머 정리
+    if (refreshTimerRef.current) {
+      clearInterval(refreshTimerRef.current);
+      refreshTimerRef.current = null;
+    }
+
+    // 새로고침 활성화 및 인터벌 설정됨
+    if (autoRefresh && refreshInterval > 0) {
+      refreshTimerRef.current = setInterval(() => {
+        refreshData().catch(err => {
+          console.error('자동 새로고침 중 오류 발생:', err);
+          message.error('데이터 자동 새로고침 중 오류가 발생했습니다');
+        });
+      }, refreshInterval * 1000);
+    }
+
+    // 컴포넌트 언마운트 시 정리
+    return () => {
+      if (refreshTimerRef.current) {
+        clearInterval(refreshTimerRef.current);
+        refreshTimerRef.current = null;
+      }
+    };
+  }, [autoRefresh, refreshInterval, refreshData]);
+
+  // 보고서 타입이 변경될 때 차트 데이터 다시 로드
+  useEffect(() => {
+    loadReportChartData(selectedReportType).catch(err => {
+      console.error('차트 데이터 로드 실패:', err);
+      setError('차트 데이터를 불러오는 중 오류가 발생했습니다');
+    });
+    
+    // 기본 차트 타입 설정
+    if (selectedReportType === ReportType.MAINTENANCE_SUMMARY) {
+      setChartType('pie');
+    } else if (selectedReportType === ReportType.COMPLETION_RATE) {
+      setChartType('line');
+    } else if (selectedReportType === ReportType.COST_ANALYSIS) {
+      setChartType('bar');
+    }
+  }, [selectedReportType, loadReportChartData]);
 
   // 수동 새로고침 핸들러
   const handleManualRefresh = useCallback(() => {
@@ -226,64 +293,6 @@ const ReportWidgets: React.FC<ReportWidgetsProps> = ({ dashboardService = new Da
       console.error('수동 새로고침 실패:', err);
     });
   }, [refreshData]);
-
-  // 보고서 데이터 로드
-  const loadReportData = useCallback(async () => {
-    if (!refreshing) setLoading(true);
-    
-    try {
-      // 대시보드 카드 데이터 (요약 정보)
-      const cards = await dashboardService.getReportOverviewData();
-      setReportCards(Array.isArray(cards) ? cards : []);
-
-      // 최근 보고서 목록
-      const reports = await reportService.getRecentReports();
-      setRecentReports(Array.isArray(reports) ? reports.slice(0, 5) : []);  // 최근 5개만, 배열 확인
-
-      // 초기 차트 데이터 로드
-      await loadReportChartData(selectedReportType);
-      
-      // 마지막 업데이트 시간 갱신
-      setLastUpdated(new Date());
-      
-      // 오류 초기화
-      setError(null);
-    } catch (error) {
-      console.error('보고서 위젯 데이터 로드 중 오류 발생:', error);
-      setError('데이터를 불러오는 중 오류가 발생했습니다');
-      // 에러 상태에서도 기존 데이터 유지
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [dashboardService, selectedReportType]);
-
-  // 선택된 보고서 타입에 맞는 차트 데이터 로드
-  const loadReportChartData = useCallback(async (reportType: ReportType) => {
-    try {
-      // ReportType을 문자열로 변환하여 전달 (언더스코어를 하이픈으로 변환)
-      const reportTypeStr = reportType.toString().replace(/_/g, '-');
-      const chartData = await dashboardService.getReportChartData(reportTypeStr);
-      
-      // 이전 타이머 정리
-      if (chartLoadTimerRef.current) {
-        clearTimeout(chartLoadTimerRef.current);
-        chartLoadTimerRef.current = null;
-      }
-      
-      // 애니메이션 효과를 위해 상태 업데이트
-      setReportChartData(null);
-      
-      chartLoadTimerRef.current = setTimeout(() => {
-        setReportChartData(chartData);
-        chartLoadTimerRef.current = null;
-      }, 100);
-    } catch (error) {
-      console.error('보고서 차트 데이터 로드 중 오류 발생:', error);
-      setReportChartData(null);
-      throw error; // 상위 호출자에게 오류 전파
-    }
-  }, [dashboardService]);
 
   // 보고서 타입을 한글 이름으로 변환
   const getReportTypeName = useCallback((type: ReportType): string => {

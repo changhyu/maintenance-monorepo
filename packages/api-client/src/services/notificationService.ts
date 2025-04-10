@@ -1,5 +1,8 @@
 import { ApiClient } from '../client';
 
+// 알림 데이터를 위한 타입 정의
+export type NotificationData = Record<string, unknown>;
+
 export enum NotificationType {
   INFO = 'INFO',
   WARNING = 'WARNING',
@@ -44,7 +47,7 @@ export interface Notification {
   expiresAt?: string;
   readAt?: string;
   link?: string;
-  data?: any;
+  data?: NotificationData;
 }
 
 export interface NotificationCreate {
@@ -56,7 +59,7 @@ export interface NotificationCreate {
   category: NotificationCategory;
   expiresAt?: string;
   link?: string;
-  data?: any;
+  data?: NotificationData;
 }
 
 export interface NotificationUpdate {
@@ -91,11 +94,14 @@ export interface NotificationCount {
   unread: number;
 }
 
+// 알림 콜백 함수 타입 정의
+export type NotificationCallback = (notification: Notification) => void;
+
 export class NotificationService {
   private client: ApiClient;
   private basePath = '/notifications';
-  private socketConnection: any = null;
-  private socketListeners: Map<string, Function> = new Map();
+  private socketConnection: unknown = null;
+  private socketListeners: Map<string, NotificationCallback> = new Map();
 
   constructor(apiClient: ApiClient) {
     this.client = apiClient;
@@ -156,7 +162,7 @@ export class NotificationService {
 
   // 실시간 알림 구독 (Socket.IO)
   // 참고: 실제 구현은 외부 라이브러리(Socket.IO)에 의존하므로 여기서는 인터페이스만 정의
-  subscribeToNotifications(userId: string, callback: Function): void {
+  subscribeToNotifications(userId: string, callback: NotificationCallback): void {
     // 실제 Socket.IO 구현은 이 클래스를 사용하는 코드에서 처리해야 함
     console.log(`Socket.IO: Subscribing to notifications for user ${userId}`);
     this.socketListeners.set('notification:new', callback);

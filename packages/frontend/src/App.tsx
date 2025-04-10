@@ -1,37 +1,32 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { Layout } from 'antd';
-import MainLayout from './layouts/MainLayout';
-import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
-import ProfilePage from './pages/ProfilePage';
-import VehicleDetailPage from './pages/VehicleDetailPage';
-import VehicleReportPage from './pages/VehicleReportPage';
-import BookingPage from './pages/BookingPage';
-import BookingHistoryPage from './pages/BookingHistoryPage';
-import ReportPage from './pages/ReportPage';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { Layout as AntdLayout } from 'antd';
+import TodoDashboard from './components/TodoDashboard';
+import { TodoProvider } from './context/TodoContext';
 import './App.css';
 
-const { Content } = Layout;
+const { Content, Header } = AntdLayout;
 
-const App: React.FC = () => {
+function App() {
   return (
-    <Router>
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route path="/" element={<MainLayout />}>
-          <Route index element={<Navigate to="/vehicles" replace />} />
-          <Route path="profile" element={<ProfilePage />} />
-          <Route path="vehicles" element={<VehicleReportPage />} />
-          <Route path="vehicles/:vehicleId" element={<VehicleDetailPage />} />
-          <Route path="booking" element={<BookingPage />} />
-          <Route path="booking/history" element={<BookingHistoryPage />} />
-          <Route path="reports" element={<ReportPage />} />
-        </Route>
-      </Routes>
-    </Router>
+    <TodoProvider>
+      <Router>
+        <AntdLayout className="min-h-screen">
+          <Header className="bg-white shadow">
+            <div className="container mx-auto flex justify-between items-center">
+              <h1 className="text-xl font-bold">정비 관리 시스템</h1>
+            </div>
+          </Header>
+          <Content className="container mx-auto p-4">
+            <Routes>
+              <Route path="/" element={<TodoDashboard />} />
+              {/* 추가 라우트는 이곳에 정의 */}
+            </Routes>
+          </Content>
+        </AntdLayout>
+      </Router>
+    </TodoProvider>
   );
-};
+}
 
 export default App; 

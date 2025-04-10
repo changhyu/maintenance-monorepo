@@ -63,7 +63,7 @@ export const shopService = {
    * @param params 조회 옵션 (페이지, 정렬 등)
    * @returns 리뷰 목록
    */
-  async getShopReviews(shopId: string, params?: any): Promise<ShopReview[]> {
+  async getShopReviews(shopId: string, params?: { page?: number; limit?: number; sort?: string }): Promise<ShopReview[]> {
     const response = await api.get(`/shops/${shopId}/reviews`, { params });
     return response.data;
   },
@@ -110,7 +110,7 @@ export const shopService = {
    * @param serviceTime 서비스 예약 시간 (HH:MM)
    * @returns 서비스 가능 여부 및 시간대 정보
    */
-  async checkShopAvailability(shopId: string, serviceDate: string, serviceTime?: string): Promise<any> {
+  async checkShopAvailability(shopId: string, serviceDate: string, serviceTime?: string): Promise<{ available: boolean; availableSlots?: string[] }> {
     const params = { serviceDate, serviceTime };
     const response = await api.get(`/shops/${shopId}/availability`, { params });
     return response.data;
@@ -153,7 +153,13 @@ export const shopService = {
    * @param period 기간 (day, week, month, year)
    * @returns 통계 데이터
    */
-  async getShopStatistics(shopId: string, period: 'day' | 'week' | 'month' | 'year' = 'month'): Promise<any> {
+  async getShopStatistics(shopId: string, period: 'day' | 'week' | 'month' | 'year' = 'month'): Promise<{
+    revenue: number;
+    serviceCount: number;
+    averageRating: number;
+    customerCount: number;
+    periodData: Array<{ date: string; revenue: number; serviceCount: number }>;
+  }> {
     const response = await api.get(`/shops/${shopId}/statistics`, { params: { period } });
     return response.data;
   }

@@ -1,17 +1,111 @@
-import { ApiClient } from '../../../api-client/src/client';
-import { AnalyticsService, AnalyticsTimeFrame as ApiAnalyticsTimeFrame, VehicleAnalyticsOverview as ApiVehicleAnalyticsOverview, MaintenanceAnalyticsOverview as ApiMaintenanceAnalyticsOverview, CostAnalyticsOverview as ApiCostAnalyticsOverview, AnalyticsDataPoint, AnalyticsDataSeries } from '../../../api-client/src/services/analyticsService';
-import { 
-  VehicleAnalyticsOverview, 
-  MaintenanceAnalyticsOverview, 
-  CostAnalyticsOverview,
-  TimeSeriesDataPoint,
-  AnalyticsCategory,
-  AnalyticsCategoryItem,
-  AnalyticsTimeFrame
-} from '../types/analytics';
 import { DashboardFilters } from '../components/DashboardFilter';
 import { ReportType } from './reportService';
-import { format } from 'date-fns';
+import { formatDate } from '../utils/date-utils';
+
+// API 인터페이스 정의
+interface AnalyticsDataPoint {
+  label: string;
+  value: number;
+  date?: string;
+  color?: string;
+}
+
+interface AnalyticsDataSeries {
+  name: string;
+  data: AnalyticsDataPoint[];
+}
+
+enum ApiAnalyticsTimeFrame {
+  DAY = 'day',
+  WEEK = 'week',
+  MONTH = 'month',
+  QUARTER = 'quarter',
+  YEAR = 'year'
+}
+
+interface ApiVehicleAnalyticsOverview {
+  totalVehicles: number;
+  activeVehicles: number;
+  newVehicles?: { percentage: number };
+  averageAge: number;
+  averageMileage: number;
+  vehiclesByMake?: AnalyticsDataSeries;
+}
+
+interface ApiMaintenanceAnalyticsOverview {
+  totalMaintenanceRecords: number;
+  maintenanceCompletionRate?: number;
+  costTrend?: { percentage: number };
+  averageTimeBetweenMaintenance: number;
+  maintenanceByType?: AnalyticsDataSeries;
+}
+
+interface ApiCostAnalyticsOverview {
+  totalCost: number;
+  costTrend?: { 
+    percentage: number;
+    data?: { data: AnalyticsDataPoint[] }
+  };
+  costByCategory?: AnalyticsDataSeries;
+  costByMonth?: { data: AnalyticsDataPoint[] };
+  costPerVehicle?: { data: AnalyticsDataPoint[] };
+}
+
+// 프론트엔드 인터페이스 정의
+interface TimeSeriesDataPoint {
+  date: string;
+  value: number;
+}
+
+interface AnalyticsCategoryItem {
+  label: string;
+  value: number;
+  color?: string;
+}
+
+interface AnalyticsCategory {
+  data: AnalyticsCategoryItem[];
+  total: number;
+}
+
+enum AnalyticsTimeFrame {
+  DAY = 'day',
+  WEEK = 'week',
+  MONTH = 'month',
+  QUARTER = 'quarter',
+  YEAR = 'year'
+}
+
+interface VehicleAnalyticsOverview {
+  totalVehicles: number;
+  activeVehicles: number;
+  inactiveVehicles: number;
+  vehicleChange: number;
+  vehiclesByCategory: AnalyticsCategory;
+  vehicleHealthDistribution: AnalyticsCategory;
+  averageAge: number;
+  averageMileage: number;
+}
+
+interface MaintenanceAnalyticsOverview {
+  totalMaintenances: number;
+  completedMaintenances: number;
+  pendingMaintenances: number;
+  maintenanceChange: number;
+  maintenancesByType: AnalyticsCategory;
+  maintenancesByPriority: AnalyticsCategory;
+  averageCompletionTime: number;
+  upcomingMaintenances: number;
+}
+
+interface CostAnalyticsOverview {
+  totalCost: number;
+  costChange: number;
+  costTrend: TimeSeriesDataPoint[];
+  costByCategory: AnalyticsCategory;
+  averageCostPerVehicle: number;
+  monthlyCosts: TimeSeriesDataPoint[];
+}
 
 // 보고서 필터 인터페이스 정의
 export interface ReportFilter {
@@ -36,16 +130,30 @@ export interface DashboardCardData {
 }
 
 /**
+ * 차트 데이터 아이템 타입
+ */
+export interface ChartDataItem {
+  [key: string]: string | number | null;
+}
+
+/**
+ * 차트 속성 타입
+ */
+export interface ChartProps {
+  [key: string]: string | number | boolean;
+}
+
+/**
  * 대시보드 차트 데이터 인터페이스
  */
 export interface DashboardChartData {
   // Recharts 라이브러리용 속성
-  data?: any[];
+  data?: ChartDataItem[];
   xAxisKey?: string;
-  yAxisFormat?: (value: any) => string;
-  tooltipFormat?: (value: any, name: string, props: any) => string | number;
+  yAxisFormat?: (value: number | string) => string;
+  tooltipFormat?: (value: number | string, name: string, props: ChartProps) => string | number;
   tooltipLabelFormat?: (label: string) => string;
-  labelFormat?: (value: any, name: string, props: any) => string | number;
+  labelFormat?: (value: number | string, name: string, props: ChartProps) => string | number;
   series?: {
     dataKey: string;
     name: string;
@@ -80,13 +188,95 @@ export interface PredictiveMaintenanceCard {
   severity: 'high' | 'medium' | 'low';
 }
 
+// 임시 모의 AnalyticsService 클래스
+class AnalyticsService {
+  constructor() {
+    // 초기화 코드
+  }
+
+  async getVehicleAnalytics(timeFrame: ApiAnalyticsTimeFrame): Promise<ApiVehicleAnalyticsOverview> {
+    // 모의 데이터 반환
+    return {
+      totalVehicles: 120,
+      activeVehicles: 90,
+      newVehicles: { percentage: 5 },
+      averageAge: 3.5,
+      averageMileage: 50000,
+      vehiclesByMake: {
+        name: "Vehicle by Make",
+        data: [
+          { label: "Toyota", value: 40 },
+          { label: "Hyundai", value: 30 },
+          { label: "KIA", value: 25 },
+          { label: "Others", value: 25 }
+        ]
+      }
+    };
+  }
+
+  async getMaintenanceAnalytics(timeFrame: ApiAnalyticsTimeFrame): Promise<ApiMaintenanceAnalyticsOverview> {
+    // 모의 데이터 반환
+    return {
+      totalMaintenanceRecords: 250,
+      maintenanceCompletionRate: 0.75,
+      costTrend: { percentage: 2.5 },
+      averageTimeBetweenMaintenance: 45,
+      maintenanceByType: {
+        name: "Maintenance by Type",
+        data: [
+          { label: "Regular", value: 150 },
+          { label: "Repair", value: 70 },
+          { label: "Inspection", value: 30 }
+        ]
+      }
+    };
+  }
+
+  async getCostAnalytics(timeFrame: ApiAnalyticsTimeFrame): Promise<ApiCostAnalyticsOverview> {
+    // 모의 데이터 반환
+    return {
+      totalCost: 2500000,
+      costTrend: { 
+        percentage: -1.5,
+        data: { 
+          data: [
+            { label: "Jan", value: 180000, date: "2023-01-01" },
+            { label: "Feb", value: 210000, date: "2023-02-01" },
+            { label: "Mar", value: 195000, date: "2023-03-01" }
+          ] 
+        }
+      },
+      costByCategory: {
+        name: "Cost by Category",
+        data: [
+          { label: "Parts", value: 1200000 },
+          { label: "Labor", value: 800000 },
+          { label: "Misc", value: 500000 }
+        ]
+      },
+      costByMonth: { 
+        data: [
+          { label: "Jan", value: 180000, date: "2023-01-01" },
+          { label: "Feb", value: 210000, date: "2023-02-01" },
+          { label: "Mar", value: 195000, date: "2023-03-01" }
+        ] 
+      },
+      costPerVehicle: { 
+        data: [
+          { label: "Average", value: 20833 }
+        ] 
+      }
+    };
+  }
+}
+
 export class DashboardDataService {
   public analyticsService: AnalyticsService;
   public timeFrames = ApiAnalyticsTimeFrame;
 
   constructor() {
-    const apiClient = new ApiClient({ baseURL: '/api' });
-    this.analyticsService = new AnalyticsService(apiClient);
+    // apiClient 없이 AnalyticsService 초기화
+    this.analyticsService = new AnalyticsService();
   }
 
   // API 응답 데이터를 프론트엔드 타입으로 변환하는 메서드들
@@ -734,7 +924,7 @@ export class DashboardDataService {
       {
         vehicleId: 'V004',
         vehicleName: '르노 SM6 #4256',
-        component: '타이밍 벨트',
+        component: '타이어',
         probability: 58,
         suggestedDate: '2023-07-12',
         severity: 'low'
@@ -772,11 +962,11 @@ export class DashboardDataService {
   }
 
   private formatNumber(num: number): string {
-    return new Intl.NumberFormat('ko-KR').format(num);
+    return num.toLocaleString();
   }
-
+  
   private formatCurrency(num: number): string {
-    return new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW' }).format(num);
+    return `₩${num.toLocaleString()}`;
   }
 
   // 폴백 데이터 메서드들 (API 호출 실패 시 사용)
@@ -1118,7 +1308,7 @@ export class DashboardDataService {
          
         // 각 월별 임의 데이터 생성
         monthsData.push({
-          month: format(date, 'yyyy-MM'),
+          month: formatDate(date, 'yyyy-MM'),
           완료율: Math.floor(Math.random() * 30) + 70,
           계획: Math.floor(Math.random() * 20) + 80,
         });
@@ -1130,7 +1320,7 @@ export class DashboardDataService {
         date.setMonth(date.getMonth() - i);
          
         monthsData.push({
-          month: format(date, 'yyyy-MM'),
+          month: formatDate(date, 'yyyy-MM'),
           완료율: Math.floor(Math.random() * 30) + 70,
           계획: Math.floor(Math.random() * 20) + 80,
         });
@@ -1169,7 +1359,7 @@ export class DashboardDataService {
         date.setMonth(date.getMonth() + i);
          
         costData.push({
-          month: format(date, 'yyyy-MM'),
+          month: formatDate(date, 'yyyy-MM'),
           부품비: Math.floor(Math.random() * 500000) + 100000,
           인건비: Math.floor(Math.random() * 300000) + 200000,
           기타: Math.floor(Math.random() * 200000) + 50000,
@@ -1182,7 +1372,7 @@ export class DashboardDataService {
         date.setMonth(date.getMonth() - i);
          
         costData.push({
-          month: format(date, 'yyyy-MM'),
+          month: formatDate(date, 'yyyy-MM'),
           부품비: Math.floor(Math.random() * 500000) + 100000,
           인건비: Math.floor(Math.random() * 300000) + 200000,
           기타: Math.floor(Math.random() * 200000) + 50000,
@@ -1293,9 +1483,15 @@ export class DashboardDataService {
       data,
       type: 'bar',
       xAxisKey: 'name',
-      yAxisFormat: (value) => `${value.toFixed(1)}%`,
-      tooltipFormat: (value) => `${value.toFixed(1)}%`,
-      labelFormat: (value) => `${value.toFixed(1)}%`,
+      yAxisFormat: (value: number | string) => {
+        return typeof value === 'number' ? `${value.toFixed(1)}%` : `${value}%`;
+      },
+      tooltipFormat: (value: number | string) => {
+        return typeof value === 'number' ? `${value.toFixed(1)}%` : `${value}%`;
+      },
+      labelFormat: (value: number | string) => {
+        return typeof value === 'number' ? `${value.toFixed(1)}%` : `${value}%`;
+      },
       colors: ['#ff7300', '#0088FE'],
       series: [
         { dataKey: 'probability', name: '고장 확률' }
@@ -1306,43 +1502,38 @@ export class DashboardDataService {
   /**
    * 랜덤 보고서 개요 데이터 생성
    */
-  private generateRandomReportOverviewData(): DashboardCardData[] {
+  private generateRandomReportOverviewData(): Array<{
+    title: string;
+    value: string;
+    id: string;
+  }> {
+    // 숫자 타입을 명확히 하여 toFixed 메서드 사용
+    const totalVehicles = Math.floor(Math.random() * 500) + 100;
+    const activeVehicles = Math.floor(totalVehicles * 0.8);
+    const inactiveVehicles = totalVehicles - activeVehicles;
+    const totalMaintenance = Math.floor(Math.random() * 200) + 50;
+    const completedMaintenance = Math.floor(totalMaintenance * 0.7);
+    const pendingMaintenance = totalMaintenance - completedMaintenance;
+    const totalCost = Math.floor(Math.random() * 10000000) + 1000000;
+    const vehicleUtilization = (Math.random() * 30) + 60;
+    const fuelEfficiency = (Math.random() * 5) + 10;
+    const healthScore = (Math.random() * 30) + 65;
+    
     return [
       {
-        title: '생성된 보고서',
-        value: Math.floor(Math.random() * 50) + 10,
-        change: Math.floor(Math.random() * 30) - 10,
-        trend: Math.random() > 0.5 ? 'up' : 'down',
-        icon: 'file-text',
-        color: '#1890ff',
-        changeLabel: '지난 달 대비'
+        title: '차량 활용도',
+        value: `${vehicleUtilization.toFixed(1)}%`,
+        id: 'vehicle-utilization'
       },
       {
-        title: '정비 완료율',
-        value: `${Math.floor(Math.random() * 30) + 70}%`,
-        change: Math.floor(Math.random() * 15),
-        trend: 'up',
-        icon: 'check-circle',
-        color: '#52c41a',
-        changeLabel: '지난 달 대비'
+        title: '연료 효율',
+        value: `${fuelEfficiency.toFixed(1)} km/L`,
+        id: 'fuel-efficiency'
       },
       {
-        title: '차량당 유지비',
-        value: `${(Math.floor(Math.random() * 50) + 30).toLocaleString()}만원`,
-        change: Math.floor(Math.random() * 20) - 10,
-        trend: Math.random() > 0.7 ? 'up' : 'down',
-        icon: 'dollar',
-        color: '#faad14',
-        changeLabel: '지난 달 대비'
-      },
-      {
-        title: '예측 정비 건수',
-        value: Math.floor(Math.random() * 15) + 5,
-        change: Math.floor(Math.random() * 8) - 4,
-        trend: Math.random() > 0.4 ? 'up' : 'down',
-        icon: 'calendar',
-        color: '#722ed1',
-        changeLabel: '지난 달 대비'
+        title: '차량 건강 점수',
+        value: `${healthScore.toFixed(0)}%`,
+        id: 'health-score'
       }
     ];
   }

@@ -3,7 +3,13 @@ Configuration settings for the API service.
 """
 
 import os
-from pydantic import BaseSettings, Field
+import logging
+from typing import List, Dict, Any, Optional
+from pydantic import Field, validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# 로거 설정
+logger = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
@@ -13,6 +19,7 @@ class Settings(BaseSettings):
     APP_NAME: str = "차량정비관리 API"
     VERSION: str = "0.1.0"
     DEBUG: bool = Field(default=False, env="DEBUG")
+    ENVIRONMENT: str = Field(default="development", env="ENVIRONMENT")
     
     # 프로젝트 메타데이터
     PROJECT_NAME: str = "차량정비관리 API"
@@ -21,36 +28,112 @@ class Settings(BaseSettings):
     
     # 서버 설정
     HOST: str = Field(default="0.0.0.0", env="HOST")
-    PORT: int = Field(default=8000, env="PORT")
+    PORT: int = Field(default=8001, env="PORT")
     
     # 데이터베이스 설정
     DATABASE_URL: str = Field(
         default="postgresql://postgres:postgres@localhost:5432/maintenance",
         env="DATABASE_URL"
     )
+    DB_POOL_SIZE: int = Field(default=5, env="DB_POOL_SIZE")
+    DB_MAX_OVERFLOW: int = Field(default=10, env="DB_MAX_OVERFLOW")
     
     # 보안 설정
     SECRET_KEY: str = Field(
-        default="development_secret_key",
+        default="development_secret_key_please_change_in_production",
         env="SECRET_KEY"
     )
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(
         default=30,
         env="ACCESS_TOKEN_EXPIRE_MINUTES"
     )
+    REFRESH_TOKEN_EXPIRE_DAYS: int = Field(
+        default=7,
+        env="REFRESH_TOKEN_EXPIRE_DAYS"
+    )
     
     # CORS 설정
-    CORS_ORIGINS: list[str] = ["*"]
+    CORS_ORIGINS: List[str] = Field(
+        default=["*"],
+        env="CORS_ORIGINS"
+    )
     
     # 로깅 설정
     LOG_LEVEL: str = Field(default="INFO", env="LOG_LEVEL")
+    LOG_FORMAT: str = Field(
+        default="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        env="LOG_FORMAT"
+    )
     
-    class Config:
-        """Pydantic 설정 클래스."""
-        
-        env_file = ".env"
-        case_sensitive = True
+    # 스토리지 설정
+    UPLOAD_DIR: str = Field(default="./uploads", env="UPLOAD_DIR")
+    MAX_UPLOAD_SIZE_MB: int = Field(default=10, env="MAX_UPLOAD_SIZE_MB")
+    ALLOWED_EXTENSIONS: List[str] = Field(
+        default=["jpg", "jpeg", "png", "pdf"],
+        env="ALLOWED_EXTENSIONS"
+    )
+    
+    @validator("SECRET_KEY")
+    def validate_secret_key(cls, v: str, values: Dict[str, Any]) -> str:
+        """SECRET_KEY 검증"""
+        env = values.get("ENVIRONMENT", "development")
+        if env != "development" and (v == "development_secret_key_please_change_in_production" or len(v) < 32):
+            msg = "프로덕션 환경에서는 안전한 SECRET_KEY를 설정해야 합니다"
+            logger.warning(msg)
+            if env == "production":
+                raise ValueError(msg)
+        return v
+    
+    @validator("CORS_ORIGINS", pre=True)
+    def parse_cors_origins(cls, v: Any) -> List[str]:
+        """CORS_ORIGINS 파싱"""
+        if isinstance(v, str):
+            return [origin.strip() for origin in v.split(",")]
+        return v
+    
+    @validator("ALLOWED_EXTENSIONS", pre=True)
+    def parse_allowed_extensions(cls, v: Any) -> List[str]:
+        """ALLOWED_EXTENSIONS 파싱"""
+        if isinstance(v, str):
+            return [ext.strip().lower() for ext in v.split(",")]
+        return v
+    
+    @validator("LOG_LEVEL")
+    def validate_log_level(cls, v: str) -> str:
+        """LOG_LEVEL 검증"""
+        allowed_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+        if v.upper() not in allowed_levels:
+            msg = f"유효하지 않은 로그 레벨: {v}. 허용된 값: {', '.join(allowed_levels)}"
+            logger.warning(msg)
+            return "INFO"  # 기본값 반환
+        return v.upper()
+    
+    def get_database_settings(self) -> Dict[str, Any]:
+        """데이터베이스 설정을 딕셔너리로 반환"""
+        return {
+            "url": self.DATABASE_URL,
+            "pool_size": self.DB_POOL_SIZE,
+            "max_overflow": self.DB_MAX_OVERFLOW
+        }
+    
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=True
+    )
 
 
 # 설정 인스턴스 생성
-settings = Settings() 
+try:
+    settings = Settings()
+    
+    # 주요 설정 로깅
+    if settings.DEBUG:
+        logger.debug(f"환경: {settings.ENVIRONMENT}")
+        logger.debug(f"API 버전: {settings.VERSION}")
+        logger.debug(f"서버: {settings.HOST}:{settings.PORT}")
+        logger.debug(f"로그 레벨: {settings.LOG_LEVEL}")
+except Exception as e:
+    logger.error(f"설정 로드 중 오류 발생: {e}")
+    # 기본 설정으로 대체
+    settings = Settings() 

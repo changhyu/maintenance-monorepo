@@ -1,51 +1,36 @@
+import React from 'react';
 import MileageAlertSettings from '../components/vehicle/MileageAlertSettings';
 import { MileageUnit } from '../services/mileageAlertService';
 import { Tabs } from 'antd';
-import { ApiClient } from '../../../api-client/src/client';
+import { useApi } from '../context/ApiContext';
+import { useParams } from 'react-router-dom';
 
-const vehicleId: string = "vehicle-123";
-const vehicleData = { mileage: 12345, mileageUnit: MileageUnit.KILOMETERS };
+const VehicleDetailPage: React.FC = () => {
+  const { vehicleId = "vehicle-123" } = useParams<{ vehicleId: string }>();
+  const vehicleData = { mileage: 12345, mileageUnit: MileageUnit.KILOMETERS };
+  const { apiClient } = useApi();
 
-// 외부 ApiClient 사용 및 DummyApiClient 클래스 생성
-class DummyApiClient extends ApiClient {
-  constructor() {
-    super({ baseURL: '' });
-  }
-  get(url: string, params?: any): Promise<any> {
-    return Promise.resolve({ data: {} });
-  }
-  post(url: string, data?: any): Promise<any> {
-    return Promise.resolve({ data: {} });
-  }
-  put(url: string, data?: any): Promise<any> {
-    return Promise.resolve({ data: {} });
-  }
-  patch(url: string, data?: any): Promise<any> {
-    return Promise.resolve({ data: {} });
-  }
-  delete(url: string, data?: any): Promise<any> {
-    return Promise.resolve({ data: {} });
-  }
-  setAuthToken(token: string): void {
-    // dummy implementation
-  }
-  removeAuthToken(): void {
-    // dummy implementation
-  }
-}
+  return (
+    <div className="vehicle-detail-page">
+      <h1>차량 상세 정보</h1>
+      <Tabs defaultActiveKey="overview">
+        <Tabs.TabPane tab="개요" key="overview">
+          {/* 차량 개요 내용 */}
+          <p>차량 ID: {vehicleId}</p>
+          <p>주행 거리: {vehicleData.mileage} {vehicleData.mileageUnit}</p>
+        </Tabs.TabPane>
+        <Tabs.TabPane tab="주행거리 알림" key="mileage-alerts">
+          <MileageAlertSettings 
+            apiClient={apiClient}
+            vehicleId={vehicleId}
+            currentMileage={vehicleData?.mileage}
+            mileageUnit={vehicleData?.mileageUnit || MileageUnit.KILOMETERS}
+          />
+        </Tabs.TabPane>
+        {/* 필요에 따라 추가 탭 */}
+      </Tabs>
+    </div>
+  );
+};
 
-const apiClient = new DummyApiClient();
-
-// ... existing code ...
-
-// 차량 상세 페이지 컴포넌트 내부 적절한 위치에 추가
-<Tabs.TabPane tab="주행거리 알림" key="mileage-alerts">
-  <MileageAlertSettings 
-    apiClient={apiClient}
-    vehicleId={vehicleId}
-    currentMileage={vehicleData?.mileage}
-    mileageUnit={vehicleData?.mileageUnit || MileageUnit.KILOMETERS}
-  />
-</Tabs.TabPane>
-
-// ... existing code ... 
+export default VehicleDetailPage; 

@@ -5,9 +5,8 @@ Maintenance service module.
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 
-from sqlalchemy.orm import Session
-
-from ...database import get_session
+# 데이터베이스 관련 임포트 (Session은 필요하지 않으므로 제거)
+from ...core.dependencies import get_db
 from ...models.schemas import MaintenanceCreate, MaintenanceUpdate, MaintenanceStatus
 
 
@@ -18,25 +17,25 @@ class MaintenanceService:
         """
         정비 기록 목록을 조회합니다.
         """
-        db = get_session()
+        db = next(get_db())
         
         # 쿼리 생성
-        query = db.query(self.MaintenanceModel)
+        query = db.query(self.maintenance_model)
         
         # 필터 적용
         if filters:
             if "vehicle_id" in filters:
-                query = query.filter(self.MaintenanceModel.vehicle_id == filters["vehicle_id"])
+                query = query.filter(self.maintenance_model.vehicle_id == filters["vehicle_id"])
             if "status" in filters:
-                query = query.filter(self.MaintenanceModel.status == filters["status"])
+                query = query.filter(self.maintenance_model.status == filters["status"])
             if "from_date" in filters and filters["from_date"]:
-                query = query.filter(self.MaintenanceModel.date >= filters["from_date"])
+                query = query.filter(self.maintenance_model.date >= filters["from_date"])
             if "to_date" in filters and filters["to_date"]:
-                query = query.filter(self.MaintenanceModel.date <= filters["to_date"])
+                query = query.filter(self.maintenance_model.date <= filters["to_date"])
         
         # 정렬 및 페이지네이션
         total = query.count()
-        records = query.order_by(self.MaintenanceModel.date.desc()).offset(skip).limit(limit).all()
+        records = query.order_by(self.maintenance_model.date.desc()).offset(skip).limit(limit).all()
         
         # 관련 정보 조회
         result_records = []
@@ -44,7 +43,7 @@ class MaintenanceService:
             record_dict = record.__dict__
             
             # 관련 차량 정보 조회
-            vehicle = db.query(self.VehicleModel).filter_by(id=record.vehicle_id).first()
+            vehicle = db.query(self.vehicle_model).filter_by(id=record.vehicle_id).first()
             if vehicle:
                 record_dict["vehicle"] = {
                     "id": vehicle.id,
@@ -56,11 +55,11 @@ class MaintenanceService:
                 }
             
             # 관련 문서 조회
-            documents = db.query(self.MaintenanceDocumentModel).filter_by(maintenance_id=record.id).all()
+            documents = db.query(self.maintenance_document_model).filter_by(maintenance_id=record.id).all()
             record_dict["documents"] = [doc.__dict__ for doc in documents]
             
             # 관련 부품 조회
-            parts = db.query(self.MaintenancePartModel).filter_by(maintenance_id=record.id).all()
+            parts = db.query(self.maintenance_part_model).filter_by(maintenance_id=record.id).all()
             record_dict["parts"] = [part.__dict__ for part in parts]
             
             result_records.append(record_dict)
@@ -74,8 +73,8 @@ class MaintenanceService:
         """
         특정 정비 기록의 상세 정보를 조회합니다.
         """
-        db = get_session()
-        record = db.query(self.MaintenanceModel).filter_by(id=record_id).first()
+        db = next(get_db())
+        record = db.query(self.maintenance_model).filter_by(id=record_id).first()
         
         if not record:
             raise ValueError(f"ID가 {record_id}인 정비 기록을 찾을 수 없습니다.")
@@ -83,7 +82,7 @@ class MaintenanceService:
         result = record.__dict__
         
         # 관련 차량 정보 조회
-        vehicle = db.query(self.VehicleModel).filter_by(id=record.vehicle_id).first()
+        vehicle = db.query(self.vehicle_model).filter_by(id=record.vehicle_id).first()
         if vehicle:
             result["vehicle"] = {
                 "id": vehicle.id,
@@ -95,11 +94,11 @@ class MaintenanceService:
             }
         
         # 관련 문서 조회
-        documents = db.query(self.MaintenanceDocumentModel).filter_by(maintenance_id=record.id).all()
+        documents = db.query(self.maintenance_document_model).filter_by(maintenance_id=record.id).all()
         result["documents"] = [doc.__dict__ for doc in documents]
         
         # 관련 부품 조회
-        parts = db.query(self.MaintenancePartModel).filter_by(maintenance_id=record.id).all()
+        parts = db.query(self.maintenance_part_model).filter_by(maintenance_id=record.id).all()
         result["parts"] = [part.__dict__ for part in parts]
         
         return result
@@ -108,15 +107,15 @@ class MaintenanceService:
         """
         새 정비 기록을 생성합니다.
         """
-        db = get_session()
+        db = next(get_db())
         
         # 차량 존재 여부 확인
-        vehicle = db.query(self.VehicleModel).filter_by(id=data.vehicle_id).first()
+        vehicle = db.query(self.vehicle_model).filter_by(id=data.vehicle_id).first()
         if not vehicle:
             raise ValueError(f"ID가 {data.vehicle_id}인 차량을 찾을 수 없습니다.")
         
         # 정비 기록 생성
-        new_record = self.MaintenanceModel(
+        new_record = self.maintenance_model(
             vehicle_id=data.vehicle_id,
             description=data.description,
             date=data.date,
@@ -141,8 +140,8 @@ class MaintenanceService:
         """
         정비 기록을 업데이트합니다.
         """
-        db = get_session()
-        record = db.query(self.MaintenanceModel).filter_by(id=record_id).first()
+        db = next(get_db())
+        record = db.query(self.maintenance_model).filter_by(id=record_id).first()
         
         if not record:
             raise ValueError(f"ID가 {record_id}인 정비 기록을 찾을 수 없습니다.")
@@ -155,14 +154,14 @@ class MaintenanceService:
         db.refresh(record)
         
         # 차량 상태 업데이트
-        vehicle = db.query(self.VehicleModel).filter_by(id=record.vehicle_id).first()
+        vehicle = db.query(self.vehicle_model).filter_by(id=record.vehicle_id).first()
         if vehicle and data.status:
             if data.status == MaintenanceStatus.COMPLETED:
                 # 다른 진행 중인 정비가 없는지 확인
-                ongoing_count = db.query(self.MaintenanceModel).filter(
-                    self.MaintenanceModel.vehicle_id == record.vehicle_id,
-                    self.MaintenanceModel.id != record_id,
-                    self.MaintenanceModel.status.in_([
+                ongoing_count = db.query(self.maintenance_model).filter(
+                    self.maintenance_model.vehicle_id == record.vehicle_id,
+                    self.maintenance_model.id != record_id,
+                    self.maintenance_model.status.in_([
                         MaintenanceStatus.SCHEDULED, 
                         MaintenanceStatus.IN_PROGRESS
                     ])
@@ -181,30 +180,30 @@ class MaintenanceService:
         """
         정비 기록을 삭제합니다.
         """
-        db = get_session()
-        record = db.query(self.MaintenanceModel).filter_by(id=record_id).first()
+        db = next(get_db())
+        record = db.query(self.maintenance_model).filter_by(id=record_id).first()
         
         if not record:
             raise ValueError(f"ID가 {record_id}인 정비 기록을 찾을 수 없습니다.")
         
         # 관련 문서 삭제
-        db.query(self.MaintenanceDocumentModel).filter_by(maintenance_id=record_id).delete()
+        db.query(self.maintenance_document_model).filter_by(maintenance_id=record_id).delete()
         
         # 관련 부품 삭제
-        db.query(self.MaintenancePartModel).filter_by(maintenance_id=record_id).delete()
+        db.query(self.maintenance_part_model).filter_by(maintenance_id=record_id).delete()
         
         # 정비 기록 삭제
         db.delete(record)
         db.commit()
         
         # 차량 상태 업데이트
-        vehicle = db.query(self.VehicleModel).filter_by(id=record.vehicle_id).first()
+        vehicle = db.query(self.vehicle_model).filter_by(id=record.vehicle_id).first()
         if vehicle and record.status in [MaintenanceStatus.SCHEDULED, MaintenanceStatus.IN_PROGRESS]:
             # 다른 진행 중인 정비가 없는지 확인
-            ongoing_count = db.query(self.MaintenanceModel).filter(
-                self.MaintenanceModel.vehicle_id == record.vehicle_id,
-                self.MaintenanceModel.id != record_id,
-                self.MaintenanceModel.status.in_([
+            ongoing_count = db.query(self.maintenance_model).filter(
+                self.maintenance_model.vehicle_id == record.vehicle_id,
+                self.maintenance_model.id != record_id,
+                self.maintenance_model.status.in_([
                     MaintenanceStatus.SCHEDULED, 
                     MaintenanceStatus.IN_PROGRESS
                 ])
@@ -220,8 +219,8 @@ class MaintenanceService:
         """
         정비 기록에 문서를 업로드합니다.
         """
-        db = get_session()
-        record = db.query(self.MaintenanceModel).filter_by(id=record_id).first()
+        db = next(get_db())
+        record = db.query(self.maintenance_model).filter_by(id=record_id).first()
         
         if not record:
             raise ValueError(f"ID가 {record_id}인 정비 기록을 찾을 수 없습니다.")
@@ -231,7 +230,7 @@ class MaintenanceService:
         filename = file.filename
         file_url = f"/storage/maintenance/{record_id}/{filename}"
         
-        new_document = self.MaintenanceDocumentModel(
+        new_document = self.maintenance_document_model(
             maintenance_id=record_id,
             file_name=filename,
             file_url=file_url,
@@ -249,8 +248,8 @@ class MaintenanceService:
         """
         정비 기록에서 문서를 삭제합니다.
         """
-        db = get_session()
-        document = db.query(self.MaintenanceDocumentModel).filter_by(
+        db = next(get_db())
+        document = db.query(self.maintenance_document_model).filter_by(
             id=document_id, 
             maintenance_id=record_id
         ).first()
@@ -270,23 +269,23 @@ class MaintenanceService:
         """
         예정된 정비 일정을 조회합니다.
         """
-        db = get_session()
+        db = next(get_db())
         
         today = datetime.now().date()
         end_date = today + timedelta(days=days)
         
-        records = db.query(self.MaintenanceModel).filter(
-            self.MaintenanceModel.status == MaintenanceStatus.SCHEDULED,
-            self.MaintenanceModel.date >= today,
-            self.MaintenanceModel.date <= end_date
-        ).order_by(self.MaintenanceModel.date).all()
+        records = db.query(self.maintenance_model).filter(
+            self.maintenance_model.status == MaintenanceStatus.SCHEDULED,
+            self.maintenance_model.date >= today,
+            self.maintenance_model.date <= end_date
+        ).order_by(self.maintenance_model.date).all()
         
         result = []
         for record in records:
             record_dict = record.__dict__
             
             # 관련 차량 정보 조회
-            vehicle = db.query(self.VehicleModel).filter_by(id=record.vehicle_id).first()
+            vehicle = db.query(self.vehicle_model).filter_by(id=record.vehicle_id).first()
             if vehicle:
                 record_dict["vehicle"] = {
                     "id": vehicle.id,
@@ -306,8 +305,8 @@ class MaintenanceService:
         """
         정비를 완료 처리합니다.
         """
-        db = get_session()
-        record = db.query(self.MaintenanceModel).filter_by(id=record_id).first()
+        db = next(get_db())
+        record = db.query(self.maintenance_model).filter_by(id=record_id).first()
         
         if not record:
             raise ValueError(f"ID가 {record_id}인 정비 기록을 찾을 수 없습니다.")
@@ -318,7 +317,7 @@ class MaintenanceService:
         
         # 추가 정보 업데이트
         if mileage is not None:
-            vehicle = db.query(self.VehicleModel).filter_by(id=record.vehicle_id).first()
+            vehicle = db.query(self.vehicle_model).filter_by(id=record.vehicle_id).first()
             if vehicle:
                 vehicle.mileage = mileage
         
@@ -335,13 +334,13 @@ class MaintenanceService:
         db.refresh(record)
         
         # 차량 상태 업데이트
-        vehicle = db.query(self.VehicleModel).filter_by(id=record.vehicle_id).first()
+        vehicle = db.query(self.vehicle_model).filter_by(id=record.vehicle_id).first()
         if vehicle:
             # 다른 진행 중인 정비가 없는지 확인
-            ongoing_count = db.query(self.MaintenanceModel).filter(
-                self.MaintenanceModel.vehicle_id == record.vehicle_id,
-                self.MaintenanceModel.id != record_id,
-                self.MaintenanceModel.status.in_([
+            ongoing_count = db.query(self.maintenance_model).filter(
+                self.maintenance_model.vehicle_id == record.vehicle_id,
+                self.maintenance_model.id != record_id,
+                self.maintenance_model.status.in_([
                     MaintenanceStatus.SCHEDULED, 
                     MaintenanceStatus.IN_PROGRESS
                 ])
@@ -357,8 +356,8 @@ class MaintenanceService:
         """
         정비를 취소 처리합니다.
         """
-        db = get_session()
-        record = db.query(self.MaintenanceModel).filter_by(id=record_id).first()
+        db = next(get_db())
+        record = db.query(self.maintenance_model).filter_by(id=record_id).first()
         
         if not record:
             raise ValueError(f"ID가 {record_id}인 정비 기록을 찾을 수 없습니다.")
@@ -377,13 +376,13 @@ class MaintenanceService:
         db.refresh(record)
         
         # 차량 상태 업데이트
-        vehicle = db.query(self.VehicleModel).filter_by(id=record.vehicle_id).first()
+        vehicle = db.query(self.vehicle_model).filter_by(id=record.vehicle_id).first()
         if vehicle:
             # 다른 진행 중인 정비가 없는지 확인
-            ongoing_count = db.query(self.MaintenanceModel).filter(
-                self.MaintenanceModel.vehicle_id == record.vehicle_id,
-                self.MaintenanceModel.id != record_id,
-                self.MaintenanceModel.status.in_([
+            ongoing_count = db.query(self.maintenance_model).filter(
+                self.maintenance_model.vehicle_id == record.vehicle_id,
+                self.maintenance_model.id != record_id,
+                self.maintenance_model.status.in_([
                     MaintenanceStatus.SCHEDULED, 
                     MaintenanceStatus.IN_PROGRESS
                 ])
@@ -396,23 +395,27 @@ class MaintenanceService:
         return record.__dict__
     
     @property
-    def MaintenanceModel(self):
-        from ...database.models import Maintenance
+    def maintenance_model(self):
+        """Maintenance 모델 반환"""
+        from ..maintenance.models import Maintenance
         return Maintenance
     
     @property
-    def VehicleModel(self):
-        from ...database.models import Vehicle
+    def vehicle_model(self):
+        """Vehicle 모델 반환"""
+        from ..vehicle.models import Vehicle
         return Vehicle
     
     @property
-    def MaintenanceDocumentModel(self):
-        from ...database.models import MaintenanceDocument
+    def maintenance_document_model(self):
+        """MaintenanceDocument 모델 반환"""
+        from ..maintenance.models import MaintenanceDocument
         return MaintenanceDocument
     
     @property
-    def MaintenancePartModel(self):
-        from ...database.models import MaintenancePart
+    def maintenance_part_model(self):
+        """MaintenancePart 모델 반환"""
+        from ..maintenance.models import MaintenancePart
         return MaintenancePart
 
 

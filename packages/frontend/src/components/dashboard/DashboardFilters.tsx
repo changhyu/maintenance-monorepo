@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Card, Row, Col, Button } from 'antd';
-import { DateRangePicker } from '../common';
+import { DateRangePicker, DateRange } from '../common';
 import { FilterSelect, FilterOption } from '../common';
+import './Dashboard.css';
 
 // 필터 옵션들
 const vehicleTypeOptions: FilterOption[] = [
@@ -30,7 +31,7 @@ const locationOptions: FilterOption[] = [
 ];
 
 export interface DashboardFilterValues {
-  dateRange: [string, string] | null;
+  dateRange: DateRange | null;
   vehicleTypes: string[];
   status: string[];
   locations: string[];
@@ -69,7 +70,7 @@ const DashboardFilters: React.FC<DashboardFiltersProps> = ({ onFilterChange }) =
   };
 
   return (
-    <Card title="대시보드 필터" extra={<Button onClick={resetFilters}>초기화</Button>}>
+    <Card title="대시보드 필터" className="dashboard-filters-card" extra={<Button onClick={resetFilters}>초기화</Button>}>
       <Row gutter={[16, 16]}>
         <Col span={24}>
           <DateRangePicker

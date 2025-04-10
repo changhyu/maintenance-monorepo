@@ -83,40 +83,53 @@ export class TodoService {
 
   // 할일 목록 조회
   async getTodos(filter?: TodoFilter): Promise<Todo[]> {
-    return this.client.get<Todo[]>(this.basePath, { params: filter });
+    const response = await this.client.get<Todo[]>(this.basePath, { params: filter });
+    return response;
   }
 
   // 특정 할일 조회
   async getTodoById(id: string): Promise<Todo> {
-    return this.client.get<Todo>(`${this.basePath}/${id}`);
+    const response = await this.client.get<Todo>(`${this.basePath}/${id}`);
+    return response;
   }
 
   // 할일 생성
   async createTodo(todoData: TodoCreateRequest): Promise<Todo> {
-    return this.client.post<Todo>(this.basePath, todoData);
+    const response = await this.client.post<Todo>(this.basePath, todoData);
+    return response;
   }
 
   // 할일 업데이트
   async updateTodo(id: string, todoData: TodoUpdateRequest): Promise<Todo> {
-    return this.client.put<Todo>(`${this.basePath}/${id}`, todoData);
+    const response = await this.client.put<Todo>(`${this.basePath}/${id}`, todoData);
+    return response;
   }
 
   // 할일 삭제
-  async deleteTodo(id: string): Promise<void> {
-    return this.client.delete(`${this.basePath}/${id}`);
+  async deleteTodo(id: string): Promise<boolean> {
+    const response = await this.client.delete<boolean>(`${this.basePath}/${id}`);
+    return response;
   }
 
   // 할일 상태 변경
   async updateTodoStatus(id: string, status: TodoStatus): Promise<Todo> {
-    return this.client.patch<Todo>(`${this.basePath}/${id}/status`, { status });
+    const response = await this.client.patch<Todo>(`${this.basePath}/${id}/status`, { status });
+    return response;
   }
 
   // 할일 완료 처리
   async completeTodo(id: string): Promise<Todo> {
-    return this.client.patch<Todo>(`${this.basePath}/${id}/complete`, {
+    const response = await this.client.patch<Todo>(`${this.basePath}/${id}/complete`, {
       status: TodoStatus.COMPLETED,
       completedAt: new Date().toISOString()
     });
+    return response;
+  }
+
+  // 할일 완료 상태 토글
+  async toggleComplete(id: string): Promise<Todo> {
+    const response = await this.client.patch<Todo>(`${this.basePath}/${id}/toggle-complete`, {});
+    return response;
   }
 
   // 특정 사용자의 할일 조회

@@ -3,8 +3,7 @@ import { notificationService } from '../../services/notificationService';
 import { 
   Notification, 
   NotificationStatus,
-  NotificationType, 
-  NotificationGroup
+  NotificationType
 } from '../../types/notification';
 import { 
   formatNotificationDate, 
@@ -50,7 +49,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ userId, onClose
     fetchNotifications();
 
     // 실시간 알림 업데이트
-    const handleNotificationUpdate = (data: any) => {
+    const handleNotificationUpdate = (_: any) => {
       fetchNotifications();
     };
 

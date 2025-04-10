@@ -32,7 +32,7 @@ class Vehicle(BaseModel):
     # 관계 정의
     owner = relationship("User", back_populates="vehicles")
     maintenance_records = relationship(
-        "MaintenanceRecord",
+        "Maintenance",
         back_populates="vehicle",
         cascade="all, delete-orphan"
     ) 

@@ -5,12 +5,32 @@ Shop service module.
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 import math
+import logging
 
-from sqlalchemy.orm import Session
-from sqlalchemy import func
-from geopy.distance import geodesic
+# 로거 설정
+logger = logging.getLogger(__name__)
 
-from ...database import get_session
+# 의존성 모듈 임포트
+try:
+    from sqlalchemy.orm import Session
+    from sqlalchemy import func
+except ImportError:
+    logger.error("sqlalchemy 패키지가 설치되지 않았습니다. 데이터베이스 기능이 작동하지 않습니다.")
+    from ...core.dummy_modules import DummySession, DummyFunc as func
+    Session = DummySession
+
+try:
+    from geopy.distance import geodesic
+except ImportError:
+    logger.error("geopy 패키지가 설치되지 않았습니다. 거리 계산 기능이 작동하지 않습니다.")
+    from ...core.dummy_modules import geodesic
+
+try:
+    from ...database import get_session
+except ImportError:
+    logger.error("database 모듈을 찾을 수 없습니다. 데이터베이스 액세스가 작동하지 않습니다.")
+    from ...core.dummy_modules import get_session
+
 from ...models.schemas import ShopCreate, ShopUpdate, ShopReviewCreate, ShopStatus
 
 
@@ -20,110 +40,118 @@ class ShopService:
     def get_shops(self, skip: int = 0, limit: int = 100, filters: Dict = None) -> Dict[str, Any]:
         """
         정비소 목록을 조회합니다.
+        
+        Args:
+            skip: 건너뛸 레코드 수
+            limit: 가져올 최대 레코드 수
+            filters: 필터링 조건
+            
+        Returns:
+            정비소 목록과 총 개수를 포함하는 딕셔너리
         """
-        db = get_session()
-        
-        # 쿼리 생성
-        query = db.query(self.ShopModel)
-        
-        # 필터 적용
-        if filters:
-            if "search" in filters and filters["search"]:
-                search = f"%{filters['search']}%"
-                query = query.filter(
-                    self.ShopModel.name.ilike(search) | 
-                    self.ShopModel.description.ilike(search)
-                )
+        try:
+            db = get_session()
             
-            if "service_type" in filters and filters["service_type"]:
-                query = query.join(self.ShopServiceModel).filter(
-                    self.ShopServiceModel.service_type == filters["service_type"]
-                )
+            # 쿼리 생성
+            query = db.query(self.ShopModel)
             
-            # 지리적 필터링
-            if "location" in filters and all(
+            # 필터 적용
+            if filters:
+                query = self._apply_filters(query, filters)
+            
+            # 정렬
+            query = query.order_by(self.ShopModel.name)
+            
+            # 지리적 필터링이 있는지 확인
+            has_geo_filter = filters and "location" in filters and all(
                 k in filters["location"] for k in ["latitude", "longitude", "distance"]
-            ):
-                # 클라이언트 측 필터링 (쿼리 후 계산)
-                # 실제 구현에서는 지리적 인덱스나 PostGIS 등의 기능 활용 권장
-                pass
-        
-        # 정렬
-        query = query.order_by(self.ShopModel.name)
-        
-        # 페이지네이션 (지리적 필터링이 없는 경우)
-        if not (filters and "location" in filters):
-            total = query.count()
-            shops = query.offset(skip).limit(limit).all()
-            
-            result_shops = []
-            for shop in shops:
-                shop_dict = shop.__dict__
-                
-                # 리뷰 정보 조회
-                review_stats = db.query(
-                    func.avg(self.ShopReviewModel.rating).label("avg_rating"),
-                    func.count(self.ShopReviewModel.id).label("review_count")
-                ).filter(self.ShopReviewModel.shop_id == shop.id).one()
-                
-                shop_dict["rating"] = float(review_stats.avg_rating) if review_stats.avg_rating else None
-                shop_dict["review_count"] = review_stats.review_count
-                
-                # 서비스 목록 조회
-                services = db.query(self.ShopServiceModel).filter_by(shop_id=shop.id).all()
-                shop_dict["services"] = [service.service_type for service in services]
-                
-                result_shops.append(shop_dict)
-            
-            return {
-                "shops": result_shops,
-                "total": total
-            }
-        else:
-            # 지리적 필터링이 있는 경우 (클라이언트 측 필터링)
-            shops = query.all()
-            client_location = (
-                filters["location"]["latitude"],
-                filters["location"]["longitude"]
             )
-            max_distance = filters["location"]["distance"]
             
-            # 거리 계산 및 필터링
-            filtered_shops = []
-            for shop in shops:
-                shop_location = (shop.location.latitude, shop.location.longitude)
-                distance = geodesic(client_location, shop_location).kilometers
+            if not has_geo_filter:
+                # 일반 페이지네이션
+                return self._process_regular_query(db, query, skip, limit)
+            else:
+                # 지리적 필터링 적용
+                return self._process_geo_query(db, query, filters["location"])
                 
-                if distance <= max_distance:
-                    shop_dict = shop.__dict__
-                    shop_dict["distance"] = round(distance, 2)
-                    
-                    # 리뷰 정보 조회
-                    review_stats = db.query(
-                        func.avg(self.ShopReviewModel.rating).label("avg_rating"),
-                        func.count(self.ShopReviewModel.id).label("review_count")
-                    ).filter(self.ShopReviewModel.shop_id == shop.id).one()
-                    
-                    shop_dict["rating"] = float(review_stats.avg_rating) if review_stats.avg_rating else None
-                    shop_dict["review_count"] = review_stats.review_count
-                    
-                    # 서비스 목록 조회
-                    services = db.query(self.ShopServiceModel).filter_by(shop_id=shop.id).all()
-                    shop_dict["services"] = [service.service_type for service in services]
-                    
-                    filtered_shops.append(shop_dict)
+        except Exception as e:
+            logger.error(f"정비소 목록 조회 중 오류 발생: {str(e)}")
+            return {"shops": [], "total": 0, "error": str(e)}
+    
+    def _apply_filters(self, query, filters):
+        """쿼리에 필터를 적용합니다."""
+        if "search" in filters and filters["search"]:
+            search = f"%{filters['search']}%"
+            query = query.filter(
+                self.ShopModel.name.ilike(search) | 
+                self.ShopModel.description.ilike(search)
+            )
+        
+        if "service_type" in filters and filters["service_type"]:
+            query = query.join(self.ShopServiceModel).filter(
+                self.ShopServiceModel.service_type == filters["service_type"]
+            )
             
-            # 거리 기준 정렬
-            filtered_shops.sort(key=lambda x: x["distance"])
+        return query
+    
+    def _process_regular_query(self, db, query, skip, limit):
+        """일반 쿼리 처리 및 결과 반환"""
+        total = query.count()
+        shops = query.offset(skip).limit(limit).all()
+        
+        result_shops = []
+        for shop in shops:
+            shop_dict = self._enrich_shop_data(db, shop)
+            result_shops.append(shop_dict)
+        
+        return {
+            "shops": result_shops,
+            "total": total
+        }
+    
+    def _process_geo_query(self, db, query, location):
+        """지리적 필터링이 있는 쿼리 처리 및 결과 반환"""
+        shops = query.all()
+        client_location = (location["latitude"], location["longitude"])
+        max_distance = location["distance"]
+        
+        # 거리 계산 및 필터링
+        filtered_shops = []
+        for shop in shops:
+            shop_location = (shop.location.latitude, shop.location.longitude)
+            distance = geodesic(client_location, shop_location).kilometers
             
-            # 페이지네이션
-            total = len(filtered_shops)
-            paginated_shops = filtered_shops[skip:skip + limit]
-            
-            return {
-                "shops": paginated_shops,
-                "total": total
-            }
+            if distance <= max_distance:
+                shop_dict = self._enrich_shop_data(db, shop)
+                shop_dict["distance"] = round(distance, 2)
+                filtered_shops.append(shop_dict)
+        
+        # 거리에 따라 정렬
+        filtered_shops.sort(key=lambda x: x["distance"])
+        
+        return {
+            "shops": filtered_shops,
+            "total": len(filtered_shops)
+        }
+    
+    def _enrich_shop_data(self, db, shop):
+        """정비소 데이터에 추가 정보를 포함시킵니다."""
+        shop_dict = shop.__dict__.copy()
+        
+        # 리뷰 정보 조회
+        review_stats = db.query(
+            func.avg(self.ShopReviewModel.rating).label("avg_rating"),
+            func.count(self.ShopReviewModel.id).label("review_count")
+        ).filter(self.ShopReviewModel.shop_id == shop.id).one()
+        
+        shop_dict["rating"] = float(review_stats.avg_rating) if review_stats.avg_rating else None
+        shop_dict["review_count"] = review_stats.review_count
+        
+        # 서비스 목록 조회
+        services = db.query(self.ShopServiceModel).filter_by(shop_id=shop.id).all()
+        shop_dict["services"] = [service.service_type for service in services]
+        
+        return shop_dict
     
     def get_shop_by_id(self, shop_id: str) -> Dict[str, Any]:
         """
@@ -564,33 +592,68 @@ class ShopService:
     
     @property
     def ShopModel(self):
-        from ...database.models import Shop
-        return Shop
+        try:
+            from ...database.models import Shop
+            return Shop
+        except ImportError:
+            logger.warning("Shop 모델을 찾을 수 없습니다. 더미 모델을 사용합니다.")
+            from ...core.dummy_models import DummyShop
+            return DummyShop
     
     @property
     def ShopServiceModel(self):
-        from ...database.models import ShopService
-        return ShopService
+        """ShopService 모델 반환"""
+        try:
+            from ...database.models import ShopService
+            return ShopService
+        except ImportError:
+            logger.warning("ShopService 모델을 찾을 수 없습니다. 더미 모델을 사용합니다.")
+            from ...core.dummy_models import DummyShopService
+            return DummyShopService
     
     @property
     def ShopReviewModel(self):
-        from ...database.models import ShopReview
-        return ShopReview
+        """ShopReview 모델 반환"""
+        try:
+            from ...database.models import ShopReview
+            return ShopReview
+        except ImportError:
+            logger.warning("ShopReview 모델을 찾을 수 없습니다. 더미 모델을 사용합니다.")
+            from ...core.dummy_models import DummyShopReview
+            return DummyShopReview
     
     @property
     def ShopImageModel(self):
-        from ...database.models import ShopImage
-        return ShopImage
+        """ShopImage 모델 반환"""
+        try:
+            from ...database.models import ShopImage
+            return ShopImage
+        except ImportError:
+            logger.warning("ShopImage 모델을 찾을 수 없습니다. 더미 모델을 사용합니다.")
+            from ...core.dummy_models import DummyShopImage
+            return DummyShopImage
     
     @property
     def TechnicianModel(self):
-        from ...database.models import Technician
-        return Technician
+        """Technician 모델 반환"""
+        try:
+            from ...database.models import Technician
+            return Technician
+        except ImportError:
+            logger.warning("Technician 모델을 찾을 수 없습니다. 더미 모델을 사용합니다.")
+            from ...core.dummy_models import DummyTechnician
+            return DummyTechnician
     
     @property
     def UserModel(self):
-        from ...database.models import User
-        return User
+        """User 모델 반환"""
+        try:
+            from ...database.models import User
+            return User
+        except ImportError:
+            logger.warning("User 모델을 찾을 수 없습니다. 더미 모델을 사용합니다.")
+            from ...core.dummy_models import DummyUser
+            return DummyUser
 
 
 # 싱글톤 인스턴스 생성

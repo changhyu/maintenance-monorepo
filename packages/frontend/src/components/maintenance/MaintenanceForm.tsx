@@ -9,11 +9,9 @@ import {
   MaintenanceStatus,
   MaintenancePriority,
   MaintenancePart,
-  MaintenanceRecordCreate,
-  MaintenanceRecordUpdate,
   MaintenanceDocument
 } from '../../types/maintenance';
-import { formatDate, getTodayString } from '../../utils/dateUtils';
+import { getTodayString } from '../../utils/dateUtils';
 
 interface MaintenanceFormProps {
   initialData?: Partial<MaintenanceRecord>;
@@ -66,11 +64,13 @@ const MaintenanceForm: React.FC<MaintenanceFormProps> = ({
         setIsLoading(true);
         try {
           const data = await vehicleService.getVehicleById(
-            vehicleId || initialData?.vehicleId as string
+            vehicleId ?? initialData?.vehicleId as string
           );
-          setVehicle(data);
-          if (!initialData?.vehicleId) {
-            setFormData(prev => ({ ...prev, vehicleId: data.id }));
+          if (data) {
+            setVehicle(data);
+            if (!initialData?.vehicleId && data.id) {
+              setFormData(prev => ({ ...prev, vehicleId: data.id }));
+            }
           }
         } catch (err) {
           setError('차량 정보를 불러오는데 실패했습니다.');
@@ -96,8 +96,8 @@ const MaintenanceForm: React.FC<MaintenanceFormProps> = ({
       
       // 수량이나 단가가 변경되면 총 비용 자동 계산
       if (name === 'quantity' || name === 'unitCost') {
-        const quantity = name === 'quantity' ? Number(value) : (prev.quantity || 0);
-        const unitCost = name === 'unitCost' ? Number(value) : (prev.unitCost || 0);
+        const quantity = name === 'quantity' ? Number(value) : (prev.quantity ?? 0);
+        const unitCost = name === 'unitCost' ? Number(value) : (prev.unitCost ?? 0);
         updated.totalCost = quantity * unitCost;
       }
       
@@ -122,7 +122,7 @@ const MaintenanceForm: React.FC<MaintenanceFormProps> = ({
     setFormData(prev => ({
       ...prev,
       parts: [...(prev.parts || []), partToAdd],
-      cost: (prev.cost || 0) + partToAdd.totalCost
+      cost: (prev.cost ?? 0) + partToAdd.totalCost
     }));
 
     setNewPart({
@@ -141,7 +141,7 @@ const MaintenanceForm: React.FC<MaintenanceFormProps> = ({
     setFormData(prev => ({
       ...prev,
       parts: prev.parts?.filter(part => part.id !== id),
-      cost: (prev.cost || 0) - partToRemove.totalCost
+      cost: (prev.cost ?? 0) - partToRemove.totalCost
     }));
   };
 
@@ -247,9 +247,9 @@ const MaintenanceForm: React.FC<MaintenanceFormProps> = ({
         result = await maintenanceService.createMaintenanceRecord(createData);
       }
       
-      if (onSubmit) {
+      if (onSubmit && result) {
         onSubmit(result);
-      } else {
+      } else if (result) {
         navigate(`/maintenance/${result.id}`);
       }
     } catch (err) {
@@ -286,7 +286,7 @@ const MaintenanceForm: React.FC<MaintenanceFormProps> = ({
         <div className="mb-4 p-3 bg-gray-50 rounded">
           <h3 className="font-semibold">차량 정보</h3>
           <p>
-            {vehicle.year} {vehicle.make} {vehicle.model} ({vehicle.plate})
+            {vehicle.year} {vehicle.manufacturer} {vehicle.model} ({vehicle.licensePlate})
           </p>
         </div>
       )}

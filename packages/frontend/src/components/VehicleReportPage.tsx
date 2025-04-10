@@ -7,10 +7,9 @@ import {
   CarOutlined, FileSearchOutlined, FilterOutlined, 
   ReloadOutlined, DashboardOutlined
 } from '@ant-design/icons';
-import { ReportGenerator, DateRangePicker } from './common';
+import { ReportGenerator, DateRangePicker, ReportType } from './common';
 import { vehicleService } from '../services/vehicle';
-import { ReportType } from './common/ReportGenerator';
-import { Vehicle as ApiVehicle } from '../types/vehicle';
+import { Vehicle, VehicleType, convertServiceVehicleToFrontend } from '../types/vehicle';
 import { VehicleTypeChart, MaintenanceStatusChart, CostDistributionChart, MaintenanceTrendChart } from './charts';
 
 const { Title, Text } = Typography;
@@ -18,13 +17,15 @@ const { TabPane } = Tabs;
 const { Option } = Select;
 const { RangePicker } = DatePicker;
 
-// 보고서용 차량 인터페이스 - API 차량 타입에 필요한 필드를 추가
+/**
+ * 보고서용 차량 데이터 인터페이스
+ */
 interface ReportVehicle {
   id: string;
   name: string;
   status: string;
   type: string;
-  lastMaintenance: string; // API 차량 타입에는 lastMaintenanceDate가 Date 타입으로 존재
+  lastMaintenance: string;
   mileage: number;
   healthScore: number;
 }
@@ -37,8 +38,8 @@ const VehicleReportPage: React.FC = () => {
   const [dateRange, setDateRange] = useState<[Date, Date] | null>(null);
   const [activeTab, setActiveTab] = useState<string>('vehicle-status');
   
-  // 차량 유형 목록
-  const vehicleTypes = ['화물트럭', '승용차', '밴', '버스', '택시', '특수차량'];
+  // VehicleType enum에서 차량 유형 목록 생성
+  const vehicleTypes = Object.values(VehicleType);
   
   // 데이터 로드
   useEffect(() => {
@@ -52,17 +53,21 @@ const VehicleReportPage: React.FC = () => {
       const response = await vehicleService.getVehicles();
       
       // API 응답을 ReportVehicle 형식으로 변환
-      const formattedVehicles: ReportVehicle[] = response.map((vehicle: ApiVehicle) => ({
-        id: vehicle.id,
-        name: vehicle.name,
-        status: String(vehicle.status),
-        type: String(vehicle.type),
-        lastMaintenance: vehicle.lastMaintenanceDate 
-          ? new Date(vehicle.lastMaintenanceDate).toISOString().split('T')[0]
-          : '정보 없음',
-        mileage: vehicle.mileage || 0,
-        healthScore: vehicle.healthScore
-      }));
+      const formattedVehicles: ReportVehicle[] = response.map(vehicle => {
+        const frontendVehicle = convertServiceVehicleToFrontend(vehicle);
+        if (!frontendVehicle) return null;
+        
+        return {
+          id: frontendVehicle.id,
+          name: frontendVehicle.name,
+          status: String(frontendVehicle.status),
+          type: frontendVehicle.type || '미지정',
+          lastMaintenance: frontendVehicle.lastMaintenanceDate ? 
+            frontendVehicle.lastMaintenanceDate.toLocaleDateString() : '정보 없음',
+          mileage: frontendVehicle.mileage || 0,
+          healthScore: frontendVehicle.healthScore
+        };
+      }).filter(Boolean) as ReportVehicle[];
       
       setVehicles(formattedVehicles);
     } catch (error) {

@@ -2,14 +2,45 @@
  * 차량 모델 서비스
  */
 
-import { 
-  Vehicle, 
-  VehicleStatus, 
-  VehicleType, 
-  Prisma,
-  MaintenanceRecord
-} from '@prisma/client';
 import { prisma } from '../index';
+
+// 차량 관련 타입 정의
+interface Vehicle {
+  id: string;
+  make: string;
+  model: string;
+  year: number;
+  vin: string;
+  plate: string;
+  status: VehicleStatus;
+  createdAt: Date;
+  // 기타 필요한 필드들
+}
+
+enum VehicleStatus {
+  ACTIVE = 'ACTIVE',
+  MAINTENANCE = 'MAINTENANCE',
+  RETIRED = 'RETIRED',
+  OUT_OF_SERVICE = 'OUT_OF_SERVICE'
+}
+
+enum VehicleType {
+  SEDAN = 'SEDAN',
+  SUV = 'SUV',
+  TRUCK = 'TRUCK',
+  VAN = 'VAN',
+  BUS = 'BUS',
+  OTHER = 'OTHER'
+}
+
+interface MaintenanceRecord {
+  id: string;
+  vehicleID: string;
+  date: Date;
+  description: string;
+  cost: number;
+  // 기타 필요한 필드들
+}
 
 /**
  * 차량 필터 타입 정의
@@ -39,7 +70,7 @@ export class VehicleService {
     vehicles: Vehicle[];
     total: number;
   }> {
-    const where: Prisma.VehicleWhereInput = {};
+    const where: Record<string, unknown> = {};
     
     // 검색 필터 적용
     if (filter) {
@@ -53,8 +84,8 @@ export class VehicleService {
       // 생성일 범위 필터
       if (filter.fromDate || filter.toDate) {
         where.createdAt = {};
-        if (filter.fromDate) where.createdAt.gte = filter.fromDate;
-        if (filter.toDate) where.createdAt.lte = filter.toDate;
+        if (filter.fromDate) (where.createdAt as Record<string, Date>).gte = filter.fromDate;
+        if (filter.toDate) (where.createdAt as Record<string, Date>).lte = filter.toDate;
       }
       
       // 검색어 필터
@@ -69,7 +100,7 @@ export class VehicleService {
     }
     
     // 정렬 옵션
-    const orderBy: Prisma.VehicleOrderByWithRelationInput = {};
+    const orderBy: Record<string, string> = {};
     if (filter?.sortBy) {
       orderBy[filter.sortBy] = filter.sortDirection || 'asc';
     } else {
@@ -115,14 +146,14 @@ export class VehicleService {
   /**
    * 차량 생성
    */
-  async createVehicle(data: Prisma.VehicleCreateInput): Promise<Vehicle> {
+  async createVehicle(data: Omit<Vehicle, 'id' | 'createdAt'>): Promise<Vehicle> {
     return prisma.vehicle.create({ data });
   }
   
   /**
    * 차량 업데이트
    */
-  async updateVehicle(id: string, data: Prisma.VehicleUpdateInput): Promise<Vehicle | null> {
+  async updateVehicle(id: string, data: Partial<Omit<Vehicle, 'id' | 'createdAt'>>): Promise<Vehicle | null> {
     // 차량이 존재하는지 확인
     const vehicle = await prisma.vehicle.findUnique({ where: { id } });
     if (!vehicle) return null;

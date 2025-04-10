@@ -1,5 +1,27 @@
 import { ApiClient } from '../client';
 
+// 통합 설정 기본 타입 정의
+export type IntegrationConfigBase = {
+  enabled: boolean;
+  [key: string]: unknown;
+};
+
+// 특정 통합에 대한 타입 정의
+export interface GoogleMapsIntegration extends IntegrationConfigBase {
+  apiKey?: string;
+}
+
+export interface SlackIntegration extends IntegrationConfigBase {
+  webhookUrl?: string;
+}
+
+export interface ObdIntegration extends IntegrationConfigBase {
+  providerApiKey?: string;
+}
+
+// 다른 통합을 위한 일반 타입
+export interface GenericIntegration extends IntegrationConfigBase {}
+
 export enum ThemeMode {
   LIGHT = 'light',
   DARK = 'dark',
@@ -215,19 +237,10 @@ export interface SystemSettings {
     region?: string;
   };
   integrations: {
-    googleMaps?: {
-      enabled: boolean;
-      apiKey?: string;
-    };
-    slack?: {
-      enabled: boolean;
-      webhookUrl?: string;
-    };
-    obd?: {
-      enabled: boolean;
-      providerApiKey?: string;
-    };
-    [key: string]: any;
+    googleMaps?: GoogleMapsIntegration;
+    slack?: SlackIntegration;
+    obd?: ObdIntegration;
+    [key: string]: GenericIntegration | undefined;
   };
   backupSettings: {
     enabled: boolean;

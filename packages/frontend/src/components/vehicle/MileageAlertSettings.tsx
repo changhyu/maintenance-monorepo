@@ -217,7 +217,7 @@ const MileageAlertSettings: React.FC<MileageAlertSettingsProps> = ({
     {
       title: '주행거리 기준',
       key: 'mileage',
-      render: (_, record: MileageAlert) => {
+      render: (_: unknown, record: MileageAlert) => {
         const unit = record.mileageUnit === MileageUnit.KILOMETERS ? 'km' : 'miles';
         return `${record.mileageThreshold.toLocaleString()} ${unit}`;
       },
@@ -234,7 +234,7 @@ const MileageAlertSettings: React.FC<MileageAlertSettingsProps> = ({
     {
       title: '알림 채널',
       key: 'channels',
-      render: (_, record: MileageAlert) => {
+      render: (_: unknown, record: MileageAlert) => {
         const channels = [];
         if (record.sendEmail) channels.push('이메일');
         if (record.sendSMS) channels.push('SMS');
@@ -245,7 +245,7 @@ const MileageAlertSettings: React.FC<MileageAlertSettingsProps> = ({
     {
       title: '상태',
       key: 'status',
-      render: (_, record: MileageAlert) => (
+      render: (_: unknown, record: MileageAlert) => (
         <Badge 
           status={record.isActive ? 'success' : 'default'}
           text={record.isActive ? '활성' : '비활성'}
@@ -255,7 +255,7 @@ const MileageAlertSettings: React.FC<MileageAlertSettingsProps> = ({
     {
       title: '활성화',
       key: 'isActive',
-      render: (_, record: MileageAlert) => (
+      render: (_: unknown, record: MileageAlert) => (
         <Switch 
           checked={record.isActive} 
           onChange={() => handleToggleActive(record)}
@@ -266,7 +266,7 @@ const MileageAlertSettings: React.FC<MileageAlertSettingsProps> = ({
     {
       title: '액션',
       key: 'action',
-      render: (_, record: MileageAlert) => (
+      render: (_: unknown, record: MileageAlert) => (
         <Space size="middle">
           <Button 
             type="text" 
@@ -369,7 +369,10 @@ const MileageAlertSettings: React.FC<MileageAlertSettingsProps> = ({
                     step={100} 
                     style={{ width: '100%' }}
                     formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                    parser={(value) => value!.replace(/\$\s?|(,*)/g, '')}
+                    parser={(value: string | undefined) => {
+                      const parsed = value?.replace(/\$\s?|(,*)/g, '');
+                      return parsed ? Number(parsed) : 0;
+                    }}
                   />
                 </Form.Item>
 

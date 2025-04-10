@@ -44,8 +44,17 @@ class TodoTemplateService {
           createdAt: new Date(t.createdAt),
           updatedAt: new Date(t.updatedAt)
         }));
-        this.templateCounter = this.templates.length > 0 
-          ? Math.max(...this.templates.map(t => parseInt(t.id.split('-')[1], 10))) + 1
+        
+        // 로직 오류 수정: 유효한 ID 번호만 추출하고 NaN 처리
+        const validIds = this.templates
+          .map(t => {
+            const parts = t.id.split('-');
+            return parts.length > 1 ? parseInt(parts[1], 10) : NaN;
+          })
+          .filter(id => !isNaN(id));
+          
+        this.templateCounter = validIds.length > 0 
+          ? Math.max(...validIds) + 1
           : 0;
       }
     } catch (error) {
@@ -58,9 +67,23 @@ class TodoTemplateService {
    */
   private saveTemplatesToStorage(): void {
     try {
-      localStorage.setItem('todoTemplates', JSON.stringify(this.templates));
+      // 직렬화 과정에서 오류 발생 가능성 차단
+      const templatesJSON = JSON.stringify(this.templates);
+      
+      // 스토리지 용량 검사 (대략적인 추정)
+      if (templatesJSON.length > 4.5 * 1024 * 1024) { // ~4.5MB (localStorage 5MB 제한에 근접)
+        console.warn('템플릿 데이터가 로컬 스토리지 용량 한도에 근접했습니다. 일부 템플릿을 정리하는 것이 좋습니다.');
+      }
+      
+      localStorage.setItem('todoTemplates', templatesJSON);
     } catch (error) {
       console.error('템플릿을 로컬 스토리지에 저장하는 중 오류가 발생했습니다:', error);
+      
+      // QuotaExceededError 특별 처리
+      if (error instanceof DOMException && (error.name === 'QuotaExceededError' || error.name === 'NS_ERROR_DOM_QUOTA_REACHED')) {
+        console.error('로컬 스토리지 용량이 초과되었습니다. 오래된 템플릿을 정리해주세요.');
+        // 중요 알림 표시나 사용자에게 알릴 수 있는 메커니즘 추가 가능
+      }
     }
   }
 
@@ -226,8 +249,21 @@ class TodoTemplateService {
   /**
    * 특정 ID의 템플릿 반환
    */
-  public getTemplateById(id: string): TodoTemplate | undefined {
-    return this.templates.find(template => template.id === id);
+  public getTemplateById(id: string): TodoTemplate | null {
+    // ID 유효성 검사
+    if (!id || typeof id !== 'string') {
+      console.error('유효하지 않은 템플릿 ID:', id);
+      return null;
+    }
+    
+    // ID 형식 검증 (template-숫자 형식)
+    if (!id.startsWith('template-')) {
+      console.warn('올바르지 않은 템플릿 ID 형식:', id);
+      // 잘못된 형식이지만 시도는 해봄
+    }
+    
+    const template = this.templates.find(template => template.id === id);
+    return template || null;
   }
 
   /**
@@ -286,11 +322,35 @@ class TodoTemplateService {
       return undefined;
     }
     
-    return {
-      ...template.template,
-      vehicleId,
-      dueDate
+    // 깊은 복사로 원본 템플릿 객체와 분리하여 참조 문제 방지
+    const newTodo: TodoCreateRequest = {
+      // 템플릿의 기본 속성 복사
+      title: template.template.title,
+      description: template.template.description,
+      priority: template.template.priority,
+      completed: false, // 항상 완료되지 않은 상태로 생성
+      
+      // 추가 파라미터
+      vehicleId: vehicleId || undefined,
+      dueDate: dueDate || undefined
     };
+    
+    return newTodo;
+  }
+
+  /**
+   * 템플릿을 가져오는 서비스 함수
+   * @param templateId 템플릿 ID
+   * @returns 찾은 템플릿 또는 null
+   */
+  public serviceFetchTemplate(templateId: string): TodoTemplate | null {
+    try {
+      const template = this.getTemplateById(templateId);
+      return template || null;
+    } catch (error) {
+      console.error(`Template fetch failed for ID ${templateId}:`, error);
+      return null;
+    }
   }
 }
 

@@ -16,29 +16,54 @@ import {
 import { 
   CarOutlined, 
   ToolOutlined, 
-  DollarOutlined, 
-  CalendarOutlined,
-  WarningOutlined,
   ReloadOutlined
 } from '@ant-design/icons';
 import moment from 'moment';
-import { VehicleService } from '../services/VehicleService';
-import { MaintenanceService } from '../services/MaintenanceService';
 import { DashboardDataService } from '../services/DashboardDataService';
 import ReportWidgets from './dashboard/ReportWidgets';
+import { useVehicleService, useMaintenanceService } from '../hooks';
+import { Vehicle, VehicleStats } from '../services/vehicle';
+
+// 정비 일정/기록 인터페이스
+interface MaintenanceRecord {
+  id: string;
+  vehicleId: string;
+  scheduledDate?: string;
+  completionDate?: string;
+  maintenanceType?: string;
+  description?: string;
+  status: string;
+  cost?: number;
+}
+
+// 예측 정비 인터페이스
+interface PredictiveMaintenance {
+  vehicleId: string;
+  component: string;
+  probability: number;
+  estimatedDate: Date;
+  severity: string;
+}
 
 export const Dashboard: React.FC = () => {
-  const [vehicleStats, setVehicleStats] = useState<VehicleStats | null>(null);
-  const [upcomingMaintenance, setUpcomingMaintenance] = useState<any[]>([]);
-  const [recentMaintenance, setRecentMaintenance] = useState<any[]>([]);
-  const [predictiveMaintenance, setPredictiveMaintenance] = useState<any[]>([]);
+  // 커스텀 훅 사용
+  const { getVehicles } = useVehicleService();
+  const { getAllMaintenanceSchedules, schedules: maintenanceRecords } = useMaintenanceService();
+
+  const [vehicleStats, setVehicleStats] = useState<VehicleStats>({
+    totalVehicles: 0,
+    activeVehicles: 0,
+    inMaintenanceVehicles: 0,
+    outOfServiceVehicles: 0
+  });
+  const [upcomingMaintenance, setUpcomingMaintenance] = useState<MaintenanceRecord[]>([]);
+  const [recentMaintenance, setRecentMaintenance] = useState<MaintenanceRecord[]>([]);
+  const [predictiveMaintenance, setPredictiveMaintenance] = useState<PredictiveMaintenance[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [dataUpdated, setDataUpdated] = useState<Date>(new Date());
   const [dataRefreshing, setDataRefreshing] = useState<boolean>(false);
 
-  const vehicleService = new VehicleService();
-  const maintenanceService = new MaintenanceService();
   const dashboardDataService = new DashboardDataService();
 
   useEffect(() => {
@@ -51,39 +76,42 @@ export const Dashboard: React.FC = () => {
       setError(null);
 
       // 차량 정보 가져오기
-      const vehicles = await vehicleService.getVehicles();
+      const vehicles = await getVehicles();
       
       // 차량 통계 계산
+      // status 필드가 실제 Vehicle 인터페이스에 정의된 값과 일치하는지 확인
       const activeVehicles = vehicles.filter(v => v.status === 'active').length;
-      const maintenanceNeeded = vehicles.filter(v => v.status === 'maintenance').length;
-      const outOfService = vehicles.filter(v => v.status === 'out_of_service').length;
+      const inMaintenanceVehicles = vehicles.filter(v => v.status === 'maintenance').length;
+      const outOfServiceVehicles = vehicles.filter(v => v.status === 'outOfService').length;
       
       setVehicleStats({
-        total: vehicles.length,
-        active: activeVehicles,
-        maintenanceNeeded: maintenanceNeeded,
-        outOfService: outOfService,
+        totalVehicles: vehicles.length,
+        activeVehicles,
+        inMaintenanceVehicles,
+        outOfServiceVehicles
       });
       
       // 정비 데이터 가져오기
-      const maintenanceRecords = await maintenanceService.getMaintenanceRecords();
+      const records = await getAllMaintenanceSchedules();
       
       // 예정된 정비
-      const upcoming = maintenanceRecords
+      const upcoming = records
         .filter(record => record.status === 'scheduled')
-        .sort((a, b) => new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime())
-        .slice(0, 5);
+        .sort((a, b) => 
+          new Date(a.scheduledDate || '').getTime() - new Date(b.scheduledDate || '').getTime())
+        .slice(0, 5) as MaintenanceRecord[];
       setUpcomingMaintenance(upcoming);
       
       // 최근 정비 기록
-      const recent = maintenanceRecords
+      const recent = records
         .filter(record => record.status === 'completed')
-        .sort((a, b) => new Date(b.completionDate).getTime() - new Date(a.completionDate).getTime())
-        .slice(0, 5);
+        .sort((a, b) => 
+          new Date(b.completionDate || '').getTime() - new Date(a.completionDate || '').getTime())
+        .slice(0, 5) as MaintenanceRecord[];
       setRecentMaintenance(recent);
       
       // 예측 정비 (예시 데이터)
-      const predictive = [
+      const predictive: PredictiveMaintenance[] = [
         {
           vehicleId: 'V001',
           component: '브레이크 패드',
@@ -149,7 +177,7 @@ export const Dashboard: React.FC = () => {
       case 'maintenance':
       case 'scheduled':
         return 'warning';
-      case 'out_of_service':
+      case 'outOfService':
       case 'cancelled':
         return 'error';
       default:
@@ -216,7 +244,7 @@ export const Dashboard: React.FC = () => {
           <Card>
             <Statistic
               title="전체 차량"
-              value={vehicleStats?.total || 0}
+              value={vehicleStats.totalVehicles}
               prefix={<CarOutlined />}
             />
           </Card>
@@ -225,7 +253,7 @@ export const Dashboard: React.FC = () => {
           <Card>
             <Statistic
               title="운행 중 차량"
-              value={vehicleStats?.active || 0}
+              value={vehicleStats.activeVehicles}
               valueStyle={{ color: '#3f8600' }}
               prefix={<CarOutlined />}
             />
@@ -235,7 +263,7 @@ export const Dashboard: React.FC = () => {
           <Card>
             <Statistic
               title="정비 필요 차량"
-              value={vehicleStats?.maintenanceNeeded || 0}
+              value={vehicleStats.inMaintenanceVehicles}
               valueStyle={{ color: '#faad14' }}
               prefix={<ToolOutlined />}
             />
@@ -245,7 +273,7 @@ export const Dashboard: React.FC = () => {
           <Card>
             <Statistic
               title="운행 불가 차량"
-              value={vehicleStats?.outOfService || 0}
+              value={vehicleStats.outOfServiceVehicles}
               valueStyle={{ color: '#cf1322' }}
               prefix={<CarOutlined />}
             />
@@ -272,7 +300,7 @@ export const Dashboard: React.FC = () => {
                   title="예정일"
                   dataIndex="scheduledDate"
                   key="scheduledDate"
-                  render={(date) => formatDate(date)}
+                  render={(date) => date ? formatDate(date) : '-'}
                 />
                 <Table.Column
                   title="상태"
@@ -304,7 +332,7 @@ export const Dashboard: React.FC = () => {
                   title="예상 정비일"
                   dataIndex="estimatedDate"
                   key="estimatedDate"
-                  render={(date) => formatDate(date.toISOString())}
+                  render={(date: Date) => formatDate(date.toISOString())}
                 />
                 <Table.Column
                   title="심각도"
@@ -345,14 +373,14 @@ export const Dashboard: React.FC = () => {
               title="완료일"
               dataIndex="completionDate"
               key="completionDate"
-              render={(date) => formatDate(date)}
+              render={(date) => date ? formatDate(date) : '-'}
             />
             <Table.Column title="설명" dataIndex="description" key="description" ellipsis={true} />
             <Table.Column
               title="비용"
               dataIndex="cost"
               key="cost"
-              render={(cost) => `₩${cost.toLocaleString()}`}
+              render={(cost) => cost ? `₩${cost.toLocaleString()}` : '-'}
             />
             <Table.Column
               title="상태"

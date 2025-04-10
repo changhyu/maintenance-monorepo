@@ -1,5 +1,12 @@
 import { ApiClient } from '../client';
 
+// 분석 추가 데이터 타입 정의
+export type AnalyticsAdditionalData = Record<string, unknown>;
+// 분석 메타데이터 타입 정의
+export type AnalyticsMetadata = Record<string, unknown>;
+// 분석 필터 타입 정의
+export type AnalyticsFilter = Record<string, unknown>;
+
 export enum AnalyticsTimeFrame {
   DAY = 'day',
   WEEK = 'week',
@@ -37,7 +44,7 @@ export interface AnalyticsDataPoint {
   label: string;
   value: number;
   date?: string;
-  additionalData?: Record<string, any>;
+  additionalData?: AnalyticsAdditionalData;
 }
 
 export interface AnalyticsDataSeries {
@@ -59,7 +66,7 @@ export interface AnalyticsResult {
   comparePercentage?: number;
   compareLabel?: string;
   chartType: AnalyticsChartType;
-  metadata?: Record<string, any>;
+  metadata?: AnalyticsMetadata;
 }
 
 export interface AnalyticsQuery {
@@ -67,7 +74,7 @@ export interface AnalyticsQuery {
   dateRange?: AnalyticsDateRange;
   metricType?: AnalyticsMetricType;
   dimension?: string;
-  filters?: Record<string, any>;
+  filters?: AnalyticsFilter;
   groupBy?: string[];
   limit?: number;
   chartType?: AnalyticsChartType;

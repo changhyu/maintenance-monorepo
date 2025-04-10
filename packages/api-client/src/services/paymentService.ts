@@ -1,5 +1,12 @@
 import { ApiClient } from '../client';
 
+// 메타데이터 타입 정의
+export type PaymentMetadata = Record<string, unknown>;
+// 추가 정보 타입 정의
+export type AdditionalInfo = Record<string, unknown>;
+// 결제 확인 상세 정보 타입 정의
+export type ConfirmationDetails = Record<string, unknown>;
+
 export enum PaymentMethod {
   CREDIT_CARD = 'CREDIT_CARD',
   BANK_TRANSFER = 'BANK_TRANSFER',
@@ -57,7 +64,7 @@ export interface PaymentMethodInfo {
     phoneNumber: string;
   };
   // 메타데이터
-  metadata?: Record<string, any>;
+  metadata?: PaymentMetadata;
 }
 
 export interface PaymentReceipt {
@@ -90,7 +97,7 @@ export interface PaymentReceipt {
     taxRate: number;
     taxAmount: number;
   }>;
-  additionalInfo?: Record<string, any>;
+  additionalInfo?: AdditionalInfo;
 }
 
 export interface PaymentDetails {
@@ -112,7 +119,7 @@ export interface PaymentDetails {
   transactionId?: string;
   transactionFee?: number;
   refundedAmount?: number;
-  metadata?: Record<string, any>;
+  metadata?: PaymentMetadata;
   receipt?: PaymentReceipt;
   createdAt: string;
   updatedAt: string;
@@ -134,19 +141,19 @@ export interface CreatePaymentRequest {
   maintenanceId?: string;
   shopId?: string;
   vehicleId?: string;
-  metadata?: Record<string, any>;
+  metadata?: PaymentMetadata;
 }
 
 export interface ProcessPaymentRequest {
   paymentId: string;
-  confirmationDetails?: Record<string, any>;
+  confirmationDetails?: ConfirmationDetails;
 }
 
 export interface RefundRequest {
   paymentId: string;
   amount?: number; // 미지정 시 전액 환불
   reason?: string;
-  metadata?: Record<string, any>;
+  metadata?: PaymentMetadata;
 }
 
 export interface RefundResponse {
@@ -198,7 +205,7 @@ export interface CreatePaymentMethodRequest {
     phoneNumber: string;
     token?: string;
   };
-  metadata?: Record<string, any>;
+  metadata?: PaymentMetadata;
 }
 
 export interface UpdatePaymentMethodRequest {
@@ -211,7 +218,7 @@ export interface UpdatePaymentMethodRequest {
   bankInfo?: {
     accountHolderName?: string;
   };
-  metadata?: Record<string, any>;
+  metadata?: PaymentMetadata;
 }
 
 export interface InvoiceItem {

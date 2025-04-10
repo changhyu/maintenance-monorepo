@@ -220,6 +220,7 @@ declare namespace google {
     interface Size {
       width: number;
       height: number;
+      equals(other: Size): boolean;
     }
 
     interface Icon {
@@ -439,6 +440,7 @@ declare module '@react-google-maps/api' {
     onError?: (error: Error) => void;
     onUnmount?: () => void;
     preventGoogleFontsLoading?: boolean;
+    children?: React.ReactNode;
   }
 
   export interface GoogleMapProps {
@@ -457,6 +459,7 @@ declare module '@react-google-maps/api' {
     onCenterChanged?: () => void;
     onLoad?: (map: google.maps.Map) => void;
     onUnmount?: (map: google.maps.Map) => void;
+    children?: React.ReactNode;
   }
 
   export interface MarkerProps {
@@ -473,6 +476,7 @@ declare module '@react-google-maps/api' {
     label?: string | google.maps.MarkerLabel;
     draggable?: boolean;
     visible?: boolean;
+    children?: React.ReactNode;
   }
 
   export interface InfoWindowProps {
@@ -482,6 +486,7 @@ declare module '@react-google-maps/api' {
     onLoad?: (infoWindow: google.maps.InfoWindow) => void;
     onUnmount?: (infoWindow: google.maps.InfoWindow) => void;
     zIndex?: number;
+    children?: React.ReactNode;
   }
 
   export interface CircleProps {

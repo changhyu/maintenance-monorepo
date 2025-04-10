@@ -207,11 +207,16 @@ export interface NotificationStats {
  */
 export interface NotificationCount {
   total: number;
-  unread: number;
+  pending: number;
+  inProgress: number;
+  completed: number;
   read: number;
-  archived: number;
-  byType: Record<NotificationType, number>;
-  byPriority: Record<NotificationPriority, number>;
+  unread: number;
+  severity: {
+    high: number;
+    medium: number;
+    low: number;
+  };
 }
 
 /**

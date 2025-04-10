@@ -6,6 +6,7 @@ import FileSaver from 'file-saver';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import logger from './logger';
 
 // 내보내기 형식 정의
 export type ExportFormat = 'csv' | 'excel' | 'pdf';
@@ -137,7 +138,7 @@ export const downloadBlob = (blob: Blob, filename: string): void => {
  */
 export const exportData = (data: any[], filename: string, format: ExportFormat): void => {
   if (!data || data.length === 0) {
-    console.error('내보낼 데이터가 없습니다.');
+    logger.error('내보낼 데이터가 없습니다.');
     return;
   }
 
@@ -155,7 +156,7 @@ export const exportData = (data: any[], filename: string, format: ExportFormat):
       exportToPdf(data, baseFilename);
       break;
     default:
-      console.error('지원되지 않는 내보내기 형식입니다.');
+      logger.error('지원되지 않는 내보내기 형식입니다.');
   }
 };
 
@@ -192,30 +193,35 @@ const exportToExcel = (data: any[], filename: string): void => {
 const exportToPdf = (data: any[], filename: string): void => {
   if (data.length === 0) return;
   
-  const doc = new jsPDF();
-  
-  // 컬럼 헤더 추출
-  const headers = Object.keys(data[0]);
-  
-  // 데이터 행 생성
-  const rows = data.map(item => headers.map(key => item[key]?.toString() || ''));
-  
-  // jspdf-autotable 사용
-  (doc as any).autoTable({
-    head: [headers],
-    body: rows,
-    startY: 20,
-    margin: { top: 20 },
-    styles: { overflow: 'linebreak' },
-    headStyles: { fillColor: [41, 128, 185] },
-  });
-  
-  // 제목 추가
-  doc.setFontSize(16);
-  doc.text(filename, 14, 15);
-  
-  // PDF 저장
-  doc.save(`${filename}.pdf`);
+  try {
+    const doc = new jsPDF();
+    
+    // 컬럼 헤더 추출
+    const headers = Object.keys(data[0]);
+    
+    // 데이터 행 생성
+    const rows = data.map(item => headers.map(key => item[key]?.toString() || ''));
+    
+    // jspdf-autotable 사용
+    (doc as any).autoTable({
+      head: [headers],
+      body: rows,
+      startY: 20,
+      margin: { top: 20 },
+      styles: { overflow: 'linebreak' },
+      headStyles: { fillColor: [41, 128, 185] },
+    });
+    
+    // 제목 추가
+    doc.setFontSize(16);
+    doc.text(filename, 14, 15);
+    
+    // PDF 저장
+    doc.save(`${filename}.pdf`);
+    logger.info(`PDF 내보내기 완료: ${filename}.pdf`);
+  } catch (error) {
+    logger.error('PDF 내보내기 중 오류가 발생했습니다.', error);
+  }
 };
 
 /**

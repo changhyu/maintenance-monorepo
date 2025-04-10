@@ -1,5 +1,13 @@
 import { ApiClient } from '../client';
 
+// 일반 데이터 객체를 위한 타입 정의
+export type DataObject = Record<string, unknown>;
+// 오류나 경고 데이터를 위한 타입 정의
+export type ErrorWarningData = Record<string, unknown>;
+// 함수 유형을 위한 타입 정의
+export type TransformFunction = (sourceData: DataObject) => unknown;
+export type ValidationFunction = (value: unknown) => boolean | string;
+
 export enum ImportExportFormat {
   CSV = 'csv',
   EXCEL = 'excel',
@@ -46,13 +54,13 @@ export interface ImportResult {
     row?: number;
     column?: string;
     message: string;
-    data?: any;
+    data?: ErrorWarningData;
   }>;
   warnings?: Array<{
     row?: number;
     column?: string;
     message: string;
-    data?: any;
+    data?: ErrorWarningData;
   }>;
   createdAt: string;
   updatedAt: string;
@@ -72,7 +80,7 @@ export interface ExportResult {
   url: string;
   totalRecords: number;
   fileSize: number;
-  filters?: Record<string, any>;
+  filters?: Record<string, unknown>;
   createdAt: string;
   expiresAt?: string;
   userId: string;
@@ -91,13 +99,13 @@ export interface ImportOptions {
   identifierField?: string;
   batchSize?: number;
   notifyOnCompletion?: boolean;
-  additionalData?: Record<string, any>;
+  additionalData?: Record<string, unknown>;
 }
 
 export interface ExportOptions {
   entityType: ImportExportEntityType;
   format: ImportExportFormat;
-  filters?: Record<string, any>;
+  filters?: Record<string, unknown>;
   includeRelations?: string[];
   customFields?: string[];
   excludeFields?: string[];
@@ -133,12 +141,12 @@ export interface DataMigrationConfig {
     apiEndpoint?: string;
     connectionString?: string;
     credentials?: Record<string, string>;
-    options?: Record<string, any>;
+    options?: Record<string, unknown>;
   };
   targetEntities: Array<{
     entityType: ImportExportEntityType;
-    mappingRules: Record<string, string | ((sourceData: any) => any)>;
-    validationRules?: Record<string, (value: any) => boolean | string>;
+    mappingRules: Record<string, string | TransformFunction>;
+    validationRules?: Record<string, ValidationFunction>;
     dependencies?: Array<{
       entityType: ImportExportEntityType;
       lookupField: string;
@@ -182,7 +190,7 @@ export interface DataMigrationResult {
     entityType: ImportExportEntityType;
     sourceIndex?: number;
     message: string;
-    data?: any;
+    data?: ErrorWarningData;
   }>;
   logs?: string[];
   duration?: number;
@@ -195,8 +203,8 @@ export interface TemplateField {
   required: boolean;
   description?: string;
   enumValues?: string[];
-  defaultValue?: any;
-  example?: any;
+  defaultValue?: unknown;
+  example?: unknown;
   validation?: {
     pattern?: string;
     min?: number;
@@ -355,7 +363,7 @@ export class ImportExportService {
   // 차량 데이터 내보내기
   async exportVehicles(
     format: ImportExportFormat,
-    filters?: Record<string, any>,
+    filters?: Record<string, unknown>,
     options?: Omit<ExportOptions, 'entityType' | 'format'>
   ): Promise<ExportResult> {
     return this.exportData({
@@ -369,7 +377,7 @@ export class ImportExportService {
   // 정비 데이터 내보내기
   async exportMaintenance(
     format: ImportExportFormat,
-    filters?: Record<string, any>,
+    filters?: Record<string, unknown>,
     options?: Omit<ExportOptions, 'entityType' | 'format'>
   ): Promise<ExportResult> {
     return this.exportData({
@@ -579,15 +587,15 @@ export class ImportExportService {
       row: number;
       column?: string;
       message: string;
-      value?: any;
+      value?: unknown;
     }>;
     warnings: Array<{
       row: number;
       column?: string;
       message: string;
-      value?: any;
+      value?: unknown;
     }>;
-    sampleData?: any[];
+    sampleData?: DataObject[];
     detectedColumns?: string[];
     suggestedMapping?: Record<string, string>;
   }> {
@@ -616,15 +624,15 @@ export class ImportExportService {
         row: number;
         column?: string;
         message: string;
-        value?: any;
+        value?: unknown;
       }>;
       warnings: Array<{
         row: number;
         column?: string;
         message: string;
-        value?: any;
+        value?: unknown;
       }>;
-      sampleData?: any[];
+      sampleData?: DataObject[];
       detectedColumns?: string[];
       suggestedMapping?: Record<string, string>;
     }>(`${this.importPath}/validate`, formData, {
@@ -641,8 +649,8 @@ export class ImportExportService {
     ids: string[],
     options: {
       operation: 'copy' | 'move';
-      mappingRules?: Record<string, string | ((source: any) => any)>;
-      additionalData?: Record<string, any>;
+      mappingRules?: Record<string, string | TransformFunction>;
+      additionalData?: Record<string, unknown>;
     }
   ): Promise<{
     success: boolean;

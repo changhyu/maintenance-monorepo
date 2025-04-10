@@ -100,7 +100,7 @@ export function isValidLicensePlate(plate: string | undefined | null): boolean {
  * 필수 필드 검사
  */
 export function isRequiredFieldsFilled(
-  obj: Record<string, any>,
+  obj: Record<string, unknown>,
   requiredFields: string[]
 ): boolean {
   if (!obj) return false;

@@ -1,5 +1,12 @@
 import { ApiClient } from '../client';
 
+// 보고서 내용 데이터 타입 정의
+export type ReportContent = Record<string, unknown>;
+// 보고서 파라미터 타입 정의
+export type ReportParameters = Record<string, unknown>;
+// 커스텀 필터 타입 정의
+export type CustomFilters = Record<string, unknown>;
+
 export enum ReportType {
   VEHICLE = 'VEHICLE',
   MAINTENANCE = 'MAINTENANCE',
@@ -32,7 +39,7 @@ export interface ReportTemplate {
   type: ReportType;
   createdBy: string;
   isPublic: boolean;
-  content: any;
+  content: ReportContent;
   createdAt: string;
   updatedAt: string;
 }
@@ -45,7 +52,7 @@ export interface Report {
   format: ReportFormat;
   generatedBy: string;
   generatedAt: string;
-  parameters: any;
+  parameters: ReportParameters;
   fileUrl?: string;
   fileSize?: number;
   expiresAt?: string;
@@ -58,7 +65,7 @@ export interface ReportSchedule {
   type: ReportType;
   format: ReportFormat;
   frequency: ReportFrequency;
-  parameters: any;
+  parameters: ReportParameters;
   recipientEmails?: string[];
   isActive: boolean;
   createdBy: string;
@@ -82,7 +89,7 @@ export interface GenerateReportRequest {
     includeDetails?: boolean;
     includeCosts?: boolean;
     includeCharts?: boolean;
-    customFilters?: Record<string, any>;
+    customFilters?: CustomFilters;
     templateId?: string;
   };
 }
@@ -102,7 +109,7 @@ export interface CreateReportScheduleRequest {
     includeDetails?: boolean;
     includeCosts?: boolean;
     includeCharts?: boolean;
-    customFilters?: Record<string, any>;
+    customFilters?: CustomFilters;
     templateId?: string;
   };
   recipientEmails?: string[];
@@ -122,7 +129,7 @@ export interface UpdateReportScheduleRequest {
     includeDetails?: boolean;
     includeCosts?: boolean;
     includeCharts?: boolean;
-    customFilters?: Record<string, any>;
+    customFilters?: CustomFilters;
     templateId?: string;
   };
   recipientEmails?: string[];
@@ -134,14 +141,14 @@ export interface CreateReportTemplateRequest {
   description?: string;
   type: ReportType;
   isPublic?: boolean;
-  content: any;
+  content: ReportContent;
 }
 
 export interface UpdateReportTemplateRequest {
   name?: string;
   description?: string;
   isPublic?: boolean;
-  content?: any;
+  content?: ReportContent;
 }
 
 export interface ReportFilter {

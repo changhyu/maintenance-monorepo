@@ -50,8 +50,8 @@ const vehicleIcon = {
 
 // 정비소 마커 아이콘
 const shopIcon = {
-  url: '/images/shop-marker.png', // 실제 프로젝트에 맞는 경로로 수정 필요
-  scaledSize: { width: 32, height: 32 },
+  url: 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png',
+  scaledSize: new window.google.maps.Size(32, 32)
 };
 
 interface MapViewProps {
@@ -377,6 +377,7 @@ const MapView: React.FC<MapViewProps> = ({
               <InfoWindow
                 position={{ lat: selectedVehicle.latitude, lng: selectedVehicle.longitude }}
                 onCloseClick={() => setSelectedVehicle(null)}
+                options={{ content: '' }}
               >
                 <div>
                   <Title level={5}>{selectedVehicle.name || `차량 ${selectedVehicle.vehicleId}`}</Title>
@@ -398,7 +399,7 @@ const MapView: React.FC<MapViewProps> = ({
               <Marker
                 key={shop.shopId}
                 position={{ lat: shop.latitude, lng: shop.longitude }}
-                icon={shopIcon}
+                icon={'https://maps.google.com/mapfiles/ms/icons/blue-dot.png'}
                 title={shop.name}
                 onClick={() => handleShopSelected(shop)}
               />
@@ -409,6 +410,7 @@ const MapView: React.FC<MapViewProps> = ({
               <InfoWindow
                 position={{ lat: selectedShop.latitude, lng: selectedShop.longitude }}
                 onCloseClick={() => setSelectedShop(null)}
+                options={{ content: '' }}
               >
                 <div>
                   <Title level={5}>{selectedShop.name}</Title>

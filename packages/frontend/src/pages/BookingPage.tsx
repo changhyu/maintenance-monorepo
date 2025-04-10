@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Tabs, Table, Button, Tag, Space, Modal, message, Typography, Row, Col, Card } from 'antd';
 import { 
-  BookingService, 
+  bookingService, 
   Booking, 
   BookingStatus, 
   ServiceType,
   BookingFilter
 } from '../services/bookingService';
 import BookingForm from '../components/booking/BookingForm';
-import { ApiClient } from '../../../api-client/src/client';
+import { useApi } from '../context/ApiContext';
+import { useAuth } from '../context/AuthContext';
 
 const { TabPane } = Tabs;
 const { Title, Text } = Typography;
@@ -56,12 +57,11 @@ const formatPrice = (price: number): string => {
   return price.toLocaleString('ko-KR') + '원';
 };
 
-interface BookingPageProps {
-  apiClient: ApiClient;
-  userId: string; // 현재 로그인한 사용자 ID
-}
-
-const BookingPage: React.FC<BookingPageProps> = ({ apiClient, userId }) => {
+const BookingPage: React.FC = () => {
+  const { apiClient } = useApi();
+  const { user } = useAuth();
+  const userId = user?.id || '';
+  
   const [activeTab, setActiveTab] = useState('upcoming');
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(false);
@@ -70,8 +70,6 @@ const BookingPage: React.FC<BookingPageProps> = ({ apiClient, userId }) => {
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [cancelLoading, setCancelLoading] = useState(false);
-
-  const bookingService = new BookingService(apiClient);
 
   // 예약 목록 로드
   useEffect(() => {

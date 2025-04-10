@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { notificationService } from '../../services/notificationService';
-import { NotificationCount } from '../../types/notification';
 
 interface NotificationBadgeProps {
   userId?: string;
@@ -37,7 +36,7 @@ const NotificationBadge: React.FC<NotificationBadgeProps> = ({
     fetchNotificationCount();
 
     // 실시간 알림 업데이트
-    const handleNotificationUpdate = (data: any) => {
+    const handleNotificationUpdate = (_: any) => {
       fetchNotificationCount();
     };
 

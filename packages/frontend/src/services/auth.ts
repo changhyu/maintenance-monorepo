@@ -3,7 +3,7 @@
  */
 
 import { api } from './api';
-import jwtDecode from 'jwt-decode';
+import { jwtDecode } from "jwt-decode";
 import { 
   User, 
   UserCreate, 
@@ -14,7 +14,8 @@ import {
   PasswordChangeRequest,
   PasswordResetRequest,
   UserFilter,
-  UserRole
+  UserRole,
+  JwtPayload
 } from '../types/user';
 
 /**
@@ -96,7 +97,7 @@ export const authService = {
     if (!token) return false;
 
     try {
-      const decoded: any = jwtDecode(token);
+      const decoded: JwtPayload = jwtDecode(token);
       const currentTime = Date.now() / 1000;
       return decoded.exp > currentTime;
     } catch (error) {
@@ -107,7 +108,7 @@ export const authService = {
   /**
    * JWT 토큰 디코딩
    */
-  decodeToken(token: string): any {
+  decodeToken(token: string): JwtPayload {
     return jwtDecode(token);
   },
 
@@ -119,7 +120,7 @@ export const authService = {
     if (!token) return null;
 
     try {
-      const decoded: any = jwtDecode(token);
+      const decoded: JwtPayload = jwtDecode(token);
       return decoded.role;
     } catch (error) {
       return null;
@@ -216,8 +217,8 @@ export const userService = {
     if (!token) return false;
 
     try {
-      const decoded: any = jwtDecode(token);
-      return decoded.permissions && decoded.permissions.includes(permission);
+      const decoded: JwtPayload = jwtDecode(token);
+      return Boolean(decoded.permissions && decoded.permissions.includes(permission));
     } catch (error) {
       return false;
     }

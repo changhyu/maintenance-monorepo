@@ -62,7 +62,8 @@ export const Button: React.FC<ButtonProps> = ({
     xs: 'px-2.5 py-1.5 text-xs',
     sm: 'px-3 py-2 text-sm',
     md: 'px-4 py-2 text-sm',
-    lg: 'px-6 py-3 text-base'
+    lg: 'px-6 py-3 text-base',
+    xl: 'px-8 py-4 text-lg'
   };
 
   // 넓이 클래스
@@ -78,7 +79,8 @@ export const Button: React.FC<ButtonProps> = ({
     xs: 'w-3.5 h-3.5',
     sm: 'w-4 h-4',
     md: 'w-5 h-5',
-    lg: 'w-5 h-5'
+    lg: 'w-5 h-5',
+    xl: 'w-6 h-6'
   };
 
   // 아이콘 스페이싱
@@ -86,7 +88,8 @@ export const Button: React.FC<ButtonProps> = ({
     xs: 'mr-1',
     sm: 'mr-1.5',
     md: 'mr-2',
-    lg: 'mr-2'
+    lg: 'mr-2',
+    xl: 'mr-3'
   };
 
   // 기본 버튼 스타일

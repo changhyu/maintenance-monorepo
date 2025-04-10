@@ -391,25 +391,9 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({
   };
   
   // 보고서 생성 완료 후 다운로드 처리
-  const downloadReport = (template: ReportTemplate, processedData: any[], format: ExportFormat, filename: string) => {
-    switch (format) {
-      case 'pdf':
-        const pdfDoc = generatePdf(template, processedData);
-        pdfDoc.save(`${filename}.pdf`);
-        break;
-        
-      case 'excel':
-        const workbook = generateExcel(template, processedData);
-        XLSX.writeFile(workbook, `${filename}.xlsx`);
-        break;
-        
-      case 'csv':
-        const csvContent = generateCsv(processedData);
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        FileSaver.saveAs(blob, `${filename}.csv`);
-        break;
-    }
-  };
+  // const downloadReport = (template: ReportTemplate, processedData: any[], format: ExportFormat, filename: string) => {
+  //   exportData(processedData, filename, format);
+  // };
   
   // 보고서 형식에 따른 드롭다운 메뉴
   const menu = (

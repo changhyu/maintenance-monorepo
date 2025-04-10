@@ -7,6 +7,11 @@ export interface ApiClientConfig {
   headers?: Record<string, string>;
 }
 
+// 응답 데이터를 위한 기본 인터페이스
+export interface ApiResponse {
+  [key: string]: unknown;
+}
+
 export class ApiClient {
   private client: AxiosInstance;
 
@@ -31,27 +36,27 @@ export class ApiClient {
     );
   }
 
-  async get<T = any>(path: string, config?: AxiosRequestConfig): Promise<T> {
+  async get<T = ApiResponse>(path: string, config?: AxiosRequestConfig): Promise<T> {
     const response: AxiosResponse<T> = await this.client.get(path, config);
     return response.data;
   }
 
-  async post<T = any>(path: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
+  async post<T = ApiResponse>(path: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
     const response: AxiosResponse<T> = await this.client.post(path, data, config);
     return response.data;
   }
 
-  async put<T = any>(path: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
+  async put<T = ApiResponse>(path: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
     const response: AxiosResponse<T> = await this.client.put(path, data, config);
     return response.data;
   }
 
-  async patch<T = any>(path: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
+  async patch<T = ApiResponse>(path: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
     const response: AxiosResponse<T> = await this.client.patch(path, data, config);
     return response.data;
   }
 
-  async delete<T = any>(path: string, config?: AxiosRequestConfig): Promise<T> {
+  async delete<T = ApiResponse>(path: string, config?: AxiosRequestConfig): Promise<T> {
     const response: AxiosResponse<T> = await this.client.delete(path, config);
     return response.data;
   }

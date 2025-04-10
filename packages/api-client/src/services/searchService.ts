@@ -1,5 +1,10 @@
 import { ApiClient } from '../client';
 
+// 검색 엔티티의 기본 데이터 타입
+export type SearchEntityData = Record<string, unknown>;
+// 검색 필터의 추가 속성 타입
+export type SearchFilterAdditionalProps = Record<string, unknown>;
+
 export enum SearchEntityType {
   VEHICLE = 'vehicle',
   MAINTENANCE = 'maintenance',
@@ -22,7 +27,7 @@ export enum SearchSortOption {
   ALPHABETICAL_DESC = 'alphabetical_desc'
 }
 
-export interface SearchResult<T = any> {
+export interface SearchResult<T = SearchEntityData> {
   id: string;
   type: SearchEntityType;
   title: string;
@@ -39,7 +44,7 @@ export interface SearchResult<T = any> {
   data: T;
 }
 
-export interface SearchFilter {
+export interface SearchFilter extends SearchFilterAdditionalProps {
   types?: SearchEntityType[];
   startDate?: string;
   endDate?: string;
@@ -49,7 +54,6 @@ export interface SearchFilter {
   vehicleId?: string;
   shopId?: string;
   maintenanceId?: string;
-  [key: string]: any;
 }
 
 export interface SearchAggregation {
@@ -70,7 +74,7 @@ export interface SearchOptions {
   minScore?: number;
 }
 
-export interface SearchResponse<T = any> {
+export interface SearchResponse<T = SearchEntityData> {
   query: string;
   total: number;
   page: number;
@@ -114,7 +118,7 @@ export interface AutocompleteResponse {
     type: 'query' | 'entity' | 'tag' | 'filter';
     entityType?: SearchEntityType;
     id?: string;
-    data?: any;
+    data?: SearchEntityData;
   }>;
 }
 
@@ -129,7 +133,7 @@ export class SearchService {
   }
 
   // 기본 검색 기능
-  async search<T = any>(
+  async search<T = SearchEntityData>(
     query: string,
     filters?: SearchFilter,
     options?: SearchOptions
@@ -144,7 +148,7 @@ export class SearchService {
   }
 
   // 특정 엔티티 타입 검색
-  async searchByType<T = any>(
+  async searchByType<T = SearchEntityData>(
     type: SearchEntityType,
     query: string,
     filters?: Omit<SearchFilter, 'types'>,

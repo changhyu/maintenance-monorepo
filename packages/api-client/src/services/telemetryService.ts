@@ -1,5 +1,27 @@
 import { ApiClient } from '../client';
 
+// 텔레메트리 값 타입 정의
+export type TelemetryValue = number | string | boolean | Record<string, unknown>;
+// 텔레메트리 메타데이터 타입 정의
+export type TelemetryMetadata = Record<string, unknown>;
+// 진단 데이터 타입 정의
+export type DiagnosticDataType = Record<string, unknown>;
+// 소프트웨어 업데이트 정보 타입 정의
+export interface SoftwareUpdate {
+  id: string;
+  vehicleId: string;
+  version: string;
+  updateDate: string;
+  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
+  description?: string;
+  changelogs?: string[];
+  fileSize?: number;
+  installDuration?: number;
+  requiredBy?: string;
+  installBy?: string;
+  [key: string]: unknown;
+}
+
 export enum TelemetryType {
   ENGINE = 'ENGINE',
   BATTERY = 'BATTERY',
@@ -24,10 +46,10 @@ export interface TelemetryData {
   vehicleId: string;
   timestamp: string;
   type: TelemetryType;
-  value: number | string | boolean | any;
+  value: TelemetryValue;
   unit?: string;
   severity?: TelemetrySeverity;
-  metadata?: Record<string, any>;
+  metadata?: TelemetryMetadata;
 }
 
 export interface TelemetryStats {
@@ -38,7 +60,7 @@ export interface TelemetryStats {
   warningCount: number;
   criticalCount: number;
   lastReading?: {
-    value: number | string | boolean | any;
+    value: TelemetryValue;
     timestamp: string;
     severity: TelemetrySeverity;
   };
@@ -75,7 +97,7 @@ export interface DiagnosticEvent {
   resolvedAt?: string;
   resolvedBy?: string;
   resolutionNotes?: string;
-  diagnosticData?: any;
+  diagnosticData?: DiagnosticDataType;
 }
 
 export interface VehicleLocation {
@@ -109,7 +131,7 @@ export interface TelemetryAlert {
   ruleId: string;
   timestamp: string;
   type: TelemetryType;
-  value: number | string | boolean | any;
+  value: TelemetryValue;
   severity: TelemetrySeverity;
   acknowledged: boolean;
   acknowledgedAt?: string;
@@ -222,7 +244,7 @@ export class TelemetryService {
   }
 
   // 차량의 소프트웨어 업데이트 이력 조회
-  async getVehicleSoftwareUpdateHistory(vehicleId: string): Promise<any[]> {
-    return this.client.get<any[]>(`/vehicles/${vehicleId}/software-updates`);
+  async getVehicleSoftwareUpdateHistory(vehicleId: string): Promise<SoftwareUpdate[]> {
+    return this.client.get<SoftwareUpdate[]>(`/vehicles/${vehicleId}/software-updates`);
   }
 } 

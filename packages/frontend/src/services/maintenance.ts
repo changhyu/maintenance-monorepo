@@ -2,7 +2,7 @@
  * 정비 관련 API 서비스
  */
 
-import axios from 'axios';
+import { api } from './api';
 import {
   MaintenanceRecord,
   MaintenanceRecordCreate,
@@ -10,14 +10,6 @@ import {
   MaintenanceFilter,
   MaintenanceStats
 } from '../types/maintenance';
-
-// API 기본 설정
-const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || '/api',
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
 
 /**
  * 정비 서비스 객체
@@ -35,7 +27,7 @@ export const maintenanceService = {
       return response.data;
     } catch (error) {
       console.error('정비 기록 목록 조회 실패:', error);
-      throw error;
+      return [];
     }
   },
 
@@ -44,13 +36,13 @@ export const maintenanceService = {
    * @param recordId 정비 기록 ID
    * @returns 정비 기록 정보
    */
-  async getMaintenanceById(recordId: string): Promise<MaintenanceRecord> {
+  async getMaintenanceById(recordId: string): Promise<MaintenanceRecord | null> {
     try {
       const response = await api.get(`/maintenance/${recordId}`);
       return response.data;
     } catch (error) {
       console.error('정비 기록 조회 실패:', error);
-      throw error;
+      return null;
     }
   },
 
@@ -67,7 +59,7 @@ export const maintenanceService = {
       return response.data;
     } catch (error) {
       console.error('차량 정비 이력 조회 실패:', error);
-      throw error;
+      return [];
     }
   },
 
@@ -76,13 +68,13 @@ export const maintenanceService = {
    * @param maintenanceData 정비 기록 데이터
    * @returns 생성된 정비 기록
    */
-  async createMaintenanceRecord(maintenanceData: MaintenanceRecordCreate): Promise<MaintenanceRecord> {
+  async createMaintenanceRecord(maintenanceData: MaintenanceRecordCreate): Promise<MaintenanceRecord | null> {
     try {
       const response = await api.post('/maintenance', maintenanceData);
       return response.data;
     } catch (error) {
       console.error('정비 기록 생성 실패:', error);
-      throw error;
+      return null;
     }
   },
 
@@ -92,13 +84,13 @@ export const maintenanceService = {
    * @param updateData 업데이트할 데이터
    * @returns 업데이트된 정비 기록
    */
-  async updateMaintenanceRecord(recordId: string, updateData: MaintenanceRecordUpdate): Promise<MaintenanceRecord> {
+  async updateMaintenanceRecord(recordId: string, updateData: MaintenanceRecordUpdate): Promise<MaintenanceRecord | null> {
     try {
       const response = await api.put(`/maintenance/${recordId}`, updateData);
       return response.data;
     } catch (error) {
       console.error('정비 기록 업데이트 실패:', error);
-      throw error;
+      return null;
     }
   },
 
@@ -113,7 +105,7 @@ export const maintenanceService = {
       return response.status === 200 || response.status === 204;
     } catch (error) {
       console.error('정비 기록 삭제 실패:', error);
-      throw error;
+      return false;
     }
   },
 
@@ -136,7 +128,7 @@ export const maintenanceService = {
       return response.data;
     } catch (error) {
       console.error('문서 첨부 실패:', error);
-      throw error;
+      return null;
     }
   },
 
@@ -152,7 +144,7 @@ export const maintenanceService = {
       return response.status === 200 || response.status === 204;
     } catch (error) {
       console.error('문서 제거 실패:', error);
-      throw error;
+      return false;
     }
   },
 
@@ -167,7 +159,7 @@ export const maintenanceService = {
       return response.data;
     } catch (error) {
       console.error('예정된 정비 조회 실패:', error);
-      throw error;
+      return [];
     }
   },
 
@@ -182,7 +174,7 @@ export const maintenanceService = {
       return response.data;
     } catch (error) {
       console.error('권장 정비 조회 실패:', error);
-      throw error;
+      return [];
     }
   },
 
@@ -192,14 +184,14 @@ export const maintenanceService = {
    * @param endDate 종료일
    * @returns 정비 통계 정보
    */
-  async getMaintenanceStats(startDate?: string, endDate?: string): Promise<MaintenanceStats> {
+  async getMaintenanceStats(startDate?: string, endDate?: string): Promise<MaintenanceStats | null> {
     try {
       const params = { startDate, endDate };
       const response = await api.get('/maintenance/stats', { params });
       return response.data;
     } catch (error) {
       console.error('정비 통계 조회 실패:', error);
-      throw error;
+      return null;
     }
   }
 }; 

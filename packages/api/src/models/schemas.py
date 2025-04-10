@@ -6,18 +6,17 @@ from datetime import datetime
 from enum import Enum
 from typing import List, Optional, Any, Dict
 
-from pydantic import BaseModel, Field, EmailStr
+from pydantic import BaseModel, Field, EmailStr, ConfigDict
 
 
 # 기본 스키마
 class BaseSchema(BaseModel):
     """기본 스키마 클래스."""
     
-    class Config:
-        """스키마 설정."""
-        
-        orm_mode = True
-        allow_population_by_field_name = True
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True
+    )
 
 
 # 상태 및 타입 열거형

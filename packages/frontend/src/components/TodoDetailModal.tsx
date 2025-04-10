@@ -5,7 +5,7 @@ interface TodoDetailModalProps {
   todo: Todo | null;
   isOpen: boolean;
   onClose: () => void;
-  onUpdate: (id: string, data: TodoUpdateRequest) => Promise<Todo | void>;
+  onUpdate: (id: string, data: TodoUpdateRequest) => Promise<Todo | null | void>;
   isLoading?: boolean;
 }
 

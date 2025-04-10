@@ -10,12 +10,12 @@ import {
   ReloadOutlined, DownloadOutlined
 } from '@ant-design/icons';
 import { DateRangePicker, FilterSelect, ReportGenerator } from '../components/common';
+import { ReportType } from '../components/common';
 import type { DateRange } from '../components/common';
 import VehicleTypeChart from '../components/charts/VehicleTypeChart';
 import MaintenanceStatusChart from '../components/charts/MaintenanceStatusChart';
 import CostDistributionChart from '../components/charts/CostDistributionChart';
 import MaintenanceTrendChart from '../components/charts/MaintenanceTrendChart';
-import { ReportType } from '../components/common/ReportGenerator';
 import axios from 'axios';
 import apiClient from '../services/api';
 import { BookingButton } from '../components/booking/BookingModal';
@@ -296,7 +296,7 @@ const VehicleReportPage: React.FC = () => {
             <FilterSelect
               options={vehicleTypes.map(type => ({ value: type, label: type }))}
               value={selectedVehicleTypes}
-              onChange={(values) => setSelectedVehicleTypes(values)}
+              onChange={setSelectedVehicleTypes}
               placeholder="차량 유형 선택"
               style={{ width: 200 }}
               mode="multiple"
@@ -306,7 +306,7 @@ const VehicleReportPage: React.FC = () => {
           <div>
             <Text strong style={{ display: 'block', marginBottom: '8px' }}>정비 기간</Text>
             <DateRangePicker 
-              onChange={(range) => setDateRange(range)}
+              onChange={setDateRange}
               defaultValue={dateRange}
             />
           </div>

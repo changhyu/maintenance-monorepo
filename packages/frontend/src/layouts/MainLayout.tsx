@@ -92,7 +92,7 @@ const MainLayout: React.FC = () => {
           {!collapsed && <span style={{ color: '#fff', fontSize: '18px', marginLeft: '10px' }}>정비 관리 시스템</span>}
         </div>
         
-        <Menu theme="dark" mode="inline" selectedKeys={getActiveMenuKey()[0]} defaultOpenKeys={getActiveMenuKey()}>
+        <Menu theme="dark" mode="inline" selectedKeys={getActiveMenuKey()} defaultOpenKeys={getActiveMenuKey()}>
           <Menu.Item key="dashboard" icon={<DashboardOutlined />}>
             <Link to="/dashboard">대시보드</Link>
           </Menu.Item>

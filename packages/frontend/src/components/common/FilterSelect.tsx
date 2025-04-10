@@ -12,6 +12,7 @@ export interface FilterSelectProps extends Omit<SelectProps<string | string[]>, 
   options: FilterOption[];
   value: string[];
   onChange: (value: string[]) => void;
+  label?: string;
 }
 
 /**
@@ -22,6 +23,7 @@ const FilterSelect: React.FC<FilterSelectProps> = ({
   options,
   value,
   onChange,
+  label,
   ...restProps
 }) => {
   // 태그 렌더링 함수
@@ -43,16 +45,19 @@ const FilterSelect: React.FC<FilterSelectProps> = ({
   };
 
   return (
-    <Select
-      mode="multiple"
-      allowClear
-      showArrow
-      value={value}
-      onChange={values => onChange(values as string[])}
-      options={options}
-      tagRender={tagRender}
-      {...restProps}
-    />
+    <div>
+      {label && <div className="filter-label">{label}</div>}
+      <Select
+        mode="multiple"
+        allowClear
+        showArrow
+        value={value}
+        onChange={values => onChange(values as string[])}
+        options={options}
+        tagRender={tagRender}
+        {...restProps}
+      />
+    </div>
   );
 };
 

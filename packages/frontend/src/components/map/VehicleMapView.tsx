@@ -3,8 +3,8 @@ import { LoadScript, GoogleMap, Marker, InfoWindow, DirectionsRenderer, Circle }
 import { Input, Button, Select, Spin, Card, Typography, Badge, Space, message, Tooltip } from 'antd';
 import { SearchOutlined, CarOutlined, ToolOutlined, EnvironmentOutlined, 
   CompassOutlined, InfoCircleOutlined, LoadingOutlined } from '@ant-design/icons';
-import { ApiClient } from '../../../api-client/src/client';
-import { Vehicle } from '../../types/vehicle';
+import { ApiClient } from '../../api-client';
+import { Vehicle, convertServiceVehicleToFrontend } from '../../types/vehicle';
 import { RepairShop } from '../../types/repairShop';
 
 const { Option } = Select;
@@ -99,15 +99,15 @@ const mapStyles = {
 const icons = {
   vehicle: {
     url: '/assets/vehicle-marker.png',
-    scaledSize: { width: 32, height: 32 },
+    scaledSize: new google.maps.Size(32, 32),
   },
   shop: {
     url: '/assets/shop-marker.png',
-    scaledSize: { width: 32, height: 32 },
+    scaledSize: new google.maps.Size(32, 32),
   },
   selected: {
     url: '/assets/selected-marker.png',
-    scaledSize: { width: 40, height: 40 },
+    scaledSize: new google.maps.Size(40, 40),
   },
 };
 
@@ -230,6 +230,8 @@ const VehicleMapView: React.FC<VehicleMapViewProps> = ({
 
   // 차량 선택 시 호출되는 함수
   const handleVehicleSelect = useCallback((vehicle: Vehicle) => {
+    if (!vehicle) return;
+    
     setSelectedVehicle(vehicle);
     setSelectedShop(null); // 수리점 선택 해제
     setDirections(null); // 경로 정보 지우기
@@ -347,7 +349,9 @@ const VehicleMapView: React.FC<VehicleMapViewProps> = ({
   };
 
   // 거리 표시 단위에 따라 변환
-  const formatDistance = (meters: number): string => {
+  const formatDistance = (meters: number | undefined): string => {
+    if (meters === undefined) return '알 수 없음';
+    
     const km = meters / 1000;
     if (distanceUnit === 'mi') {
       const miles = convertToMiles(km);
@@ -491,10 +495,11 @@ const VehicleMapView: React.FC<VehicleMapViewProps> = ({
                       <Text><EnvironmentOutlined /> 주소: {shop.address}</Text>
                       <Text>평점: {shop.rating}/5.0</Text>
                       <Text>전문 분야: {shop.specialties.join(', ')}</Text>
-                      {directions?.routes[0]?.legs[0] && (
+                      {directions && directions.routes && directions.routes.length > 0 && 
+                       directions.routes[0].legs && directions.routes[0].legs.length > 0 && (
                         <>
-                          <Text>거리: {formatDistance(directions.routes[0].legs[0].distance.value)}</Text>
-                          <Text>예상 시간: {directions.routes[0].legs[0].duration.text}</Text>
+                          <Text>거리: {formatDistance(directions.routes[0].legs[0].distance?.value)}</Text>
+                          <Text>예상 시간: {directions.routes[0].legs[0].duration?.text || '알 수 없음'}</Text>
                         </>
                       )}
                     </Space>
@@ -522,10 +527,13 @@ const VehicleMapView: React.FC<VehicleMapViewProps> = ({
           {selectedVehicle && searchRadius > 0 && (
             <Circle
               center={
-                {
-                  lat: vehicleLocations.find(loc => loc.vehicleId === selectedVehicle.id)?.latitude || 0,
-                  lng: vehicleLocations.find(loc => loc.vehicleId === selectedVehicle.id)?.longitude || 0, 
-                }
+                (() => {
+                  const location = vehicleLocations.find(loc => loc.vehicleId === selectedVehicle.id);
+                  return {
+                    lat: location ? location.latitude : initialCenter.lat,
+                    lng: location ? location.longitude : initialCenter.lng
+                  };
+                })()
               }
               radius={searchRadius * 1000} // m 단위로 변환
               options={{

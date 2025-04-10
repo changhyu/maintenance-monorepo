@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import todoNotificationService, { TodoNotification, NotificationType } from '../services/todoNotificationService';
+import { formatRelativeTime } from '../utils/dateUtils';
+import { Badge, Dropdown, Button, List, Space, Typography, Tag, Tabs, Empty } from 'antd';
+import { BellOutlined, CheckOutlined, DeleteOutlined, FilterOutlined } from '@ant-design/icons';
 
 interface TodoNotificationsProps {
   className?: string;
@@ -7,163 +10,265 @@ interface TodoNotificationsProps {
 }
 
 /**
+ * 알림 타입에 따른 태그 색상 매핑
+ */
+const typeColorMap = {
+  [NotificationType.UPCOMING_DUE]: 'blue',
+  [NotificationType.OVERDUE]: 'red',
+  [NotificationType.STATUS_CHANGE]: 'green',
+  [NotificationType.PRIORITY_HIGH]: 'orange',
+  [NotificationType.GENERAL]: 'default'
+};
+
+/**
+ * 알림 타입 한글 이름 매핑
+ */
+const typeNameMap = {
+  [NotificationType.UPCOMING_DUE]: '마감 임박',
+  [NotificationType.OVERDUE]: '기한 초과',
+  [NotificationType.STATUS_CHANGE]: '상태 변경',
+  [NotificationType.PRIORITY_HIGH]: '높은 우선순위',
+  [NotificationType.GENERAL]: '일반'
+};
+
+/**
  * Todo 알림 컴포넌트
  */
 const TodoNotifications: React.FC<TodoNotificationsProps> = ({ className = '', onTodoClick }) => {
   const [notifications, setNotifications] = useState<TodoNotification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [isOpen, setIsOpen] = useState(false);
-  
-  // 알림 변경사항 구독
+  const [unreadCount, setUnreadCount] = useState<number>(0);
+  const [visible, setVisible] = useState<boolean>(false);
+  const [activeTabKey, setActiveTabKey] = useState<string>('all');
+  const [sortByPriority, setSortByPriority] = useState<boolean>(true);
+
+  // 알림 구독
   useEffect(() => {
-    const unsubscribe = todoNotificationService.subscribeToNotifications(
-      (updatedNotifications) => {
-        setNotifications(updatedNotifications);
-        setUnreadCount(todoNotificationService.getUnreadCount());
+    const unsubscribe = todoNotificationService.subscribeToNotifications((newNotifications) => {
+      if (sortByPriority) {
+        setNotifications(todoNotificationService.getSortedNotifications());
+      } else {
+        setNotifications(newNotifications);
       }
-    );
+      setUnreadCount(todoNotificationService.getUnreadCount());
+    });
     
-    return unsubscribe;
+    return () => unsubscribe();
+  }, [sortByPriority]);
+
+  // 알림 권한 요청
+  useEffect(() => {
+    const requestPermission = async () => {
+      await todoNotificationService.requestNotificationPermission();
+    };
+    
+    requestPermission();
   }, []);
-  
-  // 알림 토글
+
+  // 알림 드롭다운 토글
   const toggleNotifications = () => {
-    setIsOpen(!isOpen);
-  };
-  
-  // 알림 클릭 처리
-  const handleNotificationClick = (notification: TodoNotification) => {
-    todoNotificationService.markAsRead(notification.id);
-    
-    if (onTodoClick) {
-      onTodoClick(notification.todoId);
+    setVisible(!visible);
+    if (!visible) {
+      // 드롭다운 열 때 자동으로 읽음 처리
+      todoNotificationService.markAllAsRead();
+      setUnreadCount(0);
     }
   };
-  
-  // 모든 알림 읽음 표시
-  const markAllAsRead = () => {
-    todoNotificationService.markAllAsRead();
+
+  // 알림 삭제
+  const handleDelete = (notification: TodoNotification, e: React.MouseEvent) => {
+    e.stopPropagation();
+    todoNotificationService.deleteNotification(notification.id);
   };
-  
+
   // 모든 알림 삭제
-  const clearAllNotifications = () => {
+  const handleClearAll = () => {
     todoNotificationService.clearAllNotifications();
   };
-  
-  // 알림 삭제 처리
-  const handleDeleteNotification = (e: React.MouseEvent, notificationId: string) => {
-    e.stopPropagation();
-    todoNotificationService.deleteNotification(notificationId);
-  };
-  
-  // 알림 유형에 따른 아이콘 반환
-  const getNotificationIcon = (type: NotificationType) => {
-    switch (type) {
-      case NotificationType.UPCOMING_DUE:
-        return '⏰';
-      case NotificationType.OVERDUE:
-        return '⚠️';
-      case NotificationType.STATUS_CHANGE:
-        return '🔄';
-      case NotificationType.PRIORITY_HIGH:
-        return '🔥';
-      default:
-        return '📋';
+
+  // 특정 타입의 알림만 삭제
+  const handleClearByType = (type: string) => {
+    if (type === 'all') {
+      todoNotificationService.clearAllNotifications();
+    } else {
+      todoNotificationService.clearNotificationsByType(type as NotificationType);
     }
   };
-  
-  // 알림 유형에 따른 색상 클래스 반환
-  const getNotificationColorClass = (type: NotificationType) => {
-    switch (type) {
-      case NotificationType.UPCOMING_DUE:
-        return 'bg-yellow-50 border-yellow-200';
-      case NotificationType.OVERDUE:
-        return 'bg-red-50 border-red-200';
-      case NotificationType.STATUS_CHANGE:
-        return 'bg-blue-50 border-blue-200';
-      case NotificationType.PRIORITY_HIGH:
-        return 'bg-orange-50 border-orange-200';
-      default:
-        return 'bg-gray-50 border-gray-200';
+
+  // 알림 클릭 처리
+  const handleNotificationClick = (notification: TodoNotification) => {
+    if (onTodoClick && notification.todoId) {
+      onTodoClick(notification.todoId);
     }
+    setVisible(false);
   };
-  
-  return (
-    <div className={`todo-notifications relative ${className}`}>
-      {/* 알림 버튼 */}
-      <button
-        onClick={toggleNotifications}
-        className="relative p-2 rounded-full bg-white hover:bg-gray-100"
-      >
-        <span className="text-xl">🔔</span>
-        {unreadCount > 0 && (
-          <span className="absolute top-0 right-0 flex items-center justify-center w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full">
-            {unreadCount > 9 ? '9+' : unreadCount}
+
+  // 정렬 토글
+  const toggleSort = () => {
+    setSortByPriority(!sortByPriority);
+  };
+
+  // 탭 변경 처리
+  const handleTabChange = (key: string) => {
+    setActiveTabKey(key);
+  };
+
+  // 현재 탭에 맞는 알림 필터링
+  const getFilteredNotifications = () => {
+    if (activeTabKey === 'all') {
+      return notifications;
+    }
+    return notifications.filter(notification => notification.type === activeTabKey);
+  };
+
+  // 탭 아이템 생성
+  const tabItems = [
+    {
+      key: 'all',
+      label: (
+        <span>
+          전체
+          <Badge 
+            count={notifications.length} 
+            size="small" 
+            style={{ marginLeft: 5 }} 
+            overflowCount={99} 
+          />
+        </span>
+      )
+    },
+    ...Object.values(NotificationType).map(type => {
+      const count = todoNotificationService.getUnreadCountByType(type);
+      return {
+        key: type,
+        label: (
+          <span>
+            {typeNameMap[type]}
+            <Badge 
+              count={count} 
+              size="small" 
+              style={{ marginLeft: 5 }} 
+              overflowCount={99} 
+            />
           </span>
-        )}
-      </button>
+        )
+      };
+    })
+  ];
+
+  // 알림 드롭다운 내용
+  const notificationDropdownContent = (
+    <div className="notification-dropdown" style={{ width: 350, maxHeight: 400, overflow: 'auto' }}>
+      <div className="notification-header" style={{ padding: '10px', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between' }}>
+        <Typography.Title level={5} style={{ margin: 0 }}>알림</Typography.Title>
+        <Space>
+          <Button 
+            type="text" 
+            size="small" 
+            icon={<FilterOutlined />} 
+            onClick={toggleSort}
+            title={sortByPriority ? "시간순 정렬" : "우선순위순 정렬"}
+          />
+          <Button 
+            type="text" 
+            size="small" 
+            icon={<DeleteOutlined />} 
+            onClick={handleClearAll}
+            title="모든 알림 삭제"
+          />
+        </Space>
+      </div>
       
-      {/* 알림 드롭다운 */}
-      {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 max-h-96 overflow-y-auto bg-white rounded-lg shadow-lg z-10 border border-gray-200">
-          <div className="sticky top-0 flex justify-between items-center p-3 border-b bg-white">
-            <h3 className="font-medium">알림</h3>
-            <div className="flex space-x-2">
-              <button
-                onClick={markAllAsRead}
-                className="text-xs text-blue-600 hover:text-blue-800"
-              >
-                모두 읽음 표시
-              </button>
-              <button
-                onClick={clearAllNotifications}
-                className="text-xs text-gray-600 hover:text-gray-800"
-              >
-                모두 삭제
-              </button>
-            </div>
-          </div>
-          
-          {notifications.length === 0 ? (
-            <div className="p-4 text-center text-gray-500">
-              알림이 없습니다.
-            </div>
-          ) : (
-            <div>
-              {notifications.map(notification => (
-                <div
-                  key={notification.id}
-                  onClick={() => handleNotificationClick(notification)}
-                  className={`p-3 border-b ${getNotificationColorClass(notification.type)} ${
-                    notification.read ? 'opacity-70' : ''
-                  } hover:bg-gray-50 cursor-pointer`}
-                >
-                  <div className="flex items-start">
-                    <div className="mr-2 text-xl">
-                      {getNotificationIcon(notification.type)}
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex justify-between items-start">
-                        <h4 className="font-medium text-sm">{notification.title}</h4>
-                        <button
-                          onClick={(e) => handleDeleteNotification(e, notification.id)}
-                          className="text-gray-400 hover:text-gray-600 ml-2"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                      <p className="text-sm text-gray-600">{notification.message}</p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {new Date(notification.createdAt).toLocaleString()}
-                      </p>
-                    </div>
+      <Tabs 
+        activeKey={activeTabKey}
+        onChange={handleTabChange}
+        tabBarStyle={{ padding: '0 10px' }}
+        tabBarExtraContent={
+          <Button 
+            type="text" 
+            size="small" 
+            onClick={() => handleClearByType(activeTabKey)}
+            title="현재 탭의 알림 삭제"
+          >
+            지우기
+          </Button>
+        }
+        items={tabItems}
+      />
+      
+      <List
+        dataSource={getFilteredNotifications()}
+        renderItem={(notification) => (
+          <List.Item
+            className={notification.read ? 'read' : 'unread'}
+            style={{ 
+              padding: '10px 15px', 
+              borderBottom: '1px solid #f0f0f0',
+              backgroundColor: notification.read ? 'transparent' : '#f6f6f6',
+              cursor: 'pointer'
+            }}
+            onClick={() => handleNotificationClick(notification)}
+            actions={[
+              <Button
+                type="text"
+                size="small"
+                icon={<DeleteOutlined />}
+                onClick={(e) => handleDelete(notification, e)}
+              />
+            ]}
+          >
+            <List.Item.Meta
+              title={
+                <Space>
+                  <span>{notification.title}</span>
+                  <Tag color={typeColorMap[notification.type]}>
+                    {typeNameMap[notification.type]}
+                  </Tag>
+                </Space>
+              }
+              description={
+                <div>
+                  <div>{notification.message}</div>
+                  <div style={{ fontSize: '0.8em', color: '#999', marginTop: 5 }}>
+                    {formatRelativeTime(notification.createdAt)}
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+              }
+            />
+          </List.Item>
+        )}
+        locale={{
+          emptyText: (
+            <Empty
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+              description="알림이 없습니다"
+              style={{ margin: '20px 0' }}
+            />
+          )
+        }}
+      />
+    </div>
+  );
+
+  return (
+    <div className={`todo-notifications ${className}`}>
+      <Dropdown
+        open={visible}
+        onOpenChange={setVisible}
+        arrow
+        trigger={['click']}
+        placement="bottomRight"
+        dropdownRender={() => notificationDropdownContent}
+      >
+        <Badge count={unreadCount} overflowCount={99}>
+          <Button
+            type="text"
+            icon={<BellOutlined />}
+            onClick={toggleNotifications}
+            size="large"
+            className="notification-bell-button"
+          />
+        </Badge>
+      </Dropdown>
     </div>
   );
 };
