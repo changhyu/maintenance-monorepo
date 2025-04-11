@@ -9,7 +9,6 @@ import { AddTodoForm } from './todo/AddTodoForm';
 import { useTemplateState } from '../hooks/useTemplateState';
 import { useFilterState } from '../hooks/useFilterState';
 import logger from '../utils/logger';
-import { Button, Divider, Space, Typography } from 'antd';
 
 /**
  * Todo 컴포넌트 프롭스 인터페이스
@@ -177,25 +176,30 @@ const TodoComponent: React.FC<TodoComponentProps> = ({
       <h2 className="text-xl font-bold mb-4">정비 작업 목록</h2>
       
       <TodoFilter 
-        onFilterChange={handleFilterChange}
-        initialFilter={filterState.currentFilter}
+        onFilterChange={(contextFilter) => {
+          const serviceFilter = adaptContextFilterToServiceFilter(contextFilter);
+          handleFilterChange(serviceFilter);
+        }}
+        initialFilter={adaptFilterToContextFilter(filterState.currentFilter)}
         className="mb-4"
       />
-      
+
       <Divider />
-      
-      <AddTodoForm 
+
+      <AddTodoForm
         onCreateTodo={handleCreateTodo}
         templateState={templateState}
         templateDispatch={templateDispatch}
       />
-      
+
       <Divider />
-      
+
       {error ? (
-        <Typography.Text type="danger">작업 목록을 불러오는 중 오류가 발생했습니다.</Typography.Text>
+        <Typography.Text type="danger">
+          작업 목록을 불러오는 중 오류가 발생했습니다.
+        </Typography.Text>
       ) : (
-        <TodoList 
+        <TodoList
           todos={todos}
           loading={loading}
           filterState={filterState}

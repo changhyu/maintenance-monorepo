@@ -5,6 +5,16 @@
 import { api, apiRequest } from './api';
 
 /**
+ * 차량 상태 타입 별칭
+ */
+export type VehicleStatusType = 'active' | 'maintenance' | 'outOfService';
+
+/**
+ * 정렬 방향 타입 별칭
+ */
+export type SortOrderType = 'asc' | 'desc';
+
+/**
  * 차량 통계 데이터 인터페이스
  */
 export interface VehicleStats {
@@ -25,7 +35,7 @@ export interface Vehicle {
   year: number;
   licensePlate: string;
   vin: string;
-  status: 'active' | 'maintenance' | 'outOfService';
+  status: VehicleStatusType;
   currentMileage: number;
   lastServiceDate: string;
   nextServiceDue: string;
@@ -52,7 +62,7 @@ export interface VehicleCreate {
   year: number;
   licensePlate: string;
   vin: string;
-  status: 'active' | 'maintenance' | 'outOfService';
+  status: VehicleStatusType;
   currentMileage: number;
   fuelType: string;
   fuelLevel?: number;
@@ -69,7 +79,7 @@ export interface VehicleUpdate {
   year?: number;
   licensePlate?: string;
   vin?: string;
-  status?: 'active' | 'maintenance' | 'outOfService';
+  status?: VehicleStatusType;
   currentMileage?: number;
   fuelType?: string;
   fuelLevel?: number;
@@ -90,7 +100,7 @@ export interface VehicleFilter {
   page?: number;
   limit?: number;
   sortBy?: string;
-  sortOrder?: 'asc' | 'desc';
+  sortOrder?: SortOrderType;
 }
 
 /**
@@ -266,7 +276,10 @@ export const vehicleService = {
       const response = await api.get(`/vehicles/${vehicleId}/software-updates`);
       return response.data;
     } catch (error) {
-      console.error(`[vehicleService] 소프트웨어 업데이트 이력 조회 실패 (ID: ${vehicleId}):`, error);
+      console.error(
+        `[vehicleService] 소프트웨어 업데이트 이력 조회 실패 (ID: ${vehicleId}):`,
+        error
+      );
       return [];
     }
   },
@@ -308,15 +321,19 @@ export const vehicleService = {
    * @param metadata 문서 메타데이터 (옵션)
    * @returns 첨부된 문서 정보
    */
-  async uploadVehicleDocument(vehicleId: string, file: File, metadata?: any): Promise<VehicleDocument | null> {
+  async uploadVehicleDocument(
+    vehicleId: string,
+    file: File,
+    metadata?: any
+  ): Promise<VehicleDocument | null> {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      
+
       if (metadata) {
         formData.append('metadata', JSON.stringify(metadata));
       }
-      
+
       const response = await api.post(`/vehicles/${vehicleId}/documents`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
@@ -340,7 +357,10 @@ export const vehicleService = {
       await api.delete(`/vehicles/${vehicleId}/documents/${documentId}`);
       return true;
     } catch (error) {
-      console.error(`[vehicleService] 차량 문서 삭제 실패 (ID: ${vehicleId}, 문서: ${documentId}):`, error);
+      console.error(
+        `[vehicleService] 차량 문서 삭제 실패 (ID: ${vehicleId}, 문서: ${documentId}):`,
+        error
+      );
       return false;
     }
   },
@@ -372,4 +392,4 @@ export const vehicleService = {
       return {};
     }
   }
-}; 
+};

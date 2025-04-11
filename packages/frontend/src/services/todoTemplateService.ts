@@ -52,10 +52,8 @@ class TodoTemplateService {
             return parts.length > 1 ? parseInt(parts[1], 10) : NaN;
           })
           .filter(id => !isNaN(id));
-          
-        this.templateCounter = validIds.length > 0 
-          ? Math.max(...validIds) + 1
-          : 0;
+
+        this.templateCounter = validIds.length > 0 ? Math.max(...validIds) + 1 : 0;
       }
     } catch (error) {
       console.error('템플릿을 로컬 스토리지에서 불러오는 중 오류가 발생했습니다:', error);
@@ -71,8 +69,11 @@ class TodoTemplateService {
       const templatesJSON = JSON.stringify(this.templates);
       
       // 스토리지 용량 검사 (대략적인 추정)
-      if (templatesJSON.length > 4.5 * 1024 * 1024) { // ~4.5MB (localStorage 5MB 제한에 근접)
-        console.warn('템플릿 데이터가 로컬 스토리지 용량 한도에 근접했습니다. 일부 템플릿을 정리하는 것이 좋습니다.');
+      if (templatesJSON.length > 4.5 * 1024 * 1024) {
+        // ~4.5MB (localStorage 5MB 제한에 근접)
+        console.warn(
+          '템플릿 데이터가 로컬 스토리지 용량 한도에 근접했습니다. 일부 템플릿을 정리하는 것이 좋습니다.'
+        );
       }
       
       localStorage.setItem('todoTemplates', templatesJSON);
@@ -80,7 +81,10 @@ class TodoTemplateService {
       console.error('템플릿을 로컬 스토리지에 저장하는 중 오류가 발생했습니다:', error);
       
       // QuotaExceededError 특별 처리
-      if (error instanceof DOMException && (error.name === 'QuotaExceededError' || error.name === 'NS_ERROR_DOM_QUOTA_REACHED')) {
+      if (
+        error instanceof DOMException &&
+        (error.name === 'QuotaExceededError' || error.name === 'NS_ERROR_DOM_QUOTA_REACHED')
+      ) {
         console.error('로컬 스토리지 용량이 초과되었습니다. 오래된 템플릿을 정리해주세요.');
         // 중요 알림 표시나 사용자에게 알릴 수 있는 메커니즘 추가 가능
       }
@@ -197,9 +201,7 @@ class TodoTemplateService {
    * 모든 템플릿 반환
    */
   public getAllTemplates(): TodoTemplate[] {
-    return [...this.templates].sort((a, b) => 
-      b.updatedAt.getTime() - a.updatedAt.getTime()
-    );
+    return [...this.templates].sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
   }
 
   /**

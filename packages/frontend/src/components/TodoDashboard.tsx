@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import TodoStats from './TodoStats';
+
+import { PlusOutlined } from '@ant-design/icons';
+import { Modal, Form, Input, Select, DatePicker, Button, Space, message } from 'antd';
+
+import TodoList from './todo/TodoList';
 import TodoCalendar from './TodoCalendar';
 import TodoDetailModal from './TodoDetailModal';
-import TodoNotifications from './TodoNotifications';
 import TodoFilter from './TodoFilter';
-import { Modal, Form, Input, Select, DatePicker, Button, Space, message } from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
-import { TodoList } from './todo/TodoList';
+import TodoNotifications from './TodoNotifications';
+import TodoStats from './TodoStats';
 import TodoTemplates from './TodoTemplates';
 import { useTodoContext, TodoTemplate, TodoFilterType } from '../context/TodoContext';
 import { Todo, TodoCreateRequest, TodoUpdateRequest } from '../services/todoService';
@@ -19,10 +21,10 @@ interface TodoDashboardProps {
  * Todo 통합 대시보드 컴포넌트
  */
 const TodoDashboard: React.FC<TodoDashboardProps> = ({ className = '' }) => {
-  const { 
-    todos, 
-    loading, 
-    error, 
+  const {
+    todos,
+    loading,
+    error,
     filter,
     setFilter,
     fetchTodos,
@@ -33,7 +35,7 @@ const TodoDashboard: React.FC<TodoDashboardProps> = ({ className = '' }) => {
     createTodosFromTemplate,
     requestNotificationPermission
   } = useTodoContext();
-  
+
   // 현재 선택된 탭
   const [activeTab, setActiveTab] = useState<'list' | 'stats' | 'calendar' | 'templates'>('list');
   
@@ -85,10 +87,10 @@ const TodoDashboard: React.FC<TodoDashboardProps> = ({ className = '' }) => {
       
       const todoData: TodoCreateRequest = {
         title: values.title,
-        description: values.description || '',
-        priority: values.priority || 'medium',
+        description: values.description ?? '',
+        priority: values.priority ?? 'medium',
         dueDate: values.dueDate ? values.dueDate : undefined,
-        category: values.category || '일반',
+        category: values.category ?? '일반',
         completed: false
       };
       
@@ -152,14 +154,11 @@ const TodoDashboard: React.FC<TodoDashboardProps> = ({ className = '' }) => {
     return (
       <>
         <div className="mb-4">
-          <TodoFilter 
-            onFilterChange={handleFilterChange} 
-            initialFilter={filter}
-          />
+          <TodoFilter onFilterChange={handleFilterChange} initialFilter={filter} />
         </div>
         <div className="mb-4 flex justify-between items-center">
           <div>
-            <button 
+            <button
               className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
               onClick={() => setCreateModalVisible(true)}
             >
@@ -184,35 +183,33 @@ const TodoDashboard: React.FC<TodoDashboardProps> = ({ className = '' }) => {
 
   // 캘린더 탭 렌더링
   const renderCalendar = () => {
-    return (
-      <TodoCalendar
-        todos={todos}
-        onTodoClick={handleTodoClick}
-        className="mt-4"
-      />
-    );
+    return <TodoCalendar todos={todos} onTodoClick={handleTodoClick} className="mt-4" />;
   };
 
   // 템플릿 탭 렌더링
   const renderTemplates = () => {
     return (
-      <TodoTemplates 
+      <TodoTemplates
         className="mt-4"
         onTemplateSelect={(template: TodoTemplate) => {
           // 템플릿 선택 시 기본 탭으로 이동하고 템플릿에서 할 일 생성
           setActiveTab('list');
           
           // 진행 상황 표시
-          message.loading(`템플릿 '${template.name}'의 ${template.items.length}개 항목 생성 중...`, 0);
-          
+          const hideLoading = message.loading(
+            `템플릿 '${template.name}'의 ${template.items.length}개 항목 생성 중...`
+          );
+
           // 템플릿 항목 생성
           createTodosFromTemplate(template)
             .then(() => {
-              message.destroy();
-              message.success(`템플릿 '${template.name}'에서 ${template.items.length}개의 할 일이 생성되었습니다`);
+              hideLoading();
+              message.success(
+                `템플릿 '${template.name}'에서 ${template.items.length}개의 할 일이 생성되었습니다`
+              );
             })
             .catch(() => {
-              message.destroy();
+              hideLoading();
               message.error('템플릿 적용 중 오류가 발생했습니다');
             });
         }}
@@ -226,10 +223,7 @@ const TodoDashboard: React.FC<TodoDashboardProps> = ({ className = '' }) => {
         <h1 className="text-2xl font-bold">정비 작업 관리</h1>
         <div className="flex items-center space-x-2">
           <div className="tabs flex space-x-1">
-            <button
-              onClick={() => setActiveTab('list')}
-              className={getTabClass('list')}
-            >
+            <button onClick={() => setActiveTab('list')} className={getTabClass('list')}>
               목록
             </button>
             <button

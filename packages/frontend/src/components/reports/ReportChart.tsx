@@ -1,4 +1,5 @@
 import React from 'react';
+
 import { Card, Spin, Empty, Radio } from 'antd';
 import {
   LineChart,
@@ -16,6 +17,7 @@ import {
   Cell,
   PieLabelRenderProps
 } from 'recharts';
+
 import { ReportType } from '../../services/reportService';
 import './styles.css';
 
@@ -80,7 +82,9 @@ const ReportChart: React.FC<ReportChartProps> = ({
 
   // 보고서 유형에 따른 차트 데이터 가져오기
   const getChartData = () => {
-    if (!data) return [];
+    if (!data) {
+      return [];
+    }
 
     switch (type) {
       case ReportType.COMPLETION_RATE:
@@ -88,17 +92,21 @@ const ReportChart: React.FC<ReportChartProps> = ({
       case ReportType.COST_ANALYSIS:
         return data.costTrend || [];
       case ReportType.VEHICLE_HISTORY:
-        return data.maintenanceHistory?.map((item: any) => ({
-          name: item.type,
-          value: item.cost
-        })) || [];
+        return (
+          data.maintenanceHistory?.map((item: any) => ({
+            name: item.type,
+            value: item.cost
+          })) || []
+        );
       case ReportType.MAINTENANCE_SUMMARY:
         return data.byType || [];
       case ReportType.MAINTENANCE_FORECAST:
-        return data.upcoming?.map((item: any) => ({
-          name: item.vehicleName,
-          value: item.confidence * 100
-        })) || [];
+        return (
+          data.upcoming?.map((item: any) => ({
+            name: item.vehicleName,
+            value: item.confidence * 100
+          })) || []
+        );
       default:
         return [];
     }
@@ -106,7 +114,9 @@ const ReportChart: React.FC<ReportChartProps> = ({
 
   // 차트 제목 가져오기
   const getChartTitle = () => {
-    if (title) return title;
+    if (title) {
+      return title;
+    }
 
     switch (type) {
       case ReportType.COMPLETION_RATE:
@@ -168,7 +178,10 @@ const ReportChart: React.FC<ReportChartProps> = ({
           <ResponsiveContainer width="100%" height={height}>
             <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" label={{ value: xLabel, position: 'insideBottomRight', offset: -10 }} />
+              <XAxis
+                dataKey="date"
+                label={{ value: xLabel, position: 'insideBottomRight', offset: -10 }}
+              />
               <YAxis label={{ value: yLabel, angle: -90, position: 'insideLeft' }} />
               <RechartsTooltip />
               <Legend />
@@ -181,13 +194,16 @@ const ReportChart: React.FC<ReportChartProps> = ({
           <ResponsiveContainer width="100%" height={height}>
             <BarChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" label={{ value: xLabel, position: 'insideBottomRight', offset: -10 }} />
+              <XAxis
+                dataKey="name"
+                label={{ value: xLabel, position: 'insideBottomRight', offset: -10 }}
+              />
               <YAxis label={{ value: yLabel, angle: -90, position: 'insideLeft' }} />
               <RechartsTooltip />
               <Legend />
               <Bar dataKey="value" fill="#8884d8">
                 {chartData.map((entry: any, index: number) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  <Cell key={`cell-${entry.name || entry.date || entry.id || ''}-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Bar>
             </BarChart>
@@ -209,7 +225,7 @@ const ReportChart: React.FC<ReportChartProps> = ({
                 label={renderCustomizedPieLabel}
               >
                 {chartData.map((entry: any, index: number) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  <Cell key={`cell-${entry.name || entry.date || entry.id || ''}-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
               <RechartsTooltip />
@@ -241,15 +257,26 @@ const ReportChart: React.FC<ReportChartProps> = ({
         <div className="chart-type-selector">
           <Radio.Group
             value={selectedChart}
-            onChange={(e) => setSelectedChart(e.target.value)}
+            onChange={e => setSelectedChart(e.target.value)}
             size="small"
             buttonStyle="solid"
           >
-            {getAvailableChartTypes().map((type) => (
-              <Radio.Button key={type} value={type}>
-                {type === 'line' ? '선형' : type === 'bar' ? '막대' : '파이'}
-              </Radio.Button>
-            ))}
+            {getAvailableChartTypes().map(type => {
+              let chartTypeName = '기본';
+              if (type === 'line') {
+                chartTypeName = '선형';
+              } else if (type === 'bar') {
+                chartTypeName = '막대';
+              } else if (type === 'pie') {
+                chartTypeName = '파이';
+              }
+              
+              return (
+                <Radio.Button key={type} value={type}>
+                  {chartTypeName}
+                </Radio.Button>
+              );
+            })}
           </Radio.Group>
         </div>
       )}
@@ -258,4 +285,4 @@ const ReportChart: React.FC<ReportChartProps> = ({
   );
 };
 
-export default ReportChart; 
+export default ReportChart;

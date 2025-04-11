@@ -1,12 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Card, 
-  Button,
-  Table, 
-  Space,
-  Typography
-} from 'antd';
 
+import { Card, Button, Table, Space, Typography } from 'antd';
 import moment from 'moment';
 import 'moment/locale/ko';
 
@@ -20,8 +14,8 @@ import {
   Bar
 } from 'recharts';
 
-import { reportService, ReportType } from '../../services/reportService';
 import ReportChart from './ReportChart';
+import { reportService, ReportType } from '../../services/reportService';
 
 // 날짜 로케일 설정
 moment.locale('ko');
