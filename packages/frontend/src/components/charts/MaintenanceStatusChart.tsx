@@ -1,5 +1,7 @@
 import React from 'react';
+
 import { Pie } from '@ant-design/plots';
+
 import { ChartDataItem } from './VehicleTypeChart';
 
 interface MaintenanceStatusChartProps {
@@ -40,37 +42,40 @@ const MaintenanceStatusChart: React.FC<MaintenanceStatusChartProps> = ({ data })
       content: '{value}',
       style: {
         textAlign: 'center',
-        fontSize: 14,
-      },
+        fontSize: 14
+      }
     },
     colorConfig: {
-      handler: (label: string) => getStatusColor(label),
+      handler: (label: string) => getStatusColor(label)
     },
     statistic: {
       title: {
-        content: '총계',
+        content: '총계'
       },
       content: {
         style: {
           whiteSpace: 'pre-wrap',
           overflow: 'hidden',
-          textOverflow: 'ellipsis',
+          textOverflow: 'ellipsis'
         },
-        content: data.reduce((acc, item) => acc + item.value, 0) + '대',
-      },
+        content: data.reduce((acc, item) => acc + item.value, 0) + '대'
+      }
     },
     tooltip: {
       formatter: (datum: any) => {
-        return { name: datum.label, value: `${datum.value}대 (${((datum.value / data.reduce((acc, item) => acc + item.value, 0)) * 100).toFixed(1)}%)` };
-      },
+        return {
+          name: datum.label,
+          value: `${datum.value}대 (${((datum.value / data.reduce((acc, item) => acc + item.value, 0)) * 100).toFixed(1)}%)`
+        };
+      }
     },
     legend: {
       position: 'bottom' as const,
-      layout: 'horizontal' as const,
-    },
+      layout: 'horizontal' as const
+    }
   };
 
   return <Pie {...config} />;
 };
 
-export default MaintenanceStatusChart; 
+export default MaintenanceStatusChart;

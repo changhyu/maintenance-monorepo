@@ -6,7 +6,7 @@ export enum UserRole {
   ENTERPRISE_ADMIN = 'ENTERPRISE_ADMIN',
   SHOP_OWNER = 'SHOP_OWNER',
   TECHNICIAN = 'TECHNICIAN',
-  VEHICLE_OWNER = 'VEHICLE_OWNER',
+  VEHICLE_OWNER = 'VEHICLE_OWNER'
 }
 
 // 사용자 정보 인터페이스
@@ -61,25 +61,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  
+
   // 초기 인증 상태 확인
   useEffect(() => {
     const checkAuthStatus = async () => {
       try {
         setLoading(true);
         const token = localStorage.getItem('authToken');
-        
+
         if (!token) {
           setIsAuthenticated(false);
           setUser(null);
           setLoading(false);
           return;
         }
-        
+
         // TODO: 실제 API 구현 시 토큰 검증 로직 추가
         // const response = await api.get('/auth/me');
         // setUser(response.data);
-        
+
         // 임시 사용자 데이터 (개발용)
         const tempUser: User = {
           id: '1',
@@ -88,9 +88,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           role: UserRole.SHOP_OWNER,
           profileImage: 'https://via.placeholder.com/150',
           createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
         };
-        
+
         setUser(tempUser);
         setIsAuthenticated(true);
       } catch (err) {
@@ -103,24 +103,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setLoading(false);
       }
     };
-    
+
     checkAuthStatus();
   }, []);
-  
+
   // 로그인 함수
   const login = async (email: string, password: string) => {
     try {
       setLoading(true);
       setError(null);
-      
+
       // TODO: 실제 API 구현 시 로그인 로직 추가
       // const response = await api.post('/auth/login', { email, password });
       // localStorage.setItem('authToken', response.data.token);
-      
+
       // 임시 로그인 로직 (개발용)
       await new Promise(resolve => setTimeout(resolve, 1000));
       localStorage.setItem('authToken', 'temp-auth-token');
-      
+
       const tempUser: User = {
         id: '1',
         email,
@@ -128,9 +128,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         role: UserRole.SHOP_OWNER,
         profileImage: 'https://via.placeholder.com/150',
         createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       };
-      
+
       setUser(tempUser);
       setIsAuthenticated(true);
     } catch (err: any) {
@@ -141,15 +141,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setLoading(false);
     }
   };
-  
+
   // 로그아웃 함수
   const logout = async () => {
     try {
       setLoading(true);
-      
+
       // TODO: 실제 API 구현 시 로그아웃 로직 추가
       // await api.post('/auth/logout');
-      
+
       localStorage.removeItem('authToken');
       setUser(null);
       setIsAuthenticated(false);
@@ -159,16 +159,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setLoading(false);
     }
   };
-  
+
   // 회원가입 함수
   const register = async (userData: RegisterData) => {
     try {
       setLoading(true);
       setError(null);
-      
+
       // TODO: 실제 API 구현 시 회원가입 로직 추가
       // await api.post('/auth/register', userData);
-      
+
       // 임시 회원가입 로직 (개발용)
       await new Promise(resolve => setTimeout(resolve, 1000));
     } catch (err: any) {
@@ -179,16 +179,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setLoading(false);
     }
   };
-  
+
   // 비밀번호 재설정 요청 함수
   const forgotPassword = async (email: string) => {
     try {
       setLoading(true);
       setError(null);
-      
+
       // TODO: 실제 API 구현 시 비밀번호 재설정 요청 로직 추가
       // await api.post('/auth/forgot-password', { email });
-      
+
       // 임시 로직 (개발용)
       await new Promise(resolve => setTimeout(resolve, 1000));
     } catch (err: any) {
@@ -199,16 +199,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setLoading(false);
     }
   };
-  
+
   // 비밀번호 재설정 함수
   const resetPassword = async (token: string, newPassword: string) => {
     try {
       setLoading(true);
       setError(null);
-      
+
       // TODO: 실제 API 구현 시 비밀번호 재설정 로직 추가
       // await api.post('/auth/reset-password', { token, newPassword });
-      
+
       // 임시 로직 (개발용)
       await new Promise(resolve => setTimeout(resolve, 1000));
     } catch (err: any) {
@@ -219,20 +219,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setLoading(false);
     }
   };
-  
+
   // 프로필 업데이트 함수
   const updateProfile = async (userData: Partial<User>) => {
     try {
       setLoading(true);
       setError(null);
-      
+
       // TODO: 실제 API 구현 시 프로필 업데이트 로직 추가
       // const response = await api.put('/auth/profile', userData);
       // setUser(response.data);
-      
+
       // 임시 로직 (개발용)
       await new Promise(resolve => setTimeout(resolve, 1000));
-      setUser(prev => prev ? { ...prev, ...userData } : null);
+      setUser(prev => (prev ? { ...prev, ...userData } : null));
     } catch (err: any) {
       console.error('프로필 업데이트 중 오류 발생:', err);
       setError(err.message || '프로필 업데이트 중 오류가 발생했습니다.');
@@ -241,18 +241,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setLoading(false);
     }
   };
-  
+
   // 권한 확인 함수
   const hasRole = (roles: UserRole | UserRole[]): boolean => {
     if (!user) return false;
-    
+
     if (Array.isArray(roles)) {
       return roles.includes(user.role);
     }
-    
+
     return user.role === roles;
   };
-  
+
   return (
     <AuthContext.Provider
       value={{
@@ -266,7 +266,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         resetPassword,
         updateProfile,
         isAuthenticated,
-        hasRole,
+        hasRole
       }}
     >
       {children}
@@ -283,4 +283,4 @@ export const useAuth = (): AuthContextType => {
   return context;
 };
 
-export default AuthContext; 
+export default AuthContext;

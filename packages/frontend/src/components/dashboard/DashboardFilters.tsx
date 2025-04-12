@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
+
 import { Card, Row, Col, Button } from 'antd';
-import { DateRangePicker, DateRange } from '../common';
-import { FilterSelect, FilterOption } from '../common';
+
+import { DateRangePicker, DateRange, FilterSelect, FilterOption } from '../common';
 import './Dashboard.css';
 
 // 필터 옵션들
@@ -11,14 +12,14 @@ const vehicleTypeOptions: FilterOption[] = [
   { value: 'suv', label: 'SUV' },
   { value: 'van', label: '밴' },
   { value: 'truck', label: '트럭' },
-  { value: 'bus', label: '버스' },
+  { value: 'bus', label: '버스' }
 ];
 
 const statusOptions: FilterOption[] = [
   { value: 'all', label: '전체 상태' },
   { value: 'active', label: '운행 중' },
   { value: 'maintenance', label: '정비 중' },
-  { value: 'inactive', label: '비활성' },
+  { value: 'inactive', label: '비활성' }
 ];
 
 const locationOptions: FilterOption[] = [
@@ -27,7 +28,7 @@ const locationOptions: FilterOption[] = [
   { value: 'busan', label: '부산' },
   { value: 'incheon', label: '인천' },
   { value: 'daegu', label: '대구' },
-  { value: 'gwangju', label: '광주' },
+  { value: 'gwangju', label: '광주' }
 ];
 
 export interface DashboardFilterValues {
@@ -47,7 +48,7 @@ const DashboardFilters: React.FC<DashboardFiltersProps> = ({ onFilterChange }) =
     dateRange: null,
     vehicleTypes: ['all'],
     status: ['all'],
-    locations: ['all'],
+    locations: ['all']
   });
 
   // 필터 변경 처리
@@ -63,18 +64,22 @@ const DashboardFilters: React.FC<DashboardFiltersProps> = ({ onFilterChange }) =
       dateRange: null,
       vehicleTypes: ['all'],
       status: ['all'],
-      locations: ['all'],
+      locations: ['all']
     };
     setFilters(defaultFilters);
     onFilterChange(defaultFilters);
   };
 
   return (
-    <Card title="대시보드 필터" className="dashboard-filters-card" extra={<Button onClick={resetFilters}>초기화</Button>}>
+    <Card
+      title="대시보드 필터"
+      className="dashboard-filters-card"
+      extra={<Button onClick={resetFilters}>초기화</Button>}
+    >
       <Row gutter={[16, 16]}>
         <Col span={24}>
           <DateRangePicker
-            onChange={(dates) => handleFilterChange('dateRange', dates)}
+            onChange={dates => handleFilterChange('dateRange', dates)}
             defaultValue={filters.dateRange}
           />
         </Col>
@@ -83,7 +88,7 @@ const DashboardFilters: React.FC<DashboardFiltersProps> = ({ onFilterChange }) =
             label="차량 유형"
             options={vehicleTypeOptions}
             value={filters.vehicleTypes}
-            onChange={(value) => handleFilterChange('vehicleTypes', value)}
+            onChange={value => handleFilterChange('vehicleTypes', value)}
             mode="multiple"
           />
         </Col>
@@ -92,7 +97,7 @@ const DashboardFilters: React.FC<DashboardFiltersProps> = ({ onFilterChange }) =
             label="상태"
             options={statusOptions}
             value={filters.status}
-            onChange={(value) => handleFilterChange('status', value)}
+            onChange={value => handleFilterChange('status', value)}
             mode="multiple"
           />
         </Col>
@@ -101,7 +106,7 @@ const DashboardFilters: React.FC<DashboardFiltersProps> = ({ onFilterChange }) =
             label="지역"
             options={locationOptions}
             value={filters.locations}
-            onChange={(value) => handleFilterChange('locations', value)}
+            onChange={value => handleFilterChange('locations', value)}
             mode="multiple"
           />
         </Col>
@@ -110,4 +115,4 @@ const DashboardFilters: React.FC<DashboardFiltersProps> = ({ onFilterChange }) =
   );
 };
 
-export default DashboardFilters; 
+export default DashboardFilters;

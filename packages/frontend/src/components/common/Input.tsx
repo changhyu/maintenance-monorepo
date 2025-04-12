@@ -48,31 +48,32 @@ export const Input: React.FC<InputProps> = ({
   ...rest
 }) => {
   const uniqueId = id || `input-${Math.random().toString(36).substring(2, 9)}`;
-  
-  const baseStyles = 'focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 border-gray-300 rounded-md';
-  
+
+  const baseStyles =
+    'focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 border-gray-300 rounded-md';
+
   const sizeStyles = {
     sm: 'py-1.5 text-xs',
     md: 'py-2 text-sm',
     lg: 'py-2.5 text-base'
   };
-  
+
   const paddingStyles = {
     sm: leftIcon ? 'pl-7' : 'pl-3',
     md: leftIcon ? 'pl-9' : 'pl-3',
     lg: leftIcon ? 'pl-10' : 'pl-4'
   };
-  
+
   const paddingRightStyles = {
     sm: rightIcon ? 'pr-7' : 'pr-3',
     md: rightIcon ? 'pr-9' : 'pr-3',
     lg: rightIcon ? 'pr-10' : 'pr-4'
   };
-  
+
   const widthClass = isFullWidth ? 'w-full' : 'w-auto';
   const invalidClass = isInvalid ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : '';
   const disabledClass = isDisabled ? 'bg-gray-100 cursor-not-allowed' : '';
-  
+
   const inputClasses = `
     ${baseStyles}
     ${sizeStyles[size]}
@@ -83,25 +84,25 @@ export const Input: React.FC<InputProps> = ({
     ${disabledClass}
     ${className}
   `;
-  
+
   const iconSizeClass = {
     sm: 'w-4 h-4',
     md: 'w-5 h-5',
     lg: 'w-6 h-6'
   };
-  
+
   const iconPositionLeft = {
     sm: 'left-2',
     md: 'left-3',
     lg: 'left-3'
   };
-  
+
   const iconPositionRight = {
     sm: 'right-2',
     md: 'right-3',
     lg: 'right-3'
   };
-  
+
   return (
     <div className={`${isFullWidth ? 'w-full' : 'w-auto'}`}>
       {label && (
@@ -114,14 +115,16 @@ export const Input: React.FC<InputProps> = ({
           {label}
         </label>
       )}
-      
+
       <div className="relative">
         {leftIcon && (
-          <div className={`absolute ${iconPositionLeft[size]} top-1/2 transform -translate-y-1/2 text-gray-400`}>
+          <div
+            className={`absolute ${iconPositionLeft[size]} top-1/2 transform -translate-y-1/2 text-gray-400`}
+          >
             <span className={iconSizeClass[size]}>{leftIcon}</span>
           </div>
         )}
-        
+
         <input
           id={uniqueId}
           className={inputClasses}
@@ -132,20 +135,22 @@ export const Input: React.FC<InputProps> = ({
           aria-describedby={helperText ? `${uniqueId}-helper` : undefined}
           {...rest}
         />
-        
+
         {rightIcon && (
-          <div className={`absolute ${iconPositionRight[size]} top-1/2 transform -translate-y-1/2 text-gray-400`}>
+          <div
+            className={`absolute ${iconPositionRight[size]} top-1/2 transform -translate-y-1/2 text-gray-400`}
+          >
             <span className={iconSizeClass[size]}>{rightIcon}</span>
           </div>
         )}
       </div>
-      
+
       {helperText && !isInvalid && (
         <p id={`${uniqueId}-helper`} className="mt-1 text-sm text-gray-500">
           {helperText}
         </p>
       )}
-      
+
       {errorText && isInvalid && (
         <p id={`${uniqueId}-error`} className="mt-1 text-sm text-red-600">
           {errorText}
@@ -153,4 +158,4 @@ export const Input: React.FC<InputProps> = ({
       )}
     </div>
   );
-}; 
+};

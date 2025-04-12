@@ -16,8 +16,8 @@
     "db:seed": "ts-node src/seeds/index.ts"
   },
   "dependencies": {
-    "@prisma/client": "^5.5.2",
     "@maintenance/shared": "*",
+    "@prisma/client": "^5.22.0",
     "dotenv": "^16.3.1"
   },
   "devDependencies": {
@@ -28,4 +28,4 @@
     "ts-node": "^10.9.1",
     "typescript": "^5.2.2"
   }
-} 
+}

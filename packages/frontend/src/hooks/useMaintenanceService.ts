@@ -1,4 +1,5 @@
 import { useState } from 'react';
+
 import { api } from '../services/api';
 
 /**
@@ -111,7 +112,9 @@ const useMaintenanceService = () => {
    * 차량별 정비 일정 조회
    * @param vehicleId 차량 ID
    */
-  const getVehicleMaintenanceSchedules = async (vehicleId: string): Promise<MaintenanceSchedule[]> => {
+  const getVehicleMaintenanceSchedules = async (
+    vehicleId: string
+  ): Promise<MaintenanceSchedule[]> => {
     if (!vehicleId) {
       setError('차량 ID가 제공되지 않았습니다.');
       return [];
@@ -165,7 +168,9 @@ const useMaintenanceService = () => {
    * 정비 일정 생성
    * @param data 정비 일정 생성 데이터
    */
-  const createMaintenanceSchedule = async (data: MaintenanceScheduleCreateRequest): Promise<MaintenanceSchedule | null> => {
+  const createMaintenanceSchedule = async (
+    data: MaintenanceScheduleCreateRequest
+  ): Promise<MaintenanceSchedule | null> => {
     if (!data.vehicleId) {
       setError('차량 ID가 제공되지 않았습니다.');
       return null;
@@ -193,7 +198,10 @@ const useMaintenanceService = () => {
    * @param id 정비 일정 ID
    * @param data 업데이트 데이터
    */
-  const updateMaintenanceSchedule = async (id: string, data: MaintenanceScheduleUpdateRequest): Promise<MaintenanceSchedule | null> => {
+  const updateMaintenanceSchedule = async (
+    id: string,
+    data: MaintenanceScheduleUpdateRequest
+  ): Promise<MaintenanceSchedule | null> => {
     if (!id) {
       setError('정비 일정 ID가 제공되지 않았습니다.');
       return null;
@@ -205,17 +213,17 @@ const useMaintenanceService = () => {
     try {
       const response = await api.put(`/maintenance/${id}`, data);
       const result = response.data;
-      
+
       if (result) {
         // 목록 업데이트
-        setSchedules(prev => prev.map(schedule => schedule.id === id ? result : schedule));
-        
+        setSchedules(prev => prev.map(schedule => (schedule.id === id ? result : schedule)));
+
         // 현재 선택된 일정 업데이트
         if (currentSchedule && currentSchedule.id === id) {
           setCurrentSchedule(result);
         }
       }
-      
+
       return result;
     } catch (err) {
       console.error(`정비 일정(ID: ${id}) 업데이트 중 오류 발생:`, err);
@@ -241,15 +249,15 @@ const useMaintenanceService = () => {
 
     try {
       await api.delete(`/maintenance/${id}`);
-      
+
       // 목록에서 제거
       setSchedules(prev => prev.filter(schedule => schedule.id !== id));
-      
+
       // 현재 선택된 일정인 경우 초기화
       if (currentSchedule && currentSchedule.id === id) {
         setCurrentSchedule(null);
       }
-      
+
       return true;
     } catch (err) {
       console.error(`정비 일정(ID: ${id}) 삭제 중 오류 발생:`, err);
@@ -265,7 +273,10 @@ const useMaintenanceService = () => {
    * @param id 정비 일정 ID
    * @param status 변경할 상태
    */
-  const changeMaintenanceStatus = async (id: string, status: 'scheduled' | 'completed' | 'canceled'): Promise<MaintenanceSchedule | null> => {
+  const changeMaintenanceStatus = async (
+    id: string,
+    status: 'scheduled' | 'completed' | 'canceled'
+  ): Promise<MaintenanceSchedule | null> => {
     if (!id) {
       setError('정비 일정 ID가 제공되지 않았습니다.');
       return null;
@@ -277,17 +288,17 @@ const useMaintenanceService = () => {
     try {
       const response = await api.patch(`/maintenance/${id}/status`, { status });
       const result = response.data;
-      
+
       if (result) {
         // 목록 업데이트
-        setSchedules(prev => prev.map(schedule => schedule.id === id ? result : schedule));
-        
+        setSchedules(prev => prev.map(schedule => (schedule.id === id ? result : schedule)));
+
         // 현재 선택된 일정 업데이트
         if (currentSchedule && currentSchedule.id === id) {
           setCurrentSchedule(result);
         }
       }
-      
+
       return result;
     } catch (err) {
       console.error(`정비 일정(ID: ${id}) 상태 변경 중 오류 발생:`, err);
@@ -302,7 +313,9 @@ const useMaintenanceService = () => {
    * 정비 보고서 생성
    * @param data 정비 보고서 생성 데이터
    */
-  const createMaintenanceReport = async (data: MaintenanceReportCreateRequest): Promise<MaintenanceReport | null> => {
+  const createMaintenanceReport = async (
+    data: MaintenanceReportCreateRequest
+  ): Promise<MaintenanceReport | null> => {
     if (!data.maintenanceId || !data.vehicleId) {
       setError('정비 ID 또는 차량 ID가 제공되지 않았습니다.');
       return null;
@@ -358,7 +371,7 @@ const useMaintenanceService = () => {
     reports,
     isLoading,
     error,
-    
+
     // 메서드
     getAllMaintenanceSchedules,
     getVehicleMaintenanceSchedules,
@@ -372,4 +385,4 @@ const useMaintenanceService = () => {
   };
 };
 
-export default useMaintenanceService; 
+export default useMaintenanceService;

@@ -1,24 +1,53 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Table, Card, Tag, Button, Space, Tabs, Typography, 
-  Dropdown, Menu, Modal, Badge, Empty, message,
-  Row, Col, Input, DatePicker, Select
-} from 'antd';
-import { 
-  CalendarOutlined, CarOutlined, FilterOutlined, 
-  SearchOutlined, MoreOutlined, ExclamationCircleOutlined, 
-  EditOutlined, DeleteOutlined, CheckCircleOutlined, 
-  CloseCircleOutlined, ReloadOutlined
+
+import {
+  LeftOutlined,
+  RightOutlined,
+  FileTextOutlined,
+  CarOutlined,
+  ToolOutlined,
+  CalendarOutlined,
+  SearchOutlined,
+  ExclamationCircleOutlined,
+  CheckCircleOutlined,
+  EnvironmentOutlined,
+  FilterOutlined,
+  CloseOutlined,
+  MoreOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  ReloadOutlined
 } from '@ant-design/icons';
+import {
+  Table,
+  Card,
+  Tag,
+  Button,
+  Space,
+  Tabs,
+  Typography,
+  Dropdown,
+  Menu,
+  Modal,
+  Badge,
+  Empty,
+  message,
+  Row,
+  Col,
+  Input,
+  DatePicker,
+  Select
+} from 'antd';
+import type { ModalStaticFunctions } from 'antd/es/modal/confirm';
+import dayjs from 'dayjs';
+
 import { BookingButton } from '../components/booking';
 import apiClient from '../services/api';
-import dayjs from 'dayjs';
 
 const { TabPane } = Tabs;
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
 const { Option } = Select;
-const { confirm } = Modal;
 
 // 예약 상태 정의
 export enum BookingStatus {
@@ -75,9 +104,9 @@ const BookingHistoryPage: React.FC = () => {
     dateRange: null
   });
   const [showFilters, setShowFilters] = useState<boolean>(false);
-  const [vehicles, setVehicles] = useState<{id: string; name: string}[]>([]);
-  const [shops, setShops] = useState<{id: string; name: string}[]>([]);
-  const [maintenanceTypes, setMaintenanceTypes] = useState<{id: string; name: string}[]>([]);
+  const [vehicles, setVehicles] = useState<{ id: string; name: string }[]>([]);
+  const [shops, setShops] = useState<{ id: string; name: string }[]>([]);
+  const [maintenanceTypes, setMaintenanceTypes] = useState<{ id: string; name: string }[]>([]);
 
   // 컴포넌트 마운트 시 데이터 로드
   useEffect(() => {
@@ -99,7 +128,7 @@ const BookingHistoryPage: React.FC = () => {
       // 실제 구현 시 API 호출
       // const response = await apiClient.get('/bookings');
       // setBookings(response.data);
-      
+
       // 샘플 데이터
       const mockBookings: Booking[] = generateMockBookings();
       setBookings(mockBookings);
@@ -116,7 +145,7 @@ const BookingHistoryPage: React.FC = () => {
     try {
       // const response = await apiClient.get('/vehicles');
       // setVehicles(response.data);
-      
+
       // 샘플 데이터
       setVehicles([
         { id: 'v001', name: '차량 1001' },
@@ -135,7 +164,7 @@ const BookingHistoryPage: React.FC = () => {
     try {
       // const response = await apiClient.get('/shops');
       // setShops(response.data);
-      
+
       // 샘플 데이터
       setShops([
         { id: 's001', name: '서울 중앙 정비소' },
@@ -152,7 +181,7 @@ const BookingHistoryPage: React.FC = () => {
     try {
       // const response = await apiClient.get('/maintenance-types');
       // setMaintenanceTypes(response.data);
-      
+
       // 샘플 데이터
       setMaintenanceTypes([
         { id: 'mt001', name: '정기 점검' },
@@ -192,7 +221,7 @@ const BookingHistoryPage: React.FC = () => {
       BookingStatus.CANCELLED
     ];
     const urgencyLevels = ['low', 'medium', 'high'] as const;
-    
+
     return Array.from({ length: 30 }).map((_, idx) => {
       const vehicleId = `v00${(idx % 5) + 1}`;
       const maintenanceType = maintenanceTypes[Math.floor(Math.random() * maintenanceTypes.length)];
@@ -200,13 +229,15 @@ const BookingHistoryPage: React.FC = () => {
       const status = statuses[Math.floor(Math.random() * statuses.length)];
       const isCompleted = status === BookingStatus.COMPLETED;
       const isCancelled = status === BookingStatus.CANCELLED;
-      
+
       const createdDate = new Date();
       createdDate.setDate(createdDate.getDate() - Math.floor(Math.random() * 30));
-      
+
       const bookingDate = new Date();
-      bookingDate.setDate(bookingDate.getDate() + (isCancelled ? -5 : Math.floor(Math.random() * 30) - 10));
-      
+      bookingDate.setDate(
+        bookingDate.getDate() + (isCancelled ? -5 : Math.floor(Math.random() * 30) - 10)
+      );
+
       return {
         id: `booking-${1000 + idx}`,
         vehicleId,
@@ -235,7 +266,7 @@ const BookingHistoryPage: React.FC = () => {
   // 필터 적용
   const applyFilters = () => {
     let result = [...bookings];
-    
+
     // 탭에 따른 필터링
     if (activeTab === 'pending') {
       result = result.filter(booking => booking.status === BookingStatus.PENDING);
@@ -246,49 +277,50 @@ const BookingHistoryPage: React.FC = () => {
     } else if (activeTab === 'cancelled') {
       result = result.filter(booking => booking.status === BookingStatus.CANCELLED);
     }
-    
+
     // 검색어 필터링
     if (filters.search) {
       const searchLower = filters.search.toLowerCase();
-      result = result.filter(booking =>
-        booking.vehicleName.toLowerCase().includes(searchLower) ||
-        booking.maintenanceTypeName.toLowerCase().includes(searchLower) ||
-        booking.shopName.toLowerCase().includes(searchLower) ||
-        booking.id.toLowerCase().includes(searchLower)
+      result = result.filter(
+        booking =>
+          booking.vehicleName.toLowerCase().includes(searchLower) ||
+          booking.maintenanceTypeName.toLowerCase().includes(searchLower) ||
+          booking.shopName.toLowerCase().includes(searchLower) ||
+          booking.id.toLowerCase().includes(searchLower)
       );
     }
-    
+
     // 차량 필터링
     if (filters.vehicleId) {
       result = result.filter(booking => booking.vehicleId === filters.vehicleId);
     }
-    
+
     // 정비소 필터링
     if (filters.shopId) {
       result = result.filter(booking => booking.shopId === filters.shopId);
     }
-    
+
     // 날짜 범위 필터링
     if (filters.dateRange && filters.dateRange[0] && filters.dateRange[1]) {
       const startDate = filters.dateRange[0].startOf('day');
       const endDate = filters.dateRange[1].endOf('day');
-      
+
       result = result.filter(booking => {
         const bookingDate = dayjs(booking.date);
         return bookingDate.isAfter(startDate) && bookingDate.isBefore(endDate);
       });
     }
-    
+
     // 정비 유형 필터링
     if (filters.maintenanceTypeId) {
       result = result.filter(booking => booking.maintenanceTypeId === filters.maintenanceTypeId);
     }
-    
+
     // 긴급도 필터링
     if (filters.urgencyLevel) {
       result = result.filter(booking => booking.urgencyLevel === filters.urgencyLevel);
     }
-    
+
     setFilteredBookings(result);
   };
 
@@ -311,7 +343,7 @@ const BookingHistoryPage: React.FC = () => {
 
   // 예약 취소 확인
   const showCancelConfirm = (booking: Booking) => {
-    confirm({
+    (Modal as any as ModalStaticFunctions).confirm({
       title: '예약 취소',
       icon: <ExclamationCircleOutlined />,
       content: `${booking.vehicleName}의 ${booking.date} ${booking.time} 예약을 취소하시겠습니까?`,
@@ -329,19 +361,19 @@ const BookingHistoryPage: React.FC = () => {
     try {
       // 실제 구현 시 API 호출
       // await apiClient.put(`/bookings/${bookingId}/cancel`);
-      
+
       // 테스트용 처리
       await new Promise(resolve => setTimeout(resolve, 500));
-      
+
       // 상태 업데이트
-      setBookings(prev => 
-        prev.map(booking => 
-          booking.id === bookingId 
-            ? { ...booking, status: BookingStatus.CANCELLED, updatedAt: new Date().toISOString() } 
+      setBookings(prev =>
+        prev.map(booking =>
+          booking.id === bookingId
+            ? { ...booking, status: BookingStatus.CANCELLED, updatedAt: new Date().toISOString() }
             : booking
         )
       );
-      
+
       message.success('예약이 성공적으로 취소되었습니다.');
     } catch (error) {
       console.error('예약 취소 실패:', error);
@@ -351,7 +383,7 @@ const BookingHistoryPage: React.FC = () => {
 
   // 예약 완료 확인
   const showCompleteConfirm = (booking: Booking) => {
-    confirm({
+    (Modal as any as ModalStaticFunctions).confirm({
       title: '정비 완료 처리',
       icon: <CheckCircleOutlined />,
       content: `${booking.vehicleName}의 정비가 완료되었습니까?`,
@@ -369,28 +401,28 @@ const BookingHistoryPage: React.FC = () => {
     try {
       // 실제 구현 시 API 호출
       // await apiClient.put(`/bookings/${bookingId}/complete`);
-      
+
       // 테스트용 처리
       await new Promise(resolve => setTimeout(resolve, 500));
-      
+
       // 임의의 정비 비용 생성
       const cost = Math.floor(Math.random() * 500000) + 50000;
-      
+
       // 상태 업데이트
-      setBookings(prev => 
-        prev.map(booking => 
-          booking.id === bookingId 
-            ? { 
-                ...booking, 
-                status: BookingStatus.COMPLETED, 
+      setBookings(prev =>
+        prev.map(booking =>
+          booking.id === bookingId
+            ? {
+                ...booking,
+                status: BookingStatus.COMPLETED,
                 updatedAt: new Date().toISOString(),
                 completedAt: new Date().toISOString(),
                 cost
-              } 
+              }
             : booking
         )
       );
-      
+
       message.success('정비가 완료 처리되었습니다.');
     } catch (error) {
       console.error('정비 완료 처리 실패:', error);
@@ -398,7 +430,7 @@ const BookingHistoryPage: React.FC = () => {
     }
   };
 
-  // 상태에 따른 뱃지 색상 
+  // 상태에 따른 뱃지 색상
   const getStatusBadge = (status: BookingStatus) => {
     switch (status) {
       case BookingStatus.PENDING:
@@ -434,7 +466,7 @@ const BookingHistoryPage: React.FC = () => {
       title: '예약 ID',
       dataIndex: 'id',
       key: 'id',
-      width: 120,
+      width: 120
     },
     {
       title: '차량',
@@ -446,19 +478,19 @@ const BookingHistoryPage: React.FC = () => {
           <CarOutlined />
           {text} ({record.vehicleType})
         </Space>
-      ),
+      )
     },
     {
       title: '정비 유형',
       dataIndex: 'maintenanceTypeName',
       key: 'maintenanceTypeName',
-      width: 150,
+      width: 150
     },
     {
       title: '정비소',
       dataIndex: 'shopName',
       key: 'shopName',
-      width: 150,
+      width: 150
     },
     {
       title: '예약일',
@@ -469,30 +501,33 @@ const BookingHistoryPage: React.FC = () => {
           <CalendarOutlined />
           {record.date} {record.time}
         </Space>
-      ),
+      )
     },
     {
       title: '상태',
       dataIndex: 'status',
       key: 'status',
       width: 100,
-      render: (status: BookingStatus) => getStatusBadge(status),
+      render: (status: BookingStatus) => getStatusBadge(status)
     },
     {
       title: '긴급도',
       dataIndex: 'urgencyLevel',
       key: 'urgencyLevel',
       width: 100,
-      render: (level: string) => getUrgencyTag(level),
+      render: (level: string) => getUrgencyTag(level)
     },
     {
       title: '비용',
       dataIndex: 'cost',
       key: 'cost',
       width: 120,
-      render: (cost?: number) => cost 
-        ? <Text strong>{cost.toLocaleString('ko-KR')}원</Text> 
-        : <Text type="secondary">-</Text>,
+      render: (cost?: number) =>
+        cost ? (
+          <Text strong>{cost.toLocaleString('ko-KR')}원</Text>
+        ) : (
+          <Text type="secondary">-</Text>
+        )
     },
     {
       title: '액션',
@@ -500,44 +535,56 @@ const BookingHistoryPage: React.FC = () => {
       width: 100,
       render: (_: any, record: Booking) => {
         // 상태에 따라 가능한 액션 결정
-        const isActionable = record.status === BookingStatus.PENDING || record.status === BookingStatus.CONFIRMED;
+        const isActionable =
+          record.status === BookingStatus.PENDING || record.status === BookingStatus.CONFIRMED;
         const isCompletable = record.status === BookingStatus.CONFIRMED;
-        
+
         if (!isActionable) {
           return <Text type="secondary">-</Text>;
         }
-        
+
         return (
-          <Dropdown overlay={
-            <Menu>
-              {record.status === BookingStatus.PENDING && (
-                <Menu.Item key="edit" icon={<EditOutlined />}>
-                  <BookingButton 
-                    vehicleId={record.vehicleId}
-                    buttonText="예약 변경"
-                    buttonType="link"
-                    onBookingCreated={(bookingId) => {
-                      message.success(`예약이 성공적으로 변경되었습니다.`);
-                      handleCancelBooking(record.id);
-                    }}
-                  />
+          <Dropdown
+            overlay={
+              <Menu>
+                {record.status === BookingStatus.PENDING && (
+                  <Menu.Item key="edit" icon={<EditOutlined />}>
+                    <BookingButton
+                      vehicleId={record.vehicleId}
+                      buttonText="예약 변경"
+                      buttonType="link"
+                      onBookingCreated={bookingId => {
+                        message.success(`예약이 성공적으로 변경되었습니다.`);
+                        handleCancelBooking(record.id);
+                      }}
+                    />
+                  </Menu.Item>
+                )}
+                {isCompletable && (
+                  <Menu.Item
+                    key="complete"
+                    onClick={() => showCompleteConfirm(record)}
+                    icon={<CheckCircleOutlined />}
+                  >
+                    정비 완료 처리
+                  </Menu.Item>
+                )}
+                <Menu.Item
+                  key="cancel"
+                  onClick={() => showCancelConfirm(record)}
+                  icon={<CloseOutlined />}
+                  danger
+                >
+                  예약 취소
                 </Menu.Item>
-              )}
-              {isCompletable && (
-                <Menu.Item key="complete" onClick={() => showCompleteConfirm(record)} icon={<CheckCircleOutlined />}>
-                  정비 완료 처리
-                </Menu.Item>
-              )}
-              <Menu.Item key="cancel" onClick={() => showCancelConfirm(record)} icon={<CloseCircleOutlined />} danger>
-                예약 취소
-              </Menu.Item>
-            </Menu>
-          }>
+              </Menu>
+            }
+          >
             <Button type="text" icon={<MoreOutlined />} />
           </Dropdown>
         );
-      },
-    },
+      }
+    }
   ];
 
   return (
@@ -550,19 +597,15 @@ const BookingHistoryPage: React.FC = () => {
           </Col>
           <Col>
             <Space>
-              <BookingButton 
-                buttonText="새 예약 등록" 
-                buttonType="primary" 
-                onBookingCreated={(bookingId) => {
+              <BookingButton
+                buttonText="새 예약 등록"
+                buttonType="primary"
+                onBookingCreated={bookingId => {
                   message.success(`예약이 성공적으로 등록되었습니다. (예약 ID: ${bookingId})`);
                   fetchBookings();
                 }}
               />
-              <Button
-                icon={<ReloadOutlined />}
-                onClick={fetchBookings}
-                loading={loading}
-              >
+              <Button icon={<ReloadOutlined />} onClick={fetchBookings} loading={loading}>
                 새로고침
               </Button>
             </Space>
@@ -584,8 +627,8 @@ const BookingHistoryPage: React.FC = () => {
             />
           </Col>
           <Col>
-            <Button 
-              icon={<FilterOutlined />} 
+            <Button
+              icon={<FilterOutlined />}
               onClick={() => setShowFilters(!showFilters)}
               type={showFilters ? 'primary' : 'default'}
             >
@@ -609,7 +652,9 @@ const BookingHistoryPage: React.FC = () => {
                   onChange={value => handleFilterChange('vehicleId', value)}
                 >
                   {vehicles.map(vehicle => (
-                    <Option key={vehicle.id} value={vehicle.id}>{vehicle.name}</Option>
+                    <Option key={vehicle.id} value={vehicle.id}>
+                      {vehicle.name}
+                    </Option>
                   ))}
                 </Select>
               </Col>
@@ -625,7 +670,9 @@ const BookingHistoryPage: React.FC = () => {
                   onChange={value => handleFilterChange('shopId', value)}
                 >
                   {shops.map(shop => (
-                    <Option key={shop.id} value={shop.id}>{shop.name}</Option>
+                    <Option key={shop.id} value={shop.id}>
+                      {shop.name}
+                    </Option>
                   ))}
                 </Select>
               </Col>
@@ -641,7 +688,9 @@ const BookingHistoryPage: React.FC = () => {
                   onChange={value => handleFilterChange('maintenanceTypeId', value)}
                 >
                   {maintenanceTypes.map(type => (
-                    <Option key={type.id} value={type.id}>{type.name}</Option>
+                    <Option key={type.id} value={type.id}>
+                      {type.name}
+                    </Option>
                   ))}
                 </Select>
               </Col>
@@ -665,7 +714,7 @@ const BookingHistoryPage: React.FC = () => {
                 <div style={{ marginBottom: '8px' }}>
                   <Text strong>예약 기간</Text>
                 </div>
-                <RangePicker 
+                <RangePicker
                   style={{ width: '100%' }}
                   value={filters.dateRange as any}
                   onChange={value => handleFilterChange('dateRange', value)}
@@ -686,59 +735,55 @@ const BookingHistoryPage: React.FC = () => {
 
       {/* 탭 및 테이블 영역 */}
       <Card>
-        <Tabs 
-          activeKey={activeTab} 
+        <Tabs
+          activeKey={activeTab}
           onChange={setActiveTab}
-          tabBarExtraContent={
-            <Text type="secondary">
-              총 {filteredBookings.length}건의 예약
-            </Text>
-          }
+          tabBarExtraContent={<Text type="secondary">총 {filteredBookings.length}건의 예약</Text>}
         >
           <TabPane tab="전체" key="all" />
-          <TabPane 
+          <TabPane
             tab={
               <span>
-                대기 중 
+                대기 중
                 <Tag color="gold" style={{ marginLeft: '4px' }}>
                   {bookings.filter(b => b.status === BookingStatus.PENDING).length}
                 </Tag>
               </span>
-            } 
-            key="pending" 
+            }
+            key="pending"
           />
-          <TabPane 
+          <TabPane
             tab={
               <span>
-                확정 
+                확정
                 <Tag color="blue" style={{ marginLeft: '4px' }}>
                   {bookings.filter(b => b.status === BookingStatus.CONFIRMED).length}
                 </Tag>
               </span>
-            } 
-            key="confirmed" 
+            }
+            key="confirmed"
           />
-          <TabPane 
+          <TabPane
             tab={
               <span>
-                완료 
+                완료
                 <Tag color="green" style={{ marginLeft: '4px' }}>
                   {bookings.filter(b => b.status === BookingStatus.COMPLETED).length}
                 </Tag>
               </span>
-            } 
-            key="completed" 
+            }
+            key="completed"
           />
-          <TabPane 
+          <TabPane
             tab={
               <span>
-                취소 
+                취소
                 <Tag color="red" style={{ marginLeft: '4px' }}>
                   {bookings.filter(b => b.status === BookingStatus.CANCELLED).length}
                 </Tag>
               </span>
-            } 
-            key="cancelled" 
+            }
+            key="cancelled"
           />
         </Tabs>
 
@@ -755,12 +800,10 @@ const BookingHistoryPage: React.FC = () => {
                 <Row gutter={[24, 16]}>
                   <Col span={12}>
                     <div>
-                      <Text type="secondary">담당자:</Text>{' '}
-                      <Text strong>{record.contactName}</Text>
+                      <Text type="secondary">담당자:</Text> <Text strong>{record.contactName}</Text>
                     </div>
                     <div>
-                      <Text type="secondary">연락처:</Text>{' '}
-                      <Text>{record.contactPhone}</Text>
+                      <Text type="secondary">연락처:</Text> <Text>{record.contactPhone}</Text>
                     </div>
                     {record.requiresPickup && (
                       <div>
@@ -771,8 +814,7 @@ const BookingHistoryPage: React.FC = () => {
                   <Col span={12}>
                     {record.description && (
                       <div>
-                        <Text type="secondary">요청 사항:</Text>{' '}
-                        <Text>{record.description}</Text>
+                        <Text type="secondary">요청 사항:</Text> <Text>{record.description}</Text>
                       </div>
                     )}
                     <div>
@@ -788,7 +830,7 @@ const BookingHistoryPage: React.FC = () => {
                   </Col>
                 </Row>
               </div>
-            ),
+            )
           }}
         />
       </Card>
@@ -796,4 +838,4 @@ const BookingHistoryPage: React.FC = () => {
   );
 };
 
-export default BookingHistoryPage; 
+export default BookingHistoryPage;

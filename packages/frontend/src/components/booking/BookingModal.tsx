@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { Modal, Button, message } from 'antd';
+
 import { CalendarOutlined } from '@ant-design/icons';
+import { Modal, Button, message } from 'antd';
+
 import MaintenanceBookingForm from './MaintenanceBookingForm';
 
 export interface BookingModalProps {
@@ -35,11 +37,11 @@ const BookingModal: React.FC<BookingModalProps> = ({
   const handleBookingCreated = (bookingId: string) => {
     setLoading(false);
     setModalVisible(false);
-    
+
     if (onBookingCreated) {
       onBookingCreated(bookingId);
     }
-    
+
     onClose();
   };
 
@@ -70,7 +72,12 @@ const BookingModal: React.FC<BookingModalProps> = ({
 /**
  * 정비 예약 버튼 + 모달 컴포넌트
  */
-export const BookingButton: React.FC<Omit<BookingModalProps, 'visible' | 'onClose'> & { className?: string; style?: React.CSSProperties }> = ({
+export const BookingButton: React.FC<
+  Omit<BookingModalProps, 'visible' | 'onClose'> & {
+    className?: string;
+    style?: React.CSSProperties;
+  }
+> = ({
   vehicleId,
   onBookingCreated,
   buttonText = '정비 예약',
@@ -91,7 +98,7 @@ export const BookingButton: React.FC<Omit<BookingModalProps, 'visible' | 'onClos
   return (
     <>
       <Button
-        type={buttonType as "text" | "link" | "default" | "primary" | "dashed" | undefined}
+        type={buttonType as 'text' | 'link' | 'default' | 'primary' | 'dashed' | undefined}
         icon={<CalendarOutlined />}
         onClick={showModal}
         className={className}
@@ -99,7 +106,7 @@ export const BookingButton: React.FC<Omit<BookingModalProps, 'visible' | 'onClos
       >
         {buttonText}
       </Button>
-      
+
       <BookingModal
         vehicleId={vehicleId}
         visible={visible}
@@ -112,4 +119,4 @@ export const BookingButton: React.FC<Omit<BookingModalProps, 'visible' | 'onClos
   );
 };
 
-export default BookingModal; 
+export default BookingModal;

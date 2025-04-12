@@ -9,7 +9,7 @@ export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3001/api',
   timeout: 10000,
   headers: {
-    'Content-Type': 'application/json',
+    'Content-Type': 'application/json'
   }
 });
 
@@ -63,4 +63,4 @@ export const apiRequest = async <T>(config: AxiosRequestConfig): Promise<T> => {
 
 // 이전 코드와의 호환성을 위해 apiClient 별칭 내보내기
 export const apiClient = api;
-export default api; 
+export default api;

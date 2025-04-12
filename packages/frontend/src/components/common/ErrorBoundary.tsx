@@ -1,5 +1,6 @@
-import React, { Component, ErrorInfo } from "react";
-import { Button, Result } from "antd";
+import React, { Component, ErrorInfo } from 'react';
+
+import { Button, Result } from 'antd';
 
 interface ErrorBoundaryProps {
   fallback?: React.ReactNode;
@@ -48,7 +49,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
     if (this.props.onReset) {
       this.props.onReset();
     }
-    
+
     // 에러 상태 초기화
     this.setState({
       hasError: false,
@@ -107,4 +108,4 @@ export function withErrorBoundary<P extends object>(
   );
 }
 
-export default ErrorBoundary; 
+export default ErrorBoundary;

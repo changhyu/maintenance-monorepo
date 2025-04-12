@@ -1,19 +1,36 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { 
-  Button, Dropdown, Menu, Space, Modal, Form, 
-  Select, Input, Tabs, Checkbox, message, Spin,
-  Radio, Row, Col, Divider, Typography
-} from 'antd';
-import { 
-  DownOutlined, FileExcelOutlined, FilePdfOutlined, 
-  FileTextOutlined, SettingOutlined, DownloadOutlined,
-  PrinterOutlined, MailOutlined
+import React, { useState } from 'react';
+
+import {
+  DownOutlined,
+  FileExcelOutlined,
+  FilePdfOutlined,
+  FileTextOutlined,
+  DownloadOutlined
 } from '@ant-design/icons';
-import { exportData, ExportFormat } from '../../utils/exportUtils';
-import html2canvas from 'html2canvas';
+import {
+  Button,
+  Dropdown,
+  Menu,
+  Modal,
+  Form,
+  Select,
+  Input,
+  Tabs,
+  Checkbox,
+  message,
+  Spin,
+  Radio,
+  Row,
+  Col,
+  Typography
+} from 'antd';
+import FileSaver from 'file-saver';
+// 필요한 경우에만 주석 해제하여 사용
+// import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import * as XLSX from 'xlsx';
-import FileSaver from 'file-saver';
+
+import { exportData, ExportFormat } from '../../utils/exportUtils';
 
 const { Option } = Select;
 const { TabPane } = Tabs;
@@ -68,7 +85,16 @@ const DEFAULT_TEMPLATES: ReportTemplate[] = [
     name: '정비 이력 상세',
     type: ReportType.MAINTENANCE_HISTORY,
     description: '각 차량의 정비 이력 상세 정보를 포함한 보고서',
-    fields: ['vehicleId', 'vehicleName', 'date', 'type', 'description', 'cost', 'shop', 'technician'],
+    fields: [
+      'vehicleId',
+      'vehicleName',
+      'date',
+      'type',
+      'description',
+      'cost',
+      'shop',
+      'technician'
+    ],
     groupBy: ['vehicleId'],
     sortBy: 'date',
     orientation: 'landscape',
@@ -82,7 +108,15 @@ const DEFAULT_TEMPLATES: ReportTemplate[] = [
     name: '지오펜스 활동 분석',
     type: ReportType.GEOFENCE_ANALYSIS,
     description: '지오펜스 출입 이벤트 및 체류 시간 분석 보고서',
-    fields: ['geofenceId', 'geofenceName', 'vehicleId', 'vehicleName', 'eventType', 'timestamp', 'dwellTime'],
+    fields: [
+      'geofenceId',
+      'geofenceName',
+      'vehicleId',
+      'vehicleName',
+      'eventType',
+      'timestamp',
+      'dwellTime'
+    ],
     groupBy: ['geofenceId', 'vehicleId'],
     orientation: 'landscape',
     paperSize: 'A4',
@@ -92,9 +126,28 @@ const DEFAULT_TEMPLATES: ReportTemplate[] = [
   }
 ];
 
+// 보고서 옵션 인터페이스
+export interface ReportOptions {
+  templateId: string;
+  format: ExportFormat;
+  paperSize?: 'A4' | 'A3' | 'Letter';
+  orientation?: 'portrait' | 'landscape';
+  includeCharts?: boolean;
+  includeHeader?: boolean;
+  includeFooter?: boolean;
+  customTitle?: string;
+  customFields?: string[];
+  dateRange?: [Date, Date];
+}
+
+// 일반 데이터 객체 인터페이스
+export interface DataItem {
+  [key: string]: string | number | boolean | Date | null | undefined;
+}
+
 export interface ReportGeneratorProps {
   /** 보고서 생성에 사용할 데이터 */
-  data: any[];
+  data: DataItem[];
   /** 사용 가능한 보고서 유형 목록 */
   availableTypes?: ReportType[];
   /** 사용자 정의 템플릿 목록 */
@@ -132,14 +185,14 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({
   const [modalVisible, setModalVisible] = useState<boolean>(false);
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [exportFormat, setExportFormat] = useState<ExportFormat>('pdf');
-  const [customFields, setCustomFields] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [form] = Form.useForm();
-  
+
   // 모든 템플릿 (기본 + 사용자 정의)
-  const allTemplates = [...DEFAULT_TEMPLATES, ...customTemplates]
-    .filter(template => availableTypes.includes(template.type));
-  
+  const allTemplates = [...DEFAULT_TEMPLATES, ...customTemplates].filter(template =>
+    availableTypes.includes(template.type)
+  );
+
   // 모달 열기
   const showModal = () => {
     setModalVisible(true);
@@ -153,12 +206,12 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({
       });
     }
   };
-  
+
   // 모달 닫기
   const handleCancel = () => {
     setModalVisible(false);
   };
-  
+
   // 템플릿 변경 처리
   const handleTemplateChange = (templateId: string) => {
     setSelectedTemplate(templateId);
@@ -173,9 +226,9 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({
       });
     }
   };
-  
+
   // 보고서 생성
-  const handleGenerate = async (values: any) => {
+  const handleGenerate = async (values: ReportOptions) => {
     setLoading(true);
     try {
       const template = allTemplates.find(t => t.id === values.templateId);
@@ -184,24 +237,24 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({
         setLoading(false);
         return;
       }
-      
+
       // 템플릿에 따라 데이터 필터링 및 처리
-      let processedData = processDataForTemplate(data, template, values);
-      
+      const processedData = processDataForTemplate(data, template, values);
+
       // 파일명 생성
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);
       const filename = `${filenamePrefix}_${template.type}_${timestamp}`;
-      
+
       // 데이터 내보내기
       exportData(processedData, filename, values.format || 'pdf');
-      
+
       message.success(`${template.name} 보고서가 성공적으로 생성되었습니다.`);
-      
+
       // 콜백 함수 호출
       if (onReportGenerated) {
         onReportGenerated(filename, values.format || 'pdf');
       }
-      
+
       setModalVisible(false);
     } catch (error) {
       console.error('보고서 생성 중 오류 발생:', error);
@@ -210,15 +263,15 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({
       setLoading(false);
     }
   };
-  
+
   // 템플릿에 따른 데이터 처리
   const processDataForTemplate = (
-    rawData: any[], 
-    template: ReportTemplate, 
-    options: any
-  ): any[] => {
+    rawData: DataItem[],
+    template: ReportTemplate,
+    options: ReportOptions
+  ): DataItem[] => {
     // 템플릿 필드에 따라 데이터 필터링
-    let processedData = rawData.map(item => {
+    const processedData = rawData.map(item => {
       const filteredItem: Record<string, any> = {};
       template.fields.forEach(field => {
         if (item[field] !== undefined) {
@@ -227,82 +280,99 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({
       });
       return filteredItem;
     });
-    
+
     // 그룹화 처리
     if (template.groupBy && template.groupBy.length > 0) {
       // 그룹화 로직 구현
       // 간단한 예시로 첫 번째 그룹화 필드를 기준으로 정렬만 수행
       processedData.sort((a, b) => {
         const fieldName = template.groupBy![0];
-        return a[fieldName] < b[fieldName] ? -1 : a[fieldName] > b[fieldName] ? 1 : 0;
+        const valueA = a[fieldName];
+        const valueB = b[fieldName];
+        
+        if (valueA < valueB) {
+          return -1;
+        }
+        if (valueA > valueB) {
+          return 1;
+        }
+        return 0;
       });
     }
-    
+
     // 정렬 처리
     if (template.sortBy) {
       processedData.sort((a, b) => {
-        return a[template.sortBy!] < b[template.sortBy!] ? -1 : 
-               a[template.sortBy!] > b[template.sortBy!] ? 1 : 0;
+        const valueA = a[template.sortBy!];
+        const valueB = b[template.sortBy!];
+        
+        if (valueA < valueB) {
+          return -1;
+        }
+        if (valueA > valueB) {
+          return 1;
+        }
+        return 0;
       });
     }
-    
+
     return processedData;
   };
-  
+
   // 메뉴 항목 클릭 핸들러
   const handleMenuClick = (e: any) => {
     // 포맷 설정 후 모달 표시
     setExportFormat(e.key as ExportFormat);
     showModal();
   };
-  
+
   // 포맷 변경 핸들러
   const handleFormatChange = (format: ExportFormat) => {
     setExportFormat(format);
     form.setFieldsValue({ format });
   };
-  
+
   // PDF 생성 함수
-  const generatePdf = (template: ReportTemplate, processedData: any[]) => {
+  function createPdf(template: ReportTemplate, processedData: any[], companyLogo?: string) {
     const doc = new jsPDF({
       orientation: template.orientation || 'portrait',
       unit: 'mm',
       format: template.paperSize || 'a4'
     });
-    
+
     // 헤더 추가
     if (template.includeHeader) {
       doc.setFontSize(16);
       doc.text(template.name || '보고서', 14, 15);
-      
+
       // 회사 로고 추가 (있을 경우)
       if (companyLogo || template.logoUrl) {
-        const logoUrl = template.logoUrl || companyLogo;
         // 로고 이미지 처리 - 실제 구현에서는 이미지 로드 후 추가 필요
         // doc.addImage(logoData, 'PNG', 150, 10, 30, 15);
       }
-      
+
       doc.setFontSize(10);
       doc.text(`생성일: ${new Date().toLocaleDateString('ko-KR')}`, 14, 25);
       if (template.headerText) {
         doc.text(template.headerText, 14, 30);
       }
-      
+
       doc.line(10, 35, doc.internal.pageSize.width - 10, 35);
     }
-    
+
     // 테이블 헤더 생성
     const headers = template.fields.map(field => {
       // 필드명을 사용자 친화적으로 변환 (예: camelCase -> 공백으로 분리된 단어)
-      return field.replace(/([A-Z])/g, ' $1')
+      return field
+        .replace(/([A-Z])/g, ' $1')
         .replace(/^./, str => str.toUpperCase())
         .trim();
     });
-    
-    const rows = processedData.map(item => 
+
+    const rows = processedData.map(item =>
       template.fields.map(field => item[field]?.toString() || '')
     );
-    
+
     // 테이블 추가
     (doc as any).autoTable({
       head: [headers],
@@ -310,23 +380,19 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({
       startY: template.includeHeader ? 40 : 10,
       headStyles: { fillColor: [41, 128, 185], textColor: [255, 255, 255] },
       styles: { font: 'helvetica', fontSize: 8, cellPadding: 3 },
-      didDrawPage: (data: any) => {
+      didDrawPage: (data) => {
         // 페이지가 그려질 때마다 푸터 추가
         if (template.includeFooter) {
           doc.setFontSize(8);
-          const pageSize = doc.internal.pageSize;
-          const pageHeight = pageSize.height ? pageSize.height : pageSize.getHeight();
-          
+          const { pageSize } = doc.internal;
+          const pageHeight = pageSize.height || pageSize.getHeight();
+
           // 푸터 라인
           doc.line(10, pageHeight - 20, doc.internal.pageSize.width - 10, pageHeight - 20);
-          
+
           // 푸터 텍스트
-          doc.text(
-            template.footerText || '자동 생성된 보고서',
-            14,
-            pageHeight - 15
-          );
-          
+          doc.text(template.footerText || '자동 생성된 보고서', 14, pageHeight - 15);
+
           // 페이지 번호
           doc.text(
             `페이지 ${data.pageNumber} / ${data.pageCount}`,
@@ -336,65 +402,62 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({
         }
       }
     });
-    
+
     return doc;
-  };
-  
+  }
+
   // 엑셀 생성 함수
-  const generateExcel = (template: ReportTemplate, processedData: any[]) => {
+  function createExcel(template: ReportTemplate, processedData: any[]) {
     const workbook = XLSX.utils.book_new();
-    
+
     // 데이터를 시트에 변환
     const worksheet = XLSX.utils.json_to_sheet(processedData);
-    
+
     // 열 너비 설정
     const colWidths = template.fields.map(field => ({ wch: Math.max(field.length * 1.5, 10) }));
     worksheet['!cols'] = colWidths;
-    
+
     // 헤더 스타일링을 위한 사용자 정의 처리 (XLSX에서는 직접적인 스타일링이 제한적임)
     // 실제 구현에서는 exceljs와 같은 더 강력한 라이브러리 사용 권장
-    
+
     // 워크시트 추가
     XLSX.utils.book_append_sheet(workbook, worksheet, template.name || '보고서');
-    
+
     return workbook;
-  };
-  
+  }
+
   // CSV 생성 함수
-  const generateCsv = (processedData: any[]) => {
-    if (processedData.length === 0) return '';
-    
+  function createCsv(processedData: any[]) {
+    if (processedData.length === 0) {
+      return '';
+    }
+
     // 헤더 추출
     const headers = Object.keys(processedData[0]);
-    
+
     // 헤더 행 생성 (따옴표로 감싸기)
-    const headerRow = headers.map(header => 
-      `"${header.replace(/"/g, '""')}"`
-    ).join(',');
-    
+    const headerRow = headers.map(header => `"${header.replace(/"/g, '""')}"`).join(',');
+
     // 데이터 행 생성
     const rows = processedData.map(item => {
-      return headers.map(header => {
-        const cell = item[header] === null || item[header] === undefined ? '' : item[header];
-        
-        // 문자열 값이면 따옴표로 감싸고 내부 따옴표는 이스케이프
-        if (typeof cell === 'string') {
-          return `"${cell.replace(/"/g, '""')}"`;
-        }
-        // 숫자, 불리언 등은 그대로 출력
-        return cell;
-      }).join(',');
+      return headers
+        .map(header => {
+          const cell = item[header] ?? '';
+
+          // 문자열 값이면 따옴표로 감싸고 내부 따옴표는 이스케이프
+          if (typeof cell === 'string') {
+            return `"${cell.replace(/"/g, '""')}"`;
+          }
+          // 숫자, 불리언 등은 그대로 출력
+          return cell;
+        })
+        .join(',');
     });
-    
+
     // 최종 CSV 문자열 반환 (헤더 + 데이터 행)
     return [headerRow, ...rows].join('\n');
-  };
-  
-  // 보고서 생성 완료 후 다운로드 처리
-  // const downloadReport = (template: ReportTemplate, processedData: any[], format: ExportFormat, filename: string) => {
-  //   exportData(processedData, filename, format);
-  // };
-  
+  }
+
   // 보고서 형식에 따른 드롭다운 메뉴
   const menu = (
     <Menu onClick={handleMenuClick}>
@@ -409,20 +472,20 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({
       </Menu.Item>
     </Menu>
   );
-  
+
   return (
     <>
       <Dropdown overlay={menu} disabled={disabled}>
-        <Button 
-          type="primary" 
-          icon={<DownloadOutlined />} 
+        <Button
+          type="primary"
+          icon={<DownloadOutlined />}
           style={{ ...buttonStyle }}
           disabled={disabled}
         >
           {buttonText} <DownOutlined />
         </Button>
       </Dropdown>
-      
+
       <Modal
         title="보고서 생성"
         visible={modalVisible}
@@ -432,12 +495,7 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({
           <Button key="back" onClick={handleCancel}>
             취소
           </Button>,
-          <Button 
-            key="submit" 
-            type="primary" 
-            loading={loading}
-            onClick={() => form.submit()}
-          >
+          <Button key="submit" type="primary" loading={loading} onClick={() => form.submit()}>
             생성
           </Button>
         ]}
@@ -495,7 +553,7 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({
                     </Form.Item>
                   </Col>
                 </Row>
-                
+
                 {/* PDF 옵션 (PDF 형식 선택 시에만 표시) */}
                 {exportFormat === 'pdf' && (
                   <Row gutter={24}>
@@ -518,7 +576,7 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({
                     </Col>
                   </Row>
                 )}
-                
+
                 {/* 템플릿 설명 표시 */}
                 {selectedTemplate && (
                   <div style={{ marginBottom: 20 }}>
@@ -529,7 +587,7 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({
                   </div>
                 )}
               </TabPane>
-              
+
               <TabPane tab="추가 옵션" key="advanced">
                 <Row gutter={24}>
                   <Col span={8}>
@@ -548,16 +606,16 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({
                     </Form.Item>
                   </Col>
                 </Row>
-                
+
                 <Form.Item name="headerText" label="헤더 텍스트">
                   <Input placeholder="보고서 헤더에 표시할 텍스트" />
                 </Form.Item>
-                
+
                 <Form.Item name="footerText" label="푸터 텍스트">
                   <Input placeholder="보고서 푸터에 표시할 텍스트" />
                 </Form.Item>
               </TabPane>
-              
+
               <TabPane tab="배포 옵션" key="distribution">
                 <Row gutter={24}>
                   <Col span={12}>
@@ -571,27 +629,29 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({
                     </Form.Item>
                   </Col>
                 </Row>
-                
-                <Form.Item 
-                  name="emailList" 
+
+                <Form.Item
+                  name="emailList"
                   label="수신자 이메일"
                   rules={[
-                    { 
-                      type: 'array', 
+                    {
+                      type: 'array',
                       validator: (_, value) => {
-                        if (!value) return Promise.resolve();
+                        if (!value) {
+                          return Promise.resolve();
+                        }
                         const emails = value.split(',').map((e: string) => e.trim());
                         const invalidEmails = emails.filter((e: string) => !/.+@.+\..+/.test(e));
-                        return invalidEmails.length === 0 
-                          ? Promise.resolve() 
-                          : Promise.reject('잘못된 이메일 형식이 있습니다');
+                        return invalidEmails.length === 0
+                          ? Promise.resolve()
+                          : Promise.reject(new Error('잘못된 이메일 형식이 있습니다'));
                       }
                     }
                   ]}
                 >
                   <Input placeholder="여러 이메일은 쉼표로 구분 (예: email1@example.com, email2@example.com)" />
                 </Form.Item>
-                
+
                 <Form.Item name="scheduleFrequency" label="보고서 예약 주기">
                   <Select placeholder="보고서 주기 선택">
                     <Option value="daily">매일</Option>
@@ -609,4 +669,4 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({
   );
 };
 
-export default ReportGenerator; 
+export default ReportGenerator;

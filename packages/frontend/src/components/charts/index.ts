@@ -4,4 +4,4 @@ export { default as VehicleTypeChart } from './VehicleTypeChart';
 export { default as MaintenanceStatusChart } from './MaintenanceStatusChart';
 export { default as MaintenanceTrendChart } from './MaintenanceTrendChart';
 export { default as CostDistributionChart } from './CostDistributionChart';
-export { default as UtilizationChart } from './UtilizationChart'; 
+export { default as UtilizationChart } from './UtilizationChart';

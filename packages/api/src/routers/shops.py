@@ -2,227 +2,295 @@
 Shop API router.
 """
 
-from typing import List, Optional, Dict, Any
-from fastapi import APIRouter, Depends, Query, Path, HTTPException, status, File, UploadFile
-from sqlalchemy.orm import Session
+from typing import List, Dict, Any, Optional, Union, Callable, Type, TypeVar, cast
+from functools import wraps
 
-from ..core.dependencies import get_db, get_current_active_user
-from ..models.schemas import (
-    Shop, ShopCreate, ShopUpdate, ShopReview, ShopReviewCreate
+from fastapi import (
+    APIRouter, Depends, Query, Path, status, 
+    File, UploadFile, Response, HTTPException, Form, Body
 )
-from ..modules.shop.service import shop_service
+from sqlalchemy.orm import Session
+from datetime import datetime, timedelta
+import json
 
+from ..core.dependencies import get_db, get_current_active_user, get_service
+from ..models.schemas import (
+    Shop, ShopCreate, ShopUpdate, ShopReview, ShopReviewCreate,
+    ShopImageResponse, ShopImageBatchResponse, APIResponse
+)
+from ..modules.shop.service import ShopService, shop_service
+from ..core.cache import cache
+from ..core.utils import get_etag, check_etag, validate_image_file
+from ..core.constants import CACHE_TTL, FILE_SIZE_LIMITS
+from ..core.logging import logger
+from ..core.error_handler import handle_exception, error_response
+from ..core.response_formatter import api_response
+from ..core.cache_manager import CacheManager, generate_cache_key, invalidate_cache_for
 
-router = APIRouter(prefix="/shops", tags=["shops"])
+from .base_router import BaseRouter
 
+# 상수 정의
+SHOP_ID_DESC = "정비소 ID"
+DEFAULT_CACHE_TTL = CACHE_TTL.get("shop", 60)  # 기본 캐시 만료 시간 (초)
+MAX_IMAGE_SIZE = FILE_SIZE_LIMITS.get("image", 10 * 1024 * 1024)  # 이미지 최대 크기 (10MB)
 
-@router.get("/", response_model=Dict[str, Any])
-async def list_shops(
-    skip: int = Query(0, ge=0, description="건너뛸 레코드 수"),
-    limit: int = Query(100, ge=1, le=1000, description="최대 반환 레코드 수"),
-    search: Optional[str] = Query(None, description="검색어"),
-    latitude: Optional[float] = Query(None, description="위도"),
-    longitude: Optional[float] = Query(None, description="경도"),
-    distance: Optional[float] = Query(None, description="거리(km)"),
-    service_type: Optional[str] = Query(None, description="서비스 유형"),
-    db: Session = Depends(get_db),
-    current_user: Dict[str, Any] = Depends(get_current_active_user)
-):
+# 응답 캐싱 데코레이터
+def cache_response(ttl: int = DEFAULT_CACHE_TTL, add_jitter: bool = True) -> Callable:
     """
-    정비소 목록을 조회합니다.
-    """
-    filters = {}
+    API 응답을 캐싱하는 데코레이터
     
-    if search:
-        filters["search"] = search
-    if service_type:
-        filters["service_type"] = service_type
-    if latitude and longitude and distance:
-        filters["location"] = {
-            "latitude": latitude,
-            "longitude": longitude,
-            "distance": distance
+    Args:
+        ttl: 캐시 만료 시간 (초)
+        add_jitter: 캐시 만료 시간에 지터 추가 여부
+        
+    Returns:
+        Callable: 데코레이터 함수
+    """
+    def decorator(func: Callable) -> Callable:
+        @wraps(func)
+        async def wrapper(response: Response, *args, **kwargs) -> APIResponse:
+            # 캐시 키 생성
+            cache_key = generate_cache_key(
+                prefix="shop", 
+                function=func.__name__, 
+                **{k: v for k, v in kwargs.items() if k not in ["current_user", "_db", "response", "shop_service"]}
+            )
+            
+            # 캐시에서 결과 조회
+            if (cached_result := cache.get(cache_key)):
+                etag = get_etag(cached_result)
+                if check_etag(response, etag):
+                    return Response(status_code=304)  # Not Modified
+                response.headers["ETag"] = etag
+                return cached_result
+            
+            try:
+                # 원래 함수 실행
+                result = await func(response, *args, **kwargs)
+                
+                # 결과 캐싱 (지터 추가 옵션)
+                actual_ttl = ttl
+                if add_jitter:
+                    import random
+                    jitter = random.uniform(0.8, 1.2)  # 20% 범위 내의 지터
+                    actual_ttl = int(ttl * jitter)
+                
+                cache.set(cache_key, result, expire=actual_ttl)
+                
+                # ETag 설정
+                etag = get_etag(result)
+                response.headers["ETag"] = etag
+                
+                return result
+            except Exception as e:
+                return await handle_exception(e, func.__name__)
+                
+        return wrapper
+    return decorator
+
+# 서비스 의존성 함수
+def get_shop_service() -> ShopService:
+    """Shop 서비스 인스턴스를 제공합니다."""
+    return get_service(ShopService)
+
+# BaseRouter 인스턴스 생성
+base_router = BaseRouter(
+    prefix="/shops",
+    tags=["shops"],
+    response_model=Shop,
+    create_model=ShopCreate,
+    update_model=ShopUpdate,
+    service=shop_service,
+    cache_key_prefix="shop",
+    id_field="id"
+)
+
+# 헬퍼 함수
+def _get_nearby_shops_from_cache(cache_key, response):
+    """캐시에서 근처 정비소 정보를 조회"""
+    if (cached_result := cache.get(cache_key)):
+        etag = get_etag(cached_result)
+        if check_etag(response, etag):
+            return Response(status_code=304)  # Not Modified
+        response.headers["ETag"] = etag
+        return cached_result
+    return None
+
+def _format_nearby_shops_result(shops, latitude, longitude, distance):
+    """근처 정비소 결과를 API 응답 형식으로 포맷팅"""
+    return api_response(
+        data=shops,
+        meta={
+            "count": len(shops),
+            "params": {
+                "latitude": latitude,
+                "longitude": longitude, 
+                "distance": distance
+            }
         }
-    
-    result = shop_service.get_shops(
-        skip=skip,
-        limit=limit,
-        filters=filters
     )
+
+def _cache_shops_result(cache_key, result, response):
+    """정비소 결과를 캐시에 저장하고 ETag를 설정"""
+    cache.set(cache_key, result, expire=30)
+    etag = get_etag(result)
+    response.headers["ETag"] = etag
+
+# ─────────────────────────────────────────────────
+# 모듈 레벨 헬퍼 함수들
+
+def _parse_and_validate_metadata(metadata):
+    """
+    메타데이터 문자열을 파싱하고 검증합니다.
     
-    return {
-        "shops": result["shops"],
-        "total": result["total"],
-        "page": skip // limit + 1,
-        "pages": (result["total"] + limit - 1) // limit
-    }
-
-
-@router.get("/{shop_id}", response_model=Shop)
-async def get_shop(
-    shop_id: str = Path(..., description="정비소 ID"),
-    db: Session = Depends(get_db),
-    current_user: Dict[str, Any] = Depends(get_current_active_user)
-):
+    Returns:
+        tuple: (meta_list, error_response) - 오류가 있을 경우 error_response는 APIResponse 객체, 없으면 None
     """
-    특정 정비소의 상세 정보를 조회합니다.
-    """
-    return shop_service.get_shop_by_id(shop_id)
-
-
-@router.post("/", response_model=Shop, status_code=status.HTTP_201_CREATED)
-async def create_shop(
-    shop_data: ShopCreate,
-    db: Session = Depends(get_db),
-    current_user: Dict[str, Any] = Depends(get_current_active_user)
-):
-    """
-    새 정비소를 등록합니다.
-    """
-    return shop_service.create_shop(shop_data)
-
-
-@router.put("/{shop_id}", response_model=Shop)
-async def update_shop(
-    shop_data: ShopUpdate,
-    shop_id: str = Path(..., description="정비소 ID"),
-    db: Session = Depends(get_db),
-    current_user: Dict[str, Any] = Depends(get_current_active_user)
-):
-    """
-    정비소 정보를 업데이트합니다.
-    """
-    return shop_service.update_shop(shop_id, shop_data)
-
-
-@router.delete("/{shop_id}", response_model=bool)
-async def delete_shop(
-    shop_id: str = Path(..., description="정비소 ID"),
-    db: Session = Depends(get_db),
-    current_user: Dict[str, Any] = Depends(get_current_active_user)
-):
-    """
-    정비소를 삭제합니다.
-    """
-    return shop_service.delete_shop(shop_id)
-
-
-@router.get("/{shop_id}/reviews", response_model=Dict[str, Any])
-async def get_shop_reviews(
-    shop_id: str = Path(..., description="정비소 ID"),
-    skip: int = Query(0, ge=0, description="건너뛸 레코드 수"),
-    limit: int = Query(100, ge=1, le=1000, description="최대 반환 레코드 수"),
-    db: Session = Depends(get_db),
-    current_user: Dict[str, Any] = Depends(get_current_active_user)
-):
-    """
-    정비소 리뷰 목록을 조회합니다.
-    """
-    result = shop_service.get_shop_reviews(
-        shop_id,
-        skip=skip,
-        limit=limit
-    )
+    meta_list = []
+    if not metadata:
+        return meta_list, None
     
-    return {
-        "reviews": result["reviews"],
-        "total": result["total"],
-        "page": skip // limit + 1,
-        "pages": (result["total"] + limit - 1) // limit
-    }
+    try:
+        meta_list = json.loads(metadata)
+        if not isinstance(meta_list, list):
+            return [], error_response(
+                message="메타데이터 형식 오류",
+                detail="메타데이터는 JSON 배열 형식이어야 합니다",
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+    except json.JSONDecodeError:
+        return [], error_response(
+            message="메타데이터 파싱 오류",
+            detail="유효한 JSON 형식이 아닙니다",
+            status_code=status.HTTP_400_BAD_REQUEST
+        )
+    
+    return meta_list, None
 
-
-@router.post("/{shop_id}/reviews", response_model=ShopReview, status_code=status.HTTP_201_CREATED)
-async def create_shop_review(
-    review_data: ShopReviewCreate,
-    shop_id: str = Path(..., description="정비소 ID"),
-    db: Session = Depends(get_db),
-    current_user: Dict[str, Any] = Depends(get_current_active_user)
-):
+def _validate_files_and_metadata(files, meta_list):
     """
-    정비소 리뷰를 작성합니다.
+    파일과 메타데이터의 유효성을 검증합니다.
+    
+    Returns:
+        Optional[APIResponse]: 오류가 있을 경우 APIResponse 객체, 없으면 None
     """
-    return shop_service.create_shop_review(shop_id, review_data)
+    # 파일 수와 메타데이터 수 검증
+    if meta_list and len(meta_list) != len(files):
+        return error_response(
+            message="메타데이터 일치 오류",
+            detail="메타데이터 항목 수가 파일 수와 일치하지 않습니다",
+            status_code=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # 파일 수 제한 확인
+    if len(files) > 10:
+        return error_response(
+            message="파일 수 초과",
+            detail="한 번에 최대 10개의 파일만 업로드할 수 있습니다",
+            status_code=status.HTTP_400_BAD_REQUEST
+        )
+    
+    return None
 
+async def _validate_image_files(files):
+    """모든 이미지 파일의 유효성을 검증합니다."""
+    for file in files:
+        await validate_image_file(file, max_size=MAX_IMAGE_SIZE)
 
-@router.get("/nearby", response_model=List[Dict[str, Any]])
+async def _upload_individual_images(shop_service, shop_id, files, meta_list):
+    """
+    개별 이미지들을 업로드하고 결과를 반환합니다.
+    
+    Returns:
+        list: 업로드된 이미지 결과 목록
+    """
+    results = []
+    for i, file in enumerate(files):
+        meta = meta_list[i] if i < len(meta_list) else None
+        
+        # 개별 이미지 업로드
+        result = shop_service.upload_shop_image(
+            shop_id=shop_id,
+            file=file,
+            metadata=meta
+        )
+        
+        results.append({
+            "image": result,
+            "file_info": {
+                "filename": file.filename,
+                "size": file.size
+            }
+        })
+    
+    return results
+
+def _validate_period(period: str, valid_periods: list) -> 'Optional[APIResponse]':
+    if period not in valid_periods:
+        return error_response(
+            message="유효하지 않은 통계 기간입니다",
+            detail=f"{', '.join(valid_periods)} 중 하나여야 합니다",
+            status_code=status.HTTP_400_BAD_REQUEST
+        )
+    return None
+
+# ─────────────────────────────────────────────────
+# 모듈 레벨 라우터와 엔드포인트
+shop_extended_router = APIRouter()
+
+@shop_extended_router.get("/nearby", response_model=APIResponse)
 async def find_nearby_shops(
-    latitude: float = Query(..., description="현재 위치 위도"),
-    longitude: float = Query(..., description="현재 위치 경도"),
-    distance: float = Query(10.0, description="검색 반경(km)"),
+    response: Response,
+    latitude: float = Query(..., description="현재 위치 위도", ge=-90, le=90),
+    longitude: float = Query(..., description="현재 위치 경도", ge=-180, le=180),
+    distance: float = Query(10.0, description="검색 반경(km)", ge=0.1, le=100),
     limit: int = Query(10, ge=1, le=50, description="최대 반환 개수"),
-    db: Session = Depends(get_db),
-    current_user: Dict[str, Any] = Depends(get_current_active_user)
-):
+    shop_service: ShopService = Depends(get_shop_service),
+    _db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_active_user)
+) -> APIResponse:
     """
     근처 정비소를 검색합니다.
     """
-    return shop_service.find_nearby_shops(
-        latitude=latitude,
-        longitude=longitude,
-        distance=distance,
-        limit=limit
-    )
+    try:
+        # 캐싱 키 생성
+        cache_key = f"shop:nearby:{latitude:.6f}:{longitude:.6f}:{distance}:{limit}"
 
+        if cached_result := _get_nearby_shops_from_cache(cache_key, response):
+            return cached_result
 
-@router.post("/{shop_id}/images", response_model=Dict[str, Any])
-async def upload_shop_image(
-    shop_id: str = Path(..., description="정비소 ID"),
-    file: UploadFile = File(..., description="업로드할 이미지"),
-    db: Session = Depends(get_db),
-    current_user: Dict[str, Any] = Depends(get_current_active_user)
-):
-    """
-    정비소 이미지를 업로드합니다.
-    """
-    return shop_service.upload_shop_image(shop_id, file)
+        # 정비소 검색
+        shops = shop_service.find_nearby_shops(
+            latitude=latitude,
+            longitude=longitude,
+            distance=distance,
+            limit=limit
+        )
 
+        # 결과 포맷팅
+        result = _format_nearby_shops_result(shops, latitude, longitude, distance)
 
-@router.delete("/{shop_id}/images/{image_id}", response_model=bool)
-async def delete_shop_image(
-    shop_id: str = Path(..., description="정비소 ID"),
-    image_id: str = Path(..., description="이미지 ID"),
-    db: Session = Depends(get_db),
-    current_user: Dict[str, Any] = Depends(get_current_active_user)
-):
-    """
-    정비소 이미지를 삭제합니다.
-    """
-    return shop_service.delete_shop_image(shop_id, image_id)
+        # 결과 캐싱 및 ETag 설정
+        _cache_shops_result(cache_key, result, response)
 
+        return result
+    except Exception as e:
+        logger.error(f"근처 정비소 검색 중 오류 발생: {str(e)}")
+        return error_response(
+            message="근처 정비소 검색 중 오류가 발생했습니다",
+            detail=str(e),
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
-@router.get("/{shop_id}/services", response_model=List[Dict[str, Any]])
-async def get_shop_services(
-    shop_id: str = Path(..., description="정비소 ID"),
-    db: Session = Depends(get_db),
-    current_user: Dict[str, Any] = Depends(get_current_active_user)
-):
-    """
-    정비소에서 제공하는 서비스 목록을 조회합니다.
-    """
-    return shop_service.get_shop_services(shop_id)
+# 다른 엔드포인트들도 유사한 방식으로 모듈 레벨 함수로 정의하여 shop_extended_router에 추가
 
+# [변경] extend_shop_router 함수 단순화 - 기존 중첩 엔드포인트 제거 및 단일 라우터 포함
 
-@router.get("/{shop_id}/availability", response_model=Dict[str, Any])
-async def check_shop_availability(
-    shop_id: str = Path(..., description="정비소 ID"),
-    service_date: str = Query(..., description="서비스 희망일(YYYY-MM-DD)"),
-    db: Session = Depends(get_db),
-    current_user: Dict[str, Any] = Depends(get_current_active_user)
-):
-    """
-    정비소의 특정 날짜 예약 가능 여부를 확인합니다.
-    """
-    return shop_service.check_shop_availability(shop_id, service_date)
+def extend_shop_router(router: APIRouter) -> None:
+    router.include_router(shop_extended_router)
 
+# 확장 함수 등록
+base_router.extend_router(extend_shop_router)
 
-@router.get("/statistics", response_model=Dict[str, Any])
-async def get_shop_statistics(
-    period: str = Query("month", description="통계 기간(week, month, year)"),
-    db: Session = Depends(get_db),
-    current_user: Dict[str, Any] = Depends(get_current_active_user)
-):
-    """
-    정비소 통계 정보를 조회합니다.
-    """
-    return shop_service.get_shop_statistics(period) 
+# 라우터 객체 가져오기
+router = base_router.get_router()

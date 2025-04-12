@@ -51,12 +51,34 @@ const UtilizationChart: React.FC<UtilizationChartProps> = ({
   const getChangeIcon = () => {
     if (!data.change) return null;
     return data.change > 0 ? (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+      <svg
+        className="w-4 h-4"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M5 10l7-7m0 0l7 7m-7-7v18"
+        />
       </svg>
     ) : data.change < 0 ? (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+      <svg
+        className="w-4 h-4"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M19 14l-7 7m0 0l-7-7m7 7V3"
+        />
       </svg>
     ) : null;
   };
@@ -67,19 +89,12 @@ const UtilizationChart: React.FC<UtilizationChartProps> = ({
   return (
     <div className="bg-white rounded-lg shadow p-4 h-full">
       <h3 className="text-lg font-medium text-gray-800 mb-4">{title}</h3>
-      
+
       <div className="mt-8">
         <div className="flex justify-center items-center mb-4">
           <div className="w-36 h-36 relative">
             <svg viewBox="0 0 100 100" className="w-full h-full">
-              <circle
-                cx="50"
-                cy="50"
-                r="45"
-                fill="none"
-                stroke="#F3F4F6"
-                strokeWidth="10"
-              />
+              <circle cx="50" cy="50" r="45" fill="none" stroke="#F3F4F6" strokeWidth="10" />
               <circle
                 cx="50"
                 cy="50"
@@ -106,20 +121,21 @@ const UtilizationChart: React.FC<UtilizationChartProps> = ({
               <div className={`flex items-center ${getChangeColor()}`}>
                 {getChangeIcon()}
                 <span className="ml-1">
-                  {data.change > 0 ? '+' : ''}{data.change}%
+                  {data.change > 0 ? '+' : ''}
+                  {data.change}%
                 </span>
               </div>
             )}
           </div>
         )}
       </div>
-      
+
       <div className="mt-6">
         <div className="flex justify-between items-center">
           <div className="w-full bg-gray-200 rounded-full h-2.5">
-            <div 
-              className="h-2.5 rounded-full" 
-              style={{ 
+            <div
+              className="h-2.5 rounded-full"
+              style={{
                 width: `${Math.min(100, data.value)}%`,
                 backgroundColor: gaugeColor
               }}
@@ -130,7 +146,10 @@ const UtilizationChart: React.FC<UtilizationChartProps> = ({
         {data.change !== undefined && (
           <p className={`text-sm ${getChangeColor()} mt-2 flex items-center`}>
             {getChangeIcon()}
-            <span className="ml-1">전월 대비 {data.change > 0 ? '+' : ''}{data.change}%</span>
+            <span className="ml-1">
+              전월 대비 {data.change > 0 ? '+' : ''}
+              {data.change}%
+            </span>
           </p>
         )}
       </div>
@@ -138,4 +157,4 @@ const UtilizationChart: React.FC<UtilizationChartProps> = ({
   );
 };
 
-export default UtilizationChart; 
+export default UtilizationChart;

@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
-import { ReportType } from '../../services/reportService';
-import { DashboardChartData } from '../../services/DashboardDataService';
+
+import { Empty, message } from 'antd';
 import {
   LineChart,
   Line,
@@ -25,7 +25,9 @@ import {
   ScatterChart,
   Scatter
 } from 'recharts';
-import { Empty, message } from 'antd';
+
+import { DashboardChartData } from '../../services/DashboardDataService';
+import { ReportType } from '../../services/reportService';
 
 // 차트 색상
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
@@ -38,14 +40,13 @@ interface DashboardChartProps {
   onChartElementClick?: (element: any) => void;
 }
 
-const DashboardChart: React.FC<DashboardChartProps> = ({ 
-  data, 
-  type, 
+const DashboardChart: React.FC<DashboardChartProps> = ({
+  data,
+  type,
   chartType = 'bar',
   animated = true,
   onChartElementClick
 }) => {
-  // eslint-disable-next-line react-hooks/rules-of-hooks
   const { chartData, xAxisKey, series, hasData } = useMemo(() => {
     try {
       if (!data) {
@@ -53,26 +54,30 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
       }
 
       // 데이터 배열 가져오기 (data.data 또는 data.datasets의 첫번째 항목의 data)
-      const chartData = data.data || (data.datasets && data.datasets[0]?.data ? 
-        data.datasets[0].data.map((value, i) => ({
-          name: data.labels?.[i] || `항목 ${i+1}`,
-          value
-        })) : []);
+      const chartData =
+        data.data ||
+        (data.datasets && data.datasets[0]?.data
+          ? data.datasets[0].data.map((value, i) => ({
+              name: data.labels?.[i] || `항목 ${i + 1}`,
+              value
+            }))
+          : []);
 
       // x축 키 값 (호환성 유지)
       const xAxisKey = data.xAxisKey || data.xKey || 'name';
-      
-      // series 또는 datasets에서 시리즈 정보 추출
-      const series = data.series || (data.datasets?.map(ds => ({
-        dataKey: 'value',
-        name: ds.label || '값'
-      })) || [{ dataKey: 'value', name: '값' }]);
 
-      return { 
-        hasData: chartData && chartData.length > 0, 
-        chartData, 
-        xAxisKey, 
-        series 
+      // series 또는 datasets에서 시리즈 정보 추출
+      const series = data.series ||
+        data.datasets?.map(ds => ({
+          dataKey: 'value',
+          name: ds.label || '값'
+        })) || [{ dataKey: 'value', name: '값' }];
+
+      return {
+        hasData: chartData && chartData.length > 0,
+        chartData,
+        xAxisKey,
+        series
       };
     } catch (error) {
       console.error('차트 데이터 처리 중 오류 발생:', error);
@@ -80,6 +85,9 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
       return { hasData: false, chartData: [], xAxisKey: 'name', series: [] };
     }
   }, [data]);
+
+  // 차트 고유 ID (여러 차트가 동시에 렌더링될 때 ID 충돌 방지)
+  const chartId = useMemo(() => `chart-${Math.random().toString(36).substr(2, 9)}`, []);
 
   // 데이터가 없는 경우
   if (!hasData) {
@@ -101,42 +109,29 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
     return 15;
   };
 
-  // 차트 고유 ID (여러 차트가 동시에 렌더링될 때 ID 충돌 방지)
-  const chartId = useMemo(() => `chart-${Math.random().toString(36).substr(2, 9)}`, []);
-
   // 오류 발생 시 처리할 에러 핸들러
   const handleChartError = (err: Error) => {
     console.error('차트 렌더링 중 오류 발생:', err);
     message.error('차트를 표시하는 중 오류가 발생했습니다.');
   };
-  
+
   try {
     // 차트 타입별 렌더링
     switch (chartType) {
       case 'line':
         return (
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart
-              data={chartData}
-              margin={{ top: 5, right: 30, left: 20, bottom: 25 }}
-            >
+            <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 25 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis 
-                dataKey={xAxisKey} 
+              <XAxis
+                dataKey={xAxisKey}
                 tick={{ fontSize: 12 }}
                 angle={-45}
                 textAnchor="end"
                 height={60}
               />
-              <YAxis 
-                tick={{ fontSize: 12 }}
-                width={70}
-                tickFormatter={data.yAxisFormat}
-              />
-              <Tooltip 
-                formatter={data.tooltipFormat}
-                labelFormatter={data.tooltipLabelFormat}
-              />
+              <YAxis tick={{ fontSize: 12 }} width={70} tickFormatter={data.yAxisFormat} />
+              <Tooltip formatter={data.tooltipFormat} labelFormatter={data.tooltipLabelFormat} />
               <Legend verticalAlign="top" height={36} />
               {series.map((serie, index) => (
                 <Line
@@ -165,22 +160,15 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
               barSize={getBarSize()}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis 
-                dataKey={xAxisKey} 
+              <XAxis
+                dataKey={xAxisKey}
                 tick={{ fontSize: 12 }}
                 angle={-45}
                 textAnchor="end"
                 height={60}
               />
-              <YAxis 
-                tick={{ fontSize: 12 }}
-                width={70}
-                tickFormatter={data.yAxisFormat}
-              />
-              <Tooltip 
-                formatter={data.tooltipFormat}
-                labelFormatter={data.tooltipLabelFormat}
-              />
+              <YAxis tick={{ fontSize: 12 }} width={70} tickFormatter={data.yAxisFormat} />
+              <Tooltip formatter={data.tooltipFormat} labelFormatter={data.tooltipLabelFormat} />
               <Legend verticalAlign="top" height={36} />
               {series.map((serie, index) => (
                 <Bar
@@ -199,13 +187,8 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
       case 'pie':
         return (
           <ResponsiveContainer width="100%" height="100%">
-            <PieChart
-              margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-            >
-              <Tooltip 
-                formatter={data.tooltipFormat}
-                labelFormatter={data.tooltipLabelFormat}
-              />
+            <PieChart margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+              <Tooltip formatter={data.tooltipFormat} labelFormatter={data.tooltipLabelFormat} />
               <Legend verticalAlign="top" height={36} />
               <Pie
                 data={chartData}
@@ -215,20 +198,22 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
                 cy="50%"
                 outerRadius={80}
                 innerRadius={type === ReportType.MAINTENANCE_SUMMARY ? 40 : 0}
-                label={data.labelFormat ? 
-                  (entry) => (typeof data.labelFormat === 'function' ? 
-                    data.labelFormat(entry.value, entry.name, entry) : 
-                    `${entry.name}: ${entry.value}`) : 
-                  true
+                label={
+                  data.labelFormat
+                    ? entry =>
+                        typeof data.labelFormat === 'function'
+                          ? data.labelFormat(entry.value, entry.name, entry)
+                          : `${entry.name}: ${entry.value}`
+                    : true
                 }
                 labelLine={true}
                 {...animationConfig}
                 animationDuration={animationDuration}
               >
                 {chartData.map((entry, index) => (
-                  <Cell 
-                    key={`cell-${index}-${entry.name}`} 
-                    fill={data.colors?.[index] || COLORS[index % COLORS.length]} 
+                  <Cell
+                    key={`cell-${index}-${entry.name}`}
+                    fill={data.colors?.[index] || COLORS[index % COLORS.length]}
                   />
                 ))}
               </Pie>
@@ -239,39 +224,40 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
       case 'area':
         return (
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart
-              data={chartData}
-              margin={{ top: 5, right: 30, left: 20, bottom: 25 }}
-            >
+            <AreaChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 25 }}>
               <defs>
                 {series.map((serie, index) => (
-                  <linearGradient 
-                    key={`color-${chartId}-${index}`} 
-                    id={`color-${chartId}-${index}`} 
-                    x1="0" y1="0" x2="0" y2="1"
+                  <linearGradient
+                    key={`color-${chartId}-${index}`}
+                    id={`color-${chartId}-${index}`}
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="1"
                   >
-                    <stop offset="5%" stopColor={data.colors?.[index] || COLORS[index % COLORS.length]} stopOpacity={0.8}/>
-                    <stop offset="95%" stopColor={data.colors?.[index] || COLORS[index % COLORS.length]} stopOpacity={0.1}/>
+                    <stop
+                      offset="5%"
+                      stopColor={data.colors?.[index] || COLORS[index % COLORS.length]}
+                      stopOpacity={0.8}
+                    />
+                    <stop
+                      offset="95%"
+                      stopColor={data.colors?.[index] || COLORS[index % COLORS.length]}
+                      stopOpacity={0.1}
+                    />
                   </linearGradient>
                 ))}
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis 
-                dataKey={xAxisKey} 
+              <XAxis
+                dataKey={xAxisKey}
                 tick={{ fontSize: 12 }}
                 angle={-45}
                 textAnchor="end"
                 height={60}
               />
-              <YAxis 
-                tick={{ fontSize: 12 }}
-                width={70}
-                tickFormatter={data.yAxisFormat}
-              />
-              <Tooltip 
-                formatter={data.tooltipFormat}
-                labelFormatter={data.tooltipLabelFormat}
-              />
+              <YAxis tick={{ fontSize: 12 }} width={70} tickFormatter={data.yAxisFormat} />
+              <Tooltip formatter={data.tooltipFormat} labelFormatter={data.tooltipLabelFormat} />
               <Legend verticalAlign="top" height={36} />
               {series.map((serie, index) => (
                 <Area
@@ -293,10 +279,10 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
       case 'radar':
         return (
           <ResponsiveContainer width="100%" height="100%">
-            <RadarChart 
-              cx="50%" 
-              cy="50%" 
-              outerRadius="80%" 
+            <RadarChart
+              cx="50%"
+              cy="50%"
+              outerRadius="80%"
               data={chartData}
               margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
             >
@@ -316,10 +302,7 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
                 />
               ))}
               <Legend verticalAlign="top" height={36} />
-              <Tooltip 
-                formatter={data.tooltipFormat}
-                labelFormatter={data.tooltipLabelFormat}
-              />
+              <Tooltip formatter={data.tooltipFormat} labelFormatter={data.tooltipLabelFormat} />
             </RadarChart>
           </ResponsiveContainer>
         );
@@ -332,10 +315,14 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
               <XAxis dataKey="x" tick={{ fontSize: 12 }} />
               <YAxis dataKey="y" tick={{ fontSize: 12 }} />
               <Tooltip />
-              <Scatter 
-                data={chartData} 
-                fill="#8884d8" 
-                onClick={(entry) => { if(onChartElementClick) { onChartElementClick(entry) } }}
+              <Scatter
+                data={chartData}
+                fill="#8884d8"
+                onClick={entry => {
+                  if (onChartElementClick) {
+                    onChartElementClick(entry);
+                  }
+                }}
               />
             </ScatterChart>
           </ResponsiveContainer>
@@ -346,7 +333,18 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
           <ResponsiveContainer width="100%" height="100%">
             <div style={{ display: 'flex', flexWrap: 'wrap' }}>
               {chartData.map((item, index) => (
-                <div key={`heatmap-${index}`} style={{ width: '20%', height: 50, backgroundColor: item.value > 50 ? '#ff0000' : '#00ff00', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #fff' }}>
+                <div
+                  key={`heatmap-${index}`}
+                  style={{
+                    width: '20%',
+                    height: 50,
+                    backgroundColor: item.value > 50 ? '#ff0000' : '#00ff00',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: '1px solid #fff'
+                  }}
+                >
                   {item.value}
                 </div>
               ))}
@@ -364,19 +362,9 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
               barSize={getBarSize()}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis 
-                dataKey={xAxisKey} 
-                tick={{ fontSize: 12 }}
-              />
-              <YAxis 
-                tick={{ fontSize: 12 }}
-                width={50}
-                tickFormatter={data.yAxisFormat}
-              />
-              <Tooltip 
-                formatter={data.tooltipFormat}
-                labelFormatter={data.tooltipLabelFormat}
-              />
+              <XAxis dataKey={xAxisKey} tick={{ fontSize: 12 }} />
+              <YAxis tick={{ fontSize: 12 }} width={50} tickFormatter={data.yAxisFormat} />
+              <Tooltip formatter={data.tooltipFormat} labelFormatter={data.tooltipLabelFormat} />
               <Legend verticalAlign="top" height={36} />
               {series.map((serie, index) => (
                 <Bar
@@ -398,4 +386,4 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
   }
 };
 
-export default DashboardChart; 
+export default DashboardChart;

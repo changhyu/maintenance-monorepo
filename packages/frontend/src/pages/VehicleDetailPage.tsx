@@ -1,12 +1,14 @@
 import React from 'react';
-import MileageAlertSettings from '../components/vehicle/MileageAlertSettings';
-import { MileageUnit } from '../services/mileageAlertService';
+
 import { Tabs } from 'antd';
-import { useApi } from '../context/ApiContext';
 import { useParams } from 'react-router-dom';
 
+import MileageAlertSettings from '../components/vehicle/MileageAlertSettings';
+import { useApi } from '../context/ApiContext';
+import { MileageUnit } from '../services/mileageAlertService';
+
 const VehicleDetailPage: React.FC = () => {
-  const { vehicleId = "vehicle-123" } = useParams<{ vehicleId: string }>();
+  const { vehicleId = 'vehicle-123' } = useParams<{ vehicleId: string }>();
   const vehicleData = { mileage: 12345, mileageUnit: MileageUnit.KILOMETERS };
   const { apiClient } = useApi();
 
@@ -17,10 +19,12 @@ const VehicleDetailPage: React.FC = () => {
         <Tabs.TabPane tab="개요" key="overview">
           {/* 차량 개요 내용 */}
           <p>차량 ID: {vehicleId}</p>
-          <p>주행 거리: {vehicleData.mileage} {vehicleData.mileageUnit}</p>
+          <p>
+            주행 거리: {vehicleData.mileage} {vehicleData.mileageUnit}
+          </p>
         </Tabs.TabPane>
         <Tabs.TabPane tab="주행거리 알림" key="mileage-alerts">
-          <MileageAlertSettings 
+          <MileageAlertSettings
             apiClient={apiClient}
             vehicleId={vehicleId}
             currentMileage={vehicleData?.mileage}
@@ -33,4 +37,4 @@ const VehicleDetailPage: React.FC = () => {
   );
 };
 
-export default VehicleDetailPage; 
+export default VehicleDetailPage;

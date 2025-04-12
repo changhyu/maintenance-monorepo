@@ -45,4 +45,4 @@ export enum RepairServiceType {
   EXHAUST = '배기 시스템',
   DIAGNOSTICS = '차량 진단',
   GENERAL_MAINTENANCE = '일반 정비'
-} 
+}

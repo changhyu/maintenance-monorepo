@@ -27,7 +27,7 @@ export class ApiClient {
 
     // 요청 인터셉터 설정
     this.instance.interceptors.request.use(
-      (config) => {
+      config => {
         // 토큰 추가 또는 기타 요청 변환
         const token = localStorage.getItem('authToken');
         if (token && config.headers) {
@@ -35,13 +35,13 @@ export class ApiClient {
         }
         return config;
       },
-      (error) => Promise.reject(error)
+      error => Promise.reject(error)
     );
 
     // 응답 인터셉터 설정
     this.instance.interceptors.response.use(
-      (response) => response,
-      (error) => {
+      response => response,
+      error => {
         // 에러 처리 로직 (예: 401 응답 시 로그아웃)
         if (error.response && error.response.status === 401) {
           // 인증 토큰 만료 처리
@@ -70,7 +70,11 @@ export class ApiClient {
    * @param config 요청 설정
    * @returns Promise<AxiosResponse>
    */
-  public async post<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> {
+  public async post<T = any>(
+    url: string,
+    data?: any,
+    config?: AxiosRequestConfig
+  ): Promise<AxiosResponse<T>> {
     return this.instance.post<T>(url, data, config);
   }
 
@@ -81,7 +85,11 @@ export class ApiClient {
    * @param config 요청 설정
    * @returns Promise<AxiosResponse>
    */
-  public async put<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> {
+  public async put<T = any>(
+    url: string,
+    data?: any,
+    config?: AxiosRequestConfig
+  ): Promise<AxiosResponse<T>> {
     return this.instance.put<T>(url, data, config);
   }
 
@@ -91,7 +99,10 @@ export class ApiClient {
    * @param config 요청 설정
    * @returns Promise<AxiosResponse>
    */
-  public async delete<T = any>(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> {
+  public async delete<T = any>(
+    url: string,
+    config?: AxiosRequestConfig
+  ): Promise<AxiosResponse<T>> {
     return this.instance.delete<T>(url, config);
   }
 
@@ -102,7 +113,11 @@ export class ApiClient {
    * @param config 요청 설정
    * @returns Promise<AxiosResponse>
    */
-  public async patch<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> {
+  public async patch<T = any>(
+    url: string,
+    data?: any,
+    config?: AxiosRequestConfig
+  ): Promise<AxiosResponse<T>> {
     return this.instance.patch<T>(url, data, config);
   }
 
@@ -113,10 +128,14 @@ export class ApiClient {
    * @param config 요청 설정
    * @returns Promise<AxiosResponse>
    */
-  public async upload<T = any>(url: string, formData: FormData, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> {
+  public async upload<T = any>(
+    url: string,
+    formData: FormData,
+    config?: AxiosRequestConfig
+  ): Promise<AxiosResponse<T>> {
     return this.instance.post<T>(url, formData, {
       headers: {
-        'Content-Type': 'multipart/form-data',
+        'Content-Type': 'multipart/form-data'
       },
       ...config
     });
@@ -145,4 +164,4 @@ export class ApiClient {
 // 기본 API 클라이언트 인스턴스 생성
 const defaultApiClient = new ApiClient();
 
-export default defaultApiClient; 
+export default defaultApiClient;

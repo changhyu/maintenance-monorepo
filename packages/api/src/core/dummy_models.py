@@ -7,6 +7,7 @@
 from datetime import datetime
 
 
+
 class DummyShop:
     """더미 Shop 모델"""
     id = None
@@ -14,13 +15,13 @@ class DummyShop:
     type = ""
     status = None
     description = ""
-    
+
     class location:
         latitude = 0
         longitude = 0
-    
+
     business_hours = []
-    
+
     def __init__(self):
         self.__dict__ = {
             "id": None,
@@ -38,7 +39,7 @@ class DummyShopService:
     id = None
     shop_id = None
     service_type = ""
-    
+
     def __init__(self, shop_id=None, service_type=None):
         self.shop_id = shop_id
         self.service_type = service_type
@@ -58,7 +59,7 @@ class DummyShopReview:
     title = ""
     content = ""
     created_at = datetime.now()
-    
+
     def __init__(self, shop_id=None, user_id=None, rating=0, title="", content=""):
         self.shop_id = shop_id
         self.user_id = user_id
@@ -84,7 +85,7 @@ class DummyShopImage:
     file_url = ""
     file_type = ""
     is_main = False
-    
+
     def __init__(self, shop_id=None, file_name="", file_url="", file_type="", is_main=False):
         self.shop_id = shop_id
         self.file_name = file_name
@@ -108,7 +109,7 @@ class DummyTechnician:
     name = ""
     specialty = ""
     experience_years = 0
-    
+
     def __init__(self):
         self.__dict__ = {
             "id": None,
@@ -124,7 +125,7 @@ class DummyUser:
     id = None
     name = ""
     email = ""
-    
+
     def __init__(self):
         self.__dict__ = {
             "id": None,
@@ -140,7 +141,7 @@ class DummyVehicle:
     model = ""
     year = 0
     user_id = None
-    
+
     def __init__(self):
         self.__dict__ = {
             "id": None,
@@ -159,7 +160,7 @@ class DummyMaintenance:
     description = ""
     status = ""
     date = datetime.now()
-    
+
     def __init__(self):
         self.__dict__ = {
             "id": None,
@@ -168,4 +169,5 @@ class DummyMaintenance:
             "description": "",
             "status": "",
             "date": datetime.now()
-        } 
+        }
+\n

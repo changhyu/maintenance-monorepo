@@ -106,12 +106,17 @@ export interface MaintenanceFilter {
 /**
  * 정비 기록 생성 인터페이스
  */
-export type MaintenanceRecordCreate = Omit<MaintenanceRecord, 'id' | 'createdAt' | 'updatedAt' | 'vehicle'>;
+export type MaintenanceRecordCreate = Omit<
+  MaintenanceRecord,
+  'id' | 'createdAt' | 'updatedAt' | 'vehicle'
+>;
 
 /**
  * 정비 기록 업데이트 인터페이스
  */
-export type MaintenanceRecordUpdate = Partial<Omit<MaintenanceRecord, 'id' | 'createdAt' | 'updatedAt' | 'vehicle'>>;
+export type MaintenanceRecordUpdate = Partial<
+  Omit<MaintenanceRecord, 'id' | 'createdAt' | 'updatedAt' | 'vehicle'>
+>;
 
 /**
  * 정비 통계 인터페이스
@@ -129,4 +134,4 @@ export interface MaintenanceStats {
     count: number;
     cost: number;
   }>;
-} 
+}

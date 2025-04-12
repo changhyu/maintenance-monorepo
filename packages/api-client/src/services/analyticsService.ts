@@ -7,6 +7,44 @@ export type AnalyticsMetadata = Record<string, unknown>;
 // 분석 필터 타입 정의
 export type AnalyticsFilter = Record<string, unknown>;
 
+// SonarLint S4323 규칙을 위한 타입 별칭
+export type ReportFormat = 'pdf' | 'csv' | 'excel' | 'json';
+export type ReportScheduleFrequency = 'daily' | 'weekly' | 'monthly';
+export type NotificationChannel = 'email' | 'push' | 'inApp';
+export type SeverityLevel = 'LOW' | 'MEDIUM' | 'HIGH';
+export type ExportFormat = 'csv' | 'excel' | 'json';
+export type ReportStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+
+export type ReportSchedule = {
+  frequency: ReportScheduleFrequency;
+  emails: string[];
+  startDate?: string;
+};
+
+export type ReportFilter = {
+  page?: number;
+  limit?: number;
+  status?: string;
+  startDate?: string;
+  endDate?: string;
+};
+
+export type AnalyticsSettings = {
+  defaultTimeFrame: AnalyticsTimeFrame;
+  defaultChartType: AnalyticsChartType;
+  notifications?: {
+    enabled: boolean;
+    events: string[];
+    channels: NotificationChannel[];
+  };
+  autoRefresh?: boolean;
+  customMetrics?: Record<string, {
+    name: string;
+    formula: string;
+    description?: string;
+  }>;
+};
+
 export enum AnalyticsTimeFrame {
   DAY = 'day',
   WEEK = 'week',
@@ -192,10 +230,10 @@ export interface ReportOptions {
     description?: string;
     charts: string[]; // 분석 쿼리 ID 목록
   }>;
-  format?: 'pdf' | 'csv' | 'excel' | 'json';
+  format?: ReportFormat;
   includeRawData?: boolean;
   scheduledDelivery?: {
-    frequency: 'daily' | 'weekly' | 'monthly';
+    frequency: ReportScheduleFrequency;
     emails: string[];
     nextDelivery?: string;
   };
@@ -211,16 +249,22 @@ export interface AnalyticsReport {
   dateRange: AnalyticsDateRange;
   createdBy: string;
   downloadUrl: string;
-  status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+  status: ReportStatus;
   results?: Record<string, AnalyticsResult>;
   options: ReportOptions;
 }
 
+// 추가 타입 별칭 정의
+export type CreateDashboardParams = Omit<AnalyticsDashboard, 'id' | 'dateCreated' | 'lastUpdated'>;
+export type UpdateDashboardParams = Partial<Omit<AnalyticsDashboard, 'id' | 'dateCreated' | 'lastUpdated'>>;
+export type AddWidgetParams = Omit<DashboardWidget, 'id' | 'dateCreated' | 'lastUpdated'>;
+export type UpdateWidgetParams = Partial<Omit<DashboardWidget, 'id' | 'dateCreated' | 'lastUpdated'>>;
+
 export class AnalyticsService {
-  private client: ApiClient;
-  private basePath = '/analytics';
-  private dashboardsPath = '/dashboards';
-  private reportsPath = '/reports';
+  private readonly client: ApiClient;
+  private readonly basePath = '/analytics';
+  private readonly dashboardsPath = '/dashboards';
+  private readonly reportsPath = '/reports';
 
   constructor(apiClient: ApiClient) {
     this.client = apiClient;
@@ -299,7 +343,7 @@ export class AnalyticsService {
       vehicleId: string;
       vehicleName: string;
       issue: string;
-      severity: 'LOW' | 'MEDIUM' | 'HIGH';
+      severity: SeverityLevel;
       recommendation: string;
     }>;
   }> {
@@ -341,12 +385,12 @@ export class AnalyticsService {
   }
 
   // 새 대시보드 생성
-  async createDashboard(dashboard: Omit<AnalyticsDashboard, 'id' | 'dateCreated' | 'lastUpdated'>): Promise<AnalyticsDashboard> {
+  async createDashboard(dashboard: CreateDashboardParams): Promise<AnalyticsDashboard> {
     return this.client.post<AnalyticsDashboard>(this.dashboardsPath, dashboard);
   }
 
   // 대시보드 업데이트
-  async updateDashboard(dashboardId: string, updates: Partial<Omit<AnalyticsDashboard, 'id' | 'dateCreated' | 'lastUpdated'>>): Promise<AnalyticsDashboard> {
+  async updateDashboard(dashboardId: string, updates: UpdateDashboardParams): Promise<AnalyticsDashboard> {
     return this.client.put<AnalyticsDashboard>(`${this.dashboardsPath}/${dashboardId}`, updates);
   }
 
@@ -358,12 +402,12 @@ export class AnalyticsService {
   // 위젯 관련 메서드
   
   // 대시보드에 위젯 추가
-  async addWidgetToDashboard(dashboardId: string, widget: Omit<DashboardWidget, 'id' | 'dateCreated' | 'lastUpdated'>): Promise<DashboardWidget> {
+  async addWidgetToDashboard(dashboardId: string, widget: AddWidgetParams): Promise<DashboardWidget> {
     return this.client.post<DashboardWidget>(`${this.dashboardsPath}/${dashboardId}/widgets`, widget);
   }
 
   // 위젯 업데이트
-  async updateWidget(dashboardId: string, widgetId: string, updates: Partial<Omit<DashboardWidget, 'id' | 'dateCreated' | 'lastUpdated'>>): Promise<DashboardWidget> {
+  async updateWidget(dashboardId: string, widgetId: string, updates: UpdateWidgetParams): Promise<DashboardWidget> {
     return this.client.put<DashboardWidget>(`${this.dashboardsPath}/${dashboardId}/widgets/${widgetId}`, updates);
   }
 
@@ -385,13 +429,7 @@ export class AnalyticsService {
   }
 
   // 리포트 목록 조회
-  async getReports(filter?: {
-    page?: number;
-    limit?: number;
-    status?: string;
-    startDate?: string;
-    endDate?: string;
-  }): Promise<AnalyticsReport[]> {
+  async getReports(filter?: ReportFilter): Promise<AnalyticsReport[]> {
     return this.client.get<AnalyticsReport[]>(this.reportsPath, { params: filter });
   }
 
@@ -401,7 +439,7 @@ export class AnalyticsService {
   }
 
   // 리포트 다운로드
-  async downloadReport(reportId: string, format: 'pdf' | 'csv' | 'excel' | 'json' = 'pdf'): Promise<Blob> {
+  async downloadReport(reportId: string, format: ReportFormat = 'pdf'): Promise<Blob> {
     return this.client.get<Blob>(`${this.reportsPath}/${reportId}/download`, {
       params: { format },
       responseType: 'blob'
@@ -414,37 +452,19 @@ export class AnalyticsService {
   }
 
   // 리포트 예약 설정
-  async scheduleReport(reportId: string, schedule: {
-    frequency: 'daily' | 'weekly' | 'monthly';
-    emails: string[];
-    startDate?: string;
-  }): Promise<AnalyticsReport> {
+  async scheduleReport(reportId: string, schedule: ReportSchedule): Promise<AnalyticsReport> {
     return this.client.post<AnalyticsReport>(`${this.reportsPath}/${reportId}/schedule`, schedule);
   }
 
   // 데이터 내보내기
-  async exportData(query: AnalyticsQuery, format: 'csv' | 'excel' | 'json'): Promise<Blob> {
+  async exportData(query: AnalyticsQuery, format: ExportFormat): Promise<Blob> {
     return this.client.post<Blob>(`${this.basePath}/export`, { query, format }, {
       responseType: 'blob'
     });
   }
 
   // 분석 설정 저장
-  async saveAnalyticsSettings(settings: {
-    defaultTimeFrame: AnalyticsTimeFrame;
-    defaultChartType: AnalyticsChartType;
-    notifications?: {
-      enabled: boolean;
-      events: string[];
-      channels: ('email' | 'push' | 'inApp')[];
-    };
-    autoRefresh?: boolean;
-    customMetrics?: Record<string, {
-      name: string;
-      formula: string;
-      description?: string;
-    }>;
-  }): Promise<void> {
+  async saveAnalyticsSettings(settings: AnalyticsSettings): Promise<void> {
     return this.client.post(`${this.basePath}/settings`, settings);
   }
 
@@ -466,7 +486,7 @@ export class AnalyticsService {
     fleetOptimizations: Array<{
       title: string;
       description: string;
-      impact: 'LOW' | 'MEDIUM' | 'HIGH';
+      impact: SeverityLevel;
       recommendation: string;
     }>;
   }> {

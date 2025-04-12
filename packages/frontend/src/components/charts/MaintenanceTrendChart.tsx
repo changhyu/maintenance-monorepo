@@ -1,4 +1,5 @@
 import React from 'react';
+
 import { Line } from '@ant-design/plots';
 
 interface MaintenanceTrendDataItem {
@@ -18,20 +19,20 @@ const MaintenanceTrendChart: React.FC<MaintenanceTrendChartProps> = ({ data }) =
   // 데이터 가공: 월별 그룹화
   const processData = () => {
     const map = new Map<string, { completed: number; pending: number }>();
-    
+
     data.forEach(item => {
       const date = new Date(item.date);
       const yearMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      
+
       if (!map.has(yearMonth)) {
         map.set(yearMonth, { completed: 0, pending: 0 });
       }
-      
+
       const current = map.get(yearMonth)!;
       current.completed += item.completed;
       current.pending += item.pending;
     });
-    
+
     // 날짜순 정렬
     return Array.from(map.entries())
       .sort((a, b) => a[0].localeCompare(b[0]))
@@ -40,7 +41,7 @@ const MaintenanceTrendChart: React.FC<MaintenanceTrendChartProps> = ({ data }) =
         { month, category: '대기', value: values.pending }
       ]);
   };
-  
+
   const processedData = processData();
 
   const config = {
@@ -49,23 +50,23 @@ const MaintenanceTrendChart: React.FC<MaintenanceTrendChartProps> = ({ data }) =
     yField: 'value',
     seriesField: 'category',
     legend: {
-      position: 'top' as const,
+      position: 'top' as const
     },
     smooth: true,
     animation: {
       appear: {
         animation: 'path-in',
-        duration: 1000,
-      },
+        duration: 1000
+      }
     },
     color: ['#52c41a', '#faad14'],
     point: {
       size: 5,
-      shape: 'diamond',
-    },
+      shape: 'diamond'
+    }
   };
 
   return <Line {...config} />;
 };
 
-export default MaintenanceTrendChart; 
+export default MaintenanceTrendChart;

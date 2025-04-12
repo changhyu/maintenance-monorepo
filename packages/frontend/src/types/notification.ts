@@ -290,4 +290,4 @@ export enum NotificationBatchStatus {
   COMPLETED = 'completed',
   FAILED = 'failed',
   CANCELLED = 'cancelled'
-} 
+}

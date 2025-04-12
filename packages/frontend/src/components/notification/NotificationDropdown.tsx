@@ -1,7 +1,12 @@
 import React, { useEffect, useState, useRef } from 'react';
+
 import { notificationService } from '../../services/notificationService';
 import { Notification, NotificationStatus } from '../../types/notification';
-import { formatNotificationDate, getNotificationIcon, getNotificationColor } from '../../utils/notificationUtils';
+import {
+  formatNotificationDate,
+  getNotificationIcon,
+  getNotificationColor
+} from '../../utils/notificationUtils';
 
 interface NotificationDropdownProps {
   userId: string;
@@ -29,7 +34,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
   useEffect(() => {
     const fetchNotifications = async () => {
       if (!isOpen) return;
-      
+
       try {
         setLoading(true);
         const result = await notificationService.getNotifications({
@@ -47,7 +52,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
     };
 
     fetchNotifications();
-    
+
     // 실시간 알림 업데이트
     const handleNotificationUpdate = (_: any) => {
       fetchNotifications();
@@ -68,7 +73,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
   const handleNotificationClick = async (notification: Notification) => {
     try {
       await notificationService.markAsRead(notification.id);
-      
+
       // 링크가 있는 경우 이동
       if (notification.link) {
         window.location.href = notification.link;
@@ -82,7 +87,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
   const handleMarkAllAsRead = async () => {
     try {
       await notificationService.markAllAsRead(userId);
-      
+
       // 알림 목록 다시 로드
       const result = await notificationService.getNotifications({
         userId,
@@ -107,7 +112,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
     if (isOpen) {
       document.addEventListener('mousedown', handleClickOutside);
     }
-    
+
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
@@ -144,7 +149,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
       ) : (
         <div>
           <ul className="max-h-96 overflow-y-auto">
-            {notifications.map((notification) => (
+            {notifications.map(notification => (
               <li key={notification.id} className="border-b last:border-0">
                 <button
                   className="w-full text-left p-4 hover:bg-gray-50 transition duration-150 flex items-start"
@@ -154,7 +159,9 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
                     className="mr-3 flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center"
                     style={{ backgroundColor: getNotificationColor(notification.type) }}
                   >
-                    <i className={`fas fa-${getNotificationIcon(notification.type)} text-white`}></i>
+                    <i
+                      className={`fas fa-${getNotificationIcon(notification.type)} text-white`}
+                    ></i>
                   </div>
                   <div className="flex-grow min-w-0">
                     <p className="font-medium text-gray-900 truncate">{notification.title}</p>
@@ -184,4 +191,4 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
   );
 };
 
-export default NotificationDropdown; 
+export default NotificationDropdown;

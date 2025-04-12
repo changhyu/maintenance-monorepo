@@ -1,4 +1,5 @@
 import React from 'react';
+
 import { DashboardCardData } from '../services/DashboardDataService';
 
 /**
@@ -21,7 +22,7 @@ export interface ScrDataDashboardProps {
 
 /**
  * 데이터 대시보드 컴포넌트
- * 
+ *
  * 데이터 항목을 그리드 형태로 표시하는 스크롤 가능한 대시보드
  */
 const ScrDataDashboard: React.FC<ScrDataDashboardProps> = ({
@@ -30,13 +31,13 @@ const ScrDataDashboard: React.FC<ScrDataDashboardProps> = ({
   loading = false,
   columns = 2,
   headerContent,
-  className = '',
+  className = ''
 }) => {
   const gridCols = {
     1: 'grid-cols-1',
     2: 'grid-cols-1 md:grid-cols-2',
     3: 'grid-cols-1 md:grid-cols-3',
-    4: 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4',
+    4: 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4'
   };
 
   return (
@@ -74,16 +75,14 @@ const ScrDataDashboard: React.FC<ScrDataDashboardProps> = ({
                       item.change > 0
                         ? 'text-green-500'
                         : item.change < 0
-                        ? 'text-red-500'
-                        : 'text-gray-500'
+                          ? 'text-red-500'
+                          : 'text-gray-500'
                     }`}
                   >
                     {item.change > 0 ? '+' : ''}
                     {item.change}%
                     {item.changeLabel && (
-                      <span className="text-xs text-gray-400 block">
-                        {item.changeLabel}
-                      </span>
+                      <span className="text-xs text-gray-400 block">{item.changeLabel}</span>
                     )}
                   </div>
                 )}
@@ -115,4 +114,4 @@ const getColorValue = (color: string): string => {
   }
 };
 
-export default ScrDataDashboard; 
+export default ScrDataDashboard;

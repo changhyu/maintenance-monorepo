@@ -2,7 +2,7 @@
  * 사용자 관련 타입 정의
  */
 
-// 사용자 역할 
+// 사용자 역할
 export enum UserRole {
   ADMIN = 'admin',
   MANAGER = 'manager',
@@ -135,4 +135,4 @@ export interface JwtPayload {
   iat: number;
   role: UserRole;
   permissions?: string[];
-} 
+}

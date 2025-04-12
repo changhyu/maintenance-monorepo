@@ -1,5 +1,4 @@
-import axios, { AxiosInstance } from 'axios';
-import config from '../config';
+import apiClient from '../api-client';
 import logger from '../utils/logger';
 
 /**
@@ -11,7 +10,7 @@ export const TodoPriority = {
   HIGH: 'high'
 } as const;
 
-export type TodoPriorityType = typeof TodoPriority[keyof typeof TodoPriority];
+export type TodoPriorityType = (typeof TodoPriority)[keyof typeof TodoPriority];
 
 /**
  * Todo 상태 상수
@@ -23,7 +22,7 @@ export const TodoStatus = {
   CANCELLED: 'cancelled'
 } as const;
 
-export type TodoStatusType = typeof TodoStatus[keyof typeof TodoStatus];
+export type TodoStatusType = (typeof TodoStatus)[keyof typeof TodoStatus];
 
 /**
  * Todo 항목 인터페이스
@@ -93,245 +92,264 @@ export interface TodoFilter {
  * API와의 통신을 담당하는 서비스
  */
 export class TodoService {
-  private client: AxiosInstance;
   private basePath = '/todos';
-  
+
   constructor() {
-    this.client = axios.create({
-      baseURL: config.apiUrl,
-      timeout: 10000
-    });
+    // 생성자에서 axios 인스턴스 생성하는 코드 제거
   }
-  
+
   /**
    * Todo 목록 조회
    */
   async getTodos(filter?: TodoFilter): Promise<Todo[]> {
     try {
-      // 실제 API 구현 전 임시 데이터 사용
-      const mockTodos: Todo[] = [
-        {
-          id: '1',
-          title: '엔진 오일 교체',
-          description: '차량 정기 점검 - 엔진 오일 교체 작업',
-          completed: false,
-          status: TodoStatus.PENDING,
-          priority: TodoPriority.HIGH,
-          dueDate: '2023-12-30',
-          createdAt: '2023-12-01T00:00:00.000Z',
-          updatedAt: '2023-12-01T00:00:00.000Z',
-          vehicleId: 'v1',
-          category: '정기 점검'
-        },
-        {
-          id: '2',
-          title: '타이어 공기압 점검',
-          completed: true,
-          status: TodoStatus.COMPLETED,
-          priority: TodoPriority.MEDIUM,
-          createdAt: '2023-11-15T00:00:00.000Z',
-          updatedAt: '2023-11-20T00:00:00.000Z',
-          vehicleId: 'v1',
-          category: '일상 점검'
-        },
-        {
-          id: '3',
-          title: '브레이크 패드 교체',
-          description: '앞바퀴 브레이크 패드 마모로 인한 교체 필요',
-          completed: false,
-          status: TodoStatus.IN_PROGRESS,
-          priority: TodoPriority.HIGH,
-          dueDate: '2023-12-15',
-          createdAt: '2023-12-05T00:00:00.000Z',
-          updatedAt: '2023-12-05T00:00:00.000Z',
-          vehicleId: 'v2',
-          assignedTo: 'user1',
-          category: '부품 교체'
-        },
-        {
-          id: '4',
-          title: '오래된 작업 - 기한 초과',
-          description: '기한이 지난 작업 테스트용',
-          completed: false,
-          status: TodoStatus.PENDING,
-          priority: TodoPriority.MEDIUM,
-          dueDate: '2023-06-15',
-          createdAt: '2023-06-01T00:00:00.000Z',
-          updatedAt: '2023-06-01T00:00:00.000Z',
-          vehicleId: 'v1',
-          category: '테스트'
-        }
-      ];
+      // 쿼리 파라미터 구성
+      const params: Record<string, string> = {};
 
-      // 필터 적용
-      let filteredTodos = [...mockTodos];
-      
       if (filter) {
         if (filter.vehicleId) {
-          filteredTodos = filteredTodos.filter(todo => todo.vehicleId === filter.vehicleId);
+          params.vehicleId = filter.vehicleId;
         }
-        
+
+        if (filter.assignedTo) {
+          params.assignedTo = filter.assignedTo;
+        }
+
         if (filter.completed !== undefined) {
-          filteredTodos = filteredTodos.filter(todo => todo.completed === filter.completed);
+          params.completed = String(filter.completed);
         }
-        
-        if (filter.status !== undefined) {
-          const status = filter.status;
-          if (Array.isArray(status)) {
-            filteredTodos = filteredTodos.filter(todo => status.includes(todo.status));
+
+        if (filter.status) {
+          if (Array.isArray(filter.status)) {
+            params.status = filter.status.join(',');
           } else {
-            filteredTodos = filteredTodos.filter(todo => todo.status === status);
+            params.status = filter.status;
           }
         }
-        
-        if (filter.priority !== undefined) {
-          const priority = filter.priority;
-          if (Array.isArray(priority)) {
-            filteredTodos = filteredTodos.filter(todo => priority.includes(todo.priority));
+
+        if (filter.priority) {
+          if (Array.isArray(filter.priority)) {
+            params.priority = filter.priority.join(',');
           } else {
-            filteredTodos = filteredTodos.filter(todo => todo.priority === priority);
+            params.priority = filter.priority;
           }
         }
-        
+
         if (filter.category) {
-          filteredTodos = filteredTodos.filter(todo => todo.category === filter.category);
+          params.category = filter.category;
         }
-        
+
         if (filter.searchText) {
-          const searchText = filter.searchText.toLowerCase();
-          filteredTodos = filteredTodos.filter(todo => 
-            todo.title.toLowerCase().includes(searchText) || 
-            (todo.description && todo.description.toLowerCase().includes(searchText))
-          );
+          params.searchText = filter.searchText;
         }
-        
-        // 마감일 범위 필터링
-        if (filter.dueFrom) {
-          filteredTodos = filteredTodos.filter(todo => 
-            todo.dueDate && todo.dueDate >= filter.dueFrom
-          );
+
+        if (filter.dueFrom && typeof filter.dueFrom === 'string') {
+          params.dueFrom = filter.dueFrom;
         }
-        
-        if (filter.dueTo) {
-          filteredTodos = filteredTodos.filter(todo => 
-            todo.dueDate && todo.dueDate <= filter.dueTo
-          );
+
+        if (filter.dueTo && typeof filter.dueTo === 'string') {
+          params.dueTo = filter.dueTo;
         }
       }
-      
-      logger.info(`${filteredTodos.length}개의 할 일을 조회했습니다.`);
-      return filteredTodos;
+
+      // API 호출 시도 (실제 운영 코드로 변경)
+      try {
+        const response = await apiClient.get<Todo[]>(this.basePath, { params });
+        const todos = response.data;
+        logger.info(`${todos.length}개의 할 일을 조회했습니다.`);
+        return todos;
+      } catch (error) {
+        // API 실패 시 임시 데이터 반환 (실제 운영 시 삭제)
+        logger.warn('API 호출 실패, 임시 데이터를 사용합니다:', error);
+
+        // 임시 데이터 (실제 운영 시 삭제)
+        const mockTodos: Todo[] = [
+          {
+            id: '1',
+            title: '엔진 오일 교체',
+            description: '차량 정기 점검 - 엔진 오일 교체 작업',
+            completed: false,
+            status: TodoStatus.PENDING,
+            priority: TodoPriority.HIGH,
+            dueDate: '2023-12-30',
+            createdAt: '2023-12-01T00:00:00.000Z',
+            updatedAt: '2023-12-01T00:00:00.000Z',
+            vehicleId: 'v1',
+            category: '정기 점검'
+          },
+          {
+            id: '2',
+            title: '타이어 공기압 점검',
+            completed: true,
+            status: TodoStatus.COMPLETED,
+            priority: TodoPriority.MEDIUM,
+            createdAt: '2023-11-15T00:00:00.000Z',
+            updatedAt: '2023-11-20T00:00:00.000Z',
+            vehicleId: 'v1',
+            category: '일상 점검'
+          },
+          {
+            id: '3',
+            title: '브레이크 패드 교체',
+            description: '앞바퀴 브레이크 패드 마모로 인한 교체 필요',
+            completed: false,
+            status: TodoStatus.IN_PROGRESS,
+            priority: TodoPriority.HIGH,
+            dueDate: '2023-12-15',
+            createdAt: '2023-12-05T00:00:00.000Z',
+            updatedAt: '2023-12-05T00:00:00.000Z',
+            vehicleId: 'v2',
+            assignedTo: 'user1',
+            category: '부품 교체'
+          },
+          {
+            id: '4',
+            title: '오래된 작업 - 기한 초과',
+            description: '기한이 지난 작업 테스트용',
+            completed: false,
+            status: TodoStatus.PENDING,
+            priority: TodoPriority.MEDIUM,
+            dueDate: '2023-06-15',
+            createdAt: '2023-06-01T00:00:00.000Z',
+            updatedAt: '2023-06-01T00:00:00.000Z',
+            vehicleId: 'v1',
+            category: '테스트'
+          }
+        ];
+
+        // 클라이언트 측 필터 적용 (실제 운영 시 삭제)
+        let filteredTodos = [...mockTodos];
+
+        if (filter) {
+          if (filter.vehicleId) {
+            filteredTodos = filteredTodos.filter(todo => todo.vehicleId === filter.vehicleId);
+          }
+
+          if (filter.completed !== undefined) {
+            filteredTodos = filteredTodos.filter(todo => todo.completed === filter.completed);
+          }
+
+          if (filter.status !== undefined) {
+            const status = filter.status;
+            if (Array.isArray(status)) {
+              filteredTodos = filteredTodos.filter(todo => status.includes(todo.status));
+            } else {
+              filteredTodos = filteredTodos.filter(todo => todo.status === status);
+            }
+          }
+
+          if (filter.priority !== undefined) {
+            const priority = filter.priority;
+            if (Array.isArray(priority)) {
+              filteredTodos = filteredTodos.filter(todo => priority.includes(todo.priority));
+            } else {
+              filteredTodos = filteredTodos.filter(todo => todo.priority === priority);
+            }
+          }
+
+          if (filter.category) {
+            filteredTodos = filteredTodos.filter(todo => todo.category === filter.category);
+          }
+
+          if (filter.searchText) {
+            const searchText = filter.searchText.toLowerCase();
+            filteredTodos = filteredTodos.filter(
+              todo =>
+                todo.title.toLowerCase().includes(searchText) ||
+                (todo.description && todo.description.toLowerCase().includes(searchText))
+            );
+          }
+
+          // 마감일 범위 필터링
+          if (filter.dueFrom) {
+            filteredTodos = filteredTodos.filter(todo => {
+              if (!todo.dueDate) return false;
+              return todo.dueDate >= filter.dueFrom!;
+            });
+          }
+
+          if (filter.dueTo) {
+            filteredTodos = filteredTodos.filter(todo => {
+              if (!todo.dueDate) return false;
+              return todo.dueDate <= filter.dueTo!;
+            });
+          }
+        }
+
+        return filteredTodos;
+      }
     } catch (error) {
       logger.error('할 일 목록 조회 실패:', error);
       throw new Error('할 일 목록을 불러오는 데 실패했습니다.');
     }
   }
-  
+
   /**
-   * 특정 ID의 Todo 조회
+   * Todo ID로 조회
    */
   async getTodoById(id: string): Promise<Todo> {
     try {
-      // 실제 API 구현 전 임시 데이터
-      const mockTodos = await this.getTodos();
-      const todo = mockTodos.find(t => t.id === id);
-      
-      if (!todo) {
-        throw new Error(`ID ${id}에 해당하는 할 일을 찾을 수 없습니다.`);
-      }
-      
-      return todo;
+      const response = await apiClient.get<Todo>(`${this.basePath}/${id}`);
+      logger.info(`할 일 ID ${id} 조회 성공`);
+      return response.data;
     } catch (error) {
-      logger.error(`ID ${id} 할 일 조회 실패:`, error);
-      throw new Error('할 일을 불러오는 데 실패했습니다.');
+      logger.error(`할 일 ID ${id} 조회 실패:`, error);
+      throw new Error(`ID가 ${id}인 할 일을 찾을 수 없습니다.`);
     }
   }
-  
+
   /**
-   * 새 Todo 생성
+   * Todo 생성
    */
   async createTodo(todoData: TodoCreateRequest): Promise<Todo> {
     try {
-      // 실제 API 구현 전 임시 로직
-      // 실제로는 API 호출하여 생성된 데이터를 받아옴
-      const newTodo: Todo = {
-        id: `${Date.now()}`,
-        title: todoData.title,
-        description: todoData.description,
-        completed: todoData.completed ?? false,
-        status: todoData.status ?? TodoStatus.PENDING,
-        priority: todoData.priority ?? TodoPriority.MEDIUM,
-        dueDate: todoData.dueDate,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        vehicleId: todoData.vehicleId,
-        assignedTo: todoData.assignedTo,
-        category: todoData.category
-      };
-      
-      logger.info('새 할 일이 생성되었습니다:', newTodo.title);
-      return newTodo;
+      const response = await apiClient.post<Todo>(this.basePath, todoData);
+      logger.info('새 할 일 생성 성공');
+      return response.data;
     } catch (error) {
       logger.error('할 일 생성 실패:', error);
-      throw new Error('새 할 일을 생성하는 데 실패했습니다.');
+      throw new Error('할 일을 생성하는 데 실패했습니다.');
     }
   }
-  
+
   /**
    * Todo 업데이트
    */
   async updateTodo(id: string, todoData: TodoUpdateRequest): Promise<Todo> {
     try {
-      // 실제 API 구현 전 임시 로직
-      const todo = await this.getTodoById(id);
-      
-      const updatedTodo: Todo = {
-        ...todo,
-        ...todoData,
-        updatedAt: new Date().toISOString()
-      };
-      
-      logger.info(`ID ${id} 할 일이 업데이트되었습니다.`);
-      return updatedTodo;
+      const response = await apiClient.patch<Todo>(`${this.basePath}/${id}`, todoData);
+      logger.info(`할 일 ID ${id}가 업데이트되었습니다`);
+      return response.data;
     } catch (error) {
-      logger.error(`ID ${id} 할 일 업데이트 실패:`, error);
+      logger.error(`할 일 ID ${id} 업데이트 실패:`, error);
       throw new Error('할 일을 업데이트하는 데 실패했습니다.');
     }
   }
-  
+
   /**
    * Todo 삭제
    */
   async deleteTodo(id: string): Promise<boolean> {
     try {
-      // 실제 API 구현 전 임시 로직
-      // ID가 존재하는지 확인
-      await this.getTodoById(id);
-      
-      logger.info(`ID ${id} 할 일이 삭제되었습니다.`);
+      await apiClient.delete(`${this.basePath}/${id}`);
+      logger.info(`할 일 ID ${id}가 삭제되었습니다`);
       return true;
     } catch (error) {
-      logger.error(`ID ${id} 할 일 삭제 실패:`, error);
+      logger.error(`할 일 ID ${id} 삭제 실패:`, error);
       throw new Error('할 일을 삭제하는 데 실패했습니다.');
     }
   }
-  
+
   /**
    * Todo 완료 상태 토글
    */
   async toggleComplete(id: string, completed: boolean): Promise<Todo> {
     try {
-      const todo = await this.getTodoById(id);
-      
       const status = completed ? TodoStatus.COMPLETED : TodoStatus.PENDING;
-      
-      return await this.updateTodo(id, { 
-        completed, 
-        status
-      });
+      return await this.updateTodo(id, { completed, status });
     } catch (error) {
-      logger.error(`ID ${id} 할 일 완료 상태 변경 실패:`, error);
+      logger.error(`할 일 ID ${id} 완료 상태 토글 실패:`, error);
       throw new Error('할 일 상태를 변경하는 데 실패했습니다.');
     }
   }
-} 
+}

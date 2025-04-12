@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import styled from 'styled-components';
 
@@ -58,7 +59,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ widgets, onLayoutChan
             {items.map((item, index) => (
               <Draggable key={item.id} draggableId={item.id} index={index}>
                 {(providedDrag: any) => (
-                  <WidgetWrapper ref={providedDrag.innerRef} {...providedDrag.draggableProps} {...providedDrag.dragHandleProps}>
+                  <WidgetWrapper
+                    ref={providedDrag.innerRef}
+                    {...providedDrag.draggableProps}
+                    {...providedDrag.dragHandleProps}
+                  >
                     {item.content}
                   </WidgetWrapper>
                 )}
@@ -72,4 +77,4 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ widgets, onLayoutChan
   );
 };
 
-export default DashboardLayout; 
+export default DashboardLayout;

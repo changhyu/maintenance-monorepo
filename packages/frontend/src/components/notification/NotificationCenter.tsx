@@ -1,16 +1,13 @@
 import React, { useEffect, useState } from 'react';
+
 import { notificationService } from '../../services/notificationService';
-import { 
-  Notification, 
-  NotificationStatus,
-  NotificationType
-} from '../../types/notification';
-import { 
-  formatNotificationDate, 
-  getNotificationIcon, 
+import { Notification, NotificationStatus, NotificationType } from '../../types/notification';
+import {
+  formatNotificationDate,
+  getNotificationIcon,
   getNotificationColor,
   getNotificationPriorityLabel,
-  groupNotificationsByDate 
+  groupNotificationsByDate
 } from '../../utils/notificationUtils';
 
 interface NotificationCenterProps {
@@ -24,7 +21,9 @@ interface NotificationCenterProps {
 const NotificationCenter: React.FC<NotificationCenterProps> = ({ userId, onClose }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [filteredNotifications, setFilteredNotifications] = useState<Notification[]>([]);
-  const [groupedNotifications, setGroupedNotifications] = useState<Record<string, Notification[]>>({});
+  const [groupedNotifications, setGroupedNotifications] = useState<Record<string, Notification[]>>(
+    {}
+  );
   const [loading, setLoading] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<'all' | 'unread' | 'archived'>('all');
   const [filter, setFilter] = useState<{
@@ -66,27 +65,23 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ userId, onClose
 
     // 탭 필터 적용
     if (activeTab === 'unread') {
-      filtered = filtered.filter(
-        (notification) => notification.status === NotificationStatus.UNREAD
-      );
+      filtered = filtered.filter(notification => notification.status === NotificationStatus.UNREAD);
     } else if (activeTab === 'archived') {
       filtered = filtered.filter(
-        (notification) => notification.status === NotificationStatus.ARCHIVED
+        notification => notification.status === NotificationStatus.ARCHIVED
       );
     }
 
     // 타입 필터 적용
     if (filter.type) {
-      filtered = filtered.filter(
-        (notification) => notification.type === filter.type
-      );
+      filtered = filtered.filter(notification => notification.type === filter.type);
     }
 
     // 검색어 필터 적용
     if (filter.searchTerm) {
       const searchLower = filter.searchTerm.toLowerCase();
       filtered = filtered.filter(
-        (notification) =>
+        notification =>
           notification.title.toLowerCase().includes(searchLower) ||
           notification.message.toLowerCase().includes(searchLower)
       );
@@ -103,10 +98,10 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ userId, onClose
   const handleMarkAsRead = async (notificationId: string) => {
     try {
       await notificationService.markAsRead(notificationId);
-      
+
       // 상태 업데이트
-      setNotifications((prev) =>
-        prev.map((notification) =>
+      setNotifications(prev =>
+        prev.map(notification =>
           notification.id === notificationId
             ? { ...notification, status: NotificationStatus.READ }
             : notification
@@ -121,10 +116,10 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ userId, onClose
   const handleArchive = async (notificationId: string) => {
     try {
       await notificationService.archiveNotification(notificationId);
-      
+
       // 상태 업데이트
-      setNotifications((prev) =>
-        prev.map((notification) =>
+      setNotifications(prev =>
+        prev.map(notification =>
           notification.id === notificationId
             ? { ...notification, status: NotificationStatus.ARCHIVED }
             : notification
@@ -139,10 +134,10 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ userId, onClose
   const handleMarkAllAsRead = async () => {
     try {
       await notificationService.markAllAsRead(userId);
-      
+
       // 상태 업데이트
-      setNotifications((prev) =>
-        prev.map((notification) =>
+      setNotifications(prev =>
+        prev.map(notification =>
           notification.status === NotificationStatus.UNREAD
             ? { ...notification, status: NotificationStatus.READ }
             : notification
@@ -155,13 +150,13 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ userId, onClose
 
   // 검색어 필터 업데이트
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFilter((prev) => ({ ...prev, searchTerm: e.target.value }));
+    setFilter(prev => ({ ...prev, searchTerm: e.target.value }));
   };
 
   // 타입 필터 업데이트
   const handleTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const value = e.target.value as NotificationType | undefined;
-    setFilter((prev) => ({ ...prev, type: value || undefined }));
+    setFilter(prev => ({ ...prev, type: value || undefined }));
   };
 
   return (
@@ -170,10 +165,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ userId, onClose
       <div className="p-4 border-b flex justify-between items-center bg-gray-50">
         <h2 className="text-xl font-semibold">알림 센터</h2>
         {onClose && (
-          <button
-            onClick={onClose}
-            className="text-gray-500 hover:text-gray-700"
-          >
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
             <i className="fas fa-times"></i>
           </button>
         )}
@@ -198,7 +190,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ userId, onClose
               onChange={handleTypeChange}
             >
               <option value="">모든 유형</option>
-              {Object.values(NotificationType).map((type) => (
+              {Object.values(NotificationType).map(type => (
                 <option key={type} value={type}>
                   {type}
                 </option>
@@ -265,7 +257,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ userId, onClose
                   })}
                 </h3>
                 <div className="space-y-2">
-                  {notifications.map((notification) => (
+                  {notifications.map(notification => (
                     <div
                       key={notification.id}
                       className={`border rounded-lg overflow-hidden transition-colors duration-200 ${
@@ -280,7 +272,9 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ userId, onClose
                             className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 mr-4"
                             style={{ backgroundColor: getNotificationColor(notification.type) }}
                           >
-                            <i className={`fas fa-${getNotificationIcon(notification.type)} text-white`}></i>
+                            <i
+                              className={`fas fa-${getNotificationIcon(notification.type)} text-white`}
+                            ></i>
                           </div>
                           <div className="flex-grow min-w-0">
                             <div className="flex justify-between items-start">
@@ -341,4 +335,4 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ userId, onClose
   );
 };
 
-export default NotificationCenter; 
+export default NotificationCenter;

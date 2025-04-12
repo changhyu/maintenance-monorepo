@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { 
-  bookingService, 
-  Booking, 
-  BookingFilter, 
-  BookingPaginationResult, 
-  CreateBookingRequest, 
-  UpdateBookingRequest, 
+
+import {
+  bookingService,
+  Booking,
+  BookingFilter,
+  BookingPaginationResult,
+  CreateBookingRequest,
+  UpdateBookingRequest,
   BookingStatus,
   ServiceType,
   TimeSlot
@@ -24,15 +25,22 @@ interface UseBookingServiceResult {
     limit: number;
     hasMore: boolean;
   };
-  
+
   // 액션
   getBookings: (filter?: BookingFilter) => Promise<BookingPaginationResult>;
   getBookingById: (id: string) => Promise<Booking | null>;
-  getCustomerBookings: (customerId: string, filter?: Omit<BookingFilter, 'customerId'>) => Promise<BookingPaginationResult>;
+  getCustomerBookings: (
+    customerId: string,
+    filter?: Omit<BookingFilter, 'customerId'>
+  ) => Promise<BookingPaginationResult>;
   createBooking: (bookingData: CreateBookingRequest) => Promise<Booking | null>;
   updateBooking: (bookingData: UpdateBookingRequest) => Promise<Booking | null>;
   cancelBooking: (bookingId: string, reason?: string) => Promise<Booking | null>;
-  getAvailableTimeSlots: (shopId: string, date: string, serviceType: ServiceType) => Promise<TimeSlot[]>;
+  getAvailableTimeSlots: (
+    shopId: string,
+    date: string,
+    serviceType: ServiceType
+  ) => Promise<TimeSlot[]>;
   setSelectedBooking: (booking: Booking | null) => void;
 }
 
@@ -63,13 +71,13 @@ export const useBookingService = (): UseBookingServiceResult => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const result = await bookingService.getBookings(filter);
-      
+
       if (!result) {
         return defaultPaginationResult;
       }
-      
+
       setBookings(result.bookings);
       setPagination({
         total: result.total,
@@ -77,13 +85,13 @@ export const useBookingService = (): UseBookingServiceResult => {
         limit: result.limit,
         hasMore: result.hasMore
       });
-      
+
       return result;
     } catch (err) {
       const errorMessage = '예약 목록을 불러오는 중 오류가 발생했습니다.';
       setError(errorMessage);
       console.error(errorMessage, err);
-      
+
       // 상태 업데이트
       setBookings([]);
       setPagination({
@@ -92,7 +100,7 @@ export const useBookingService = (): UseBookingServiceResult => {
         limit: 10,
         hasMore: false
       });
-      
+
       return defaultPaginationResult;
     } finally {
       setLoading(false);
@@ -111,22 +119,22 @@ export const useBookingService = (): UseBookingServiceResult => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const booking = await bookingService.getBookingById(id);
-      
+
       if (booking) {
         setSelectedBooking(booking);
       } else {
         // 예약이 없을 경우에도 처리
         setSelectedBooking(null);
       }
-      
+
       return booking;
     } catch (err) {
       const errorMessage = `예약 정보(ID: ${id})를 불러오는 중 오류가 발생했습니다.`;
       setError(errorMessage);
       console.error(errorMessage, err);
-      
+
       // 에러 발생 시 선택된 예약 초기화
       setSelectedBooking(null);
       return null;
@@ -137,7 +145,7 @@ export const useBookingService = (): UseBookingServiceResult => {
 
   // 고객 ID로 예약 조회
   const getCustomerBookings = async (
-    customerId: string, 
+    customerId: string,
     filter?: Omit<BookingFilter, 'customerId'>
   ): Promise<BookingPaginationResult> => {
     if (!customerId) {
@@ -150,13 +158,13 @@ export const useBookingService = (): UseBookingServiceResult => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const result = await bookingService.getCustomerBookings(customerId, filter);
-      
+
       if (!result) {
         return defaultPaginationResult;
       }
-      
+
       setBookings(result.bookings);
       setPagination({
         total: result.total,
@@ -164,13 +172,13 @@ export const useBookingService = (): UseBookingServiceResult => {
         limit: result.limit,
         hasMore: result.hasMore
       });
-      
+
       return result;
     } catch (err) {
       const errorMessage = `고객(ID: ${customerId})의 예약 목록을 불러오는 중 오류가 발생했습니다.`;
       setError(errorMessage);
       console.error(errorMessage, err);
-      
+
       // 상태 업데이트
       setBookings([]);
       setPagination({
@@ -179,7 +187,7 @@ export const useBookingService = (): UseBookingServiceResult => {
         limit: 10,
         hasMore: false
       });
-      
+
       return defaultPaginationResult;
     } finally {
       setLoading(false);
@@ -194,7 +202,7 @@ export const useBookingService = (): UseBookingServiceResult => {
       console.error(errorMessage);
       return null;
     }
-    
+
     // 날짜 유효성 검사
     if (!bookingData.scheduledDate || !isValidDate(bookingData.scheduledDate)) {
       const errorMessage = '유효하지 않은 예약 날짜입니다.';
@@ -202,7 +210,7 @@ export const useBookingService = (): UseBookingServiceResult => {
       console.error(errorMessage);
       return null;
     }
-    
+
     // 시간 유효성 검사
     if (!bookingData.scheduledTime || !isValidTime(bookingData.scheduledTime)) {
       const errorMessage = '유효하지 않은 예약 시간입니다.';
@@ -210,7 +218,7 @@ export const useBookingService = (): UseBookingServiceResult => {
       console.error(errorMessage);
       return null;
     }
-    
+
     // 미래 시간 검사
     if (!isFutureDateTime(bookingData.scheduledDate, bookingData.scheduledTime, 30)) {
       const errorMessage = '예약은 현재 시간으로부터 최소 30분 후부터 가능합니다.';
@@ -222,20 +230,20 @@ export const useBookingService = (): UseBookingServiceResult => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const newBooking = await bookingService.createBooking(bookingData);
-      
+
       if (newBooking) {
         setBookings(prev => [newBooking, ...prev]);
         setSelectedBooking(newBooking);
       }
-      
+
       return newBooking;
     } catch (err) {
       const errorMessage = '예약을 생성하는 중 오류가 발생했습니다.';
       setError(errorMessage);
       console.error(errorMessage, err);
-      
+
       // 상태 변경 없음 - 실패한 생성 작업이므로 기존 상태 유지
       return null;
     } finally {
@@ -251,7 +259,7 @@ export const useBookingService = (): UseBookingServiceResult => {
       console.error(errorMessage);
       return null;
     }
-    
+
     // 날짜 유효성 검사
     if (bookingData.scheduledDate && !isValidDate(bookingData.scheduledDate)) {
       const errorMessage = '유효하지 않은 예약 날짜입니다.';
@@ -259,7 +267,7 @@ export const useBookingService = (): UseBookingServiceResult => {
       console.error(errorMessage);
       return null;
     }
-    
+
     // 시간 유효성 검사
     if (bookingData.scheduledTime && !isValidTime(bookingData.scheduledTime)) {
       const errorMessage = '유효하지 않은 예약 시간입니다.';
@@ -267,10 +275,13 @@ export const useBookingService = (): UseBookingServiceResult => {
       console.error(errorMessage);
       return null;
     }
-    
+
     // 미래 시간 검사 (날짜와 시간이 모두 있는 경우에만)
-    if (bookingData.scheduledDate && bookingData.scheduledTime && 
-        !isFutureDateTime(bookingData.scheduledDate, bookingData.scheduledTime, 30)) {
+    if (
+      bookingData.scheduledDate &&
+      bookingData.scheduledTime &&
+      !isFutureDateTime(bookingData.scheduledDate, bookingData.scheduledTime, 30)
+    ) {
       const errorMessage = '예약은 현재 시간으로부터 최소 30분 후부터 가능합니다.';
       setError(errorMessage);
       console.error(errorMessage);
@@ -280,27 +291,25 @@ export const useBookingService = (): UseBookingServiceResult => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const updatedBooking = await bookingService.updateBooking(bookingData);
-      
+
       if (updatedBooking) {
-        setBookings(prev => 
-          prev.map(booking => 
-            booking.id === updatedBooking.id ? updatedBooking : booking
-          )
+        setBookings(prev =>
+          prev.map(booking => (booking.id === updatedBooking.id ? updatedBooking : booking))
         );
-        
+
         if (selectedBooking?.id === updatedBooking.id) {
           setSelectedBooking(updatedBooking);
         }
       }
-      
+
       return updatedBooking;
     } catch (err) {
       const errorMessage = `예약(ID: ${bookingData.id})을 업데이트하는 중 오류가 발생했습니다.`;
       setError(errorMessage);
       console.error(errorMessage, err);
-      
+
       // 기존 예약 데이터 유지, 실패한 업데이트는 변경사항을 적용하지 않음
       return null;
     } finally {
@@ -320,27 +329,25 @@ export const useBookingService = (): UseBookingServiceResult => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const cancelledBooking = await bookingService.cancelBooking(bookingId, reason);
-      
+
       if (cancelledBooking) {
-        setBookings(prev => 
-          prev.map(booking => 
-            booking.id === cancelledBooking.id ? cancelledBooking : booking
-          )
+        setBookings(prev =>
+          prev.map(booking => (booking.id === cancelledBooking.id ? cancelledBooking : booking))
         );
-        
+
         if (selectedBooking?.id === cancelledBooking.id) {
           setSelectedBooking(cancelledBooking);
         }
       }
-      
+
       return cancelledBooking;
     } catch (err) {
       const errorMessage = `예약(ID: ${bookingId})을 취소하는 중 오류가 발생했습니다.`;
       setError(errorMessage);
       console.error(errorMessage, err);
-      
+
       // 상태 변경 없음 - 취소 실패 시 기존 상태 유지
       return null;
     } finally {
@@ -350,8 +357,8 @@ export const useBookingService = (): UseBookingServiceResult => {
 
   // 가용 시간대 조회
   const getAvailableTimeSlots = async (
-    shopId: string, 
-    date: string, 
+    shopId: string,
+    date: string,
     serviceType: ServiceType
   ): Promise<TimeSlot[]> => {
     if (!shopId) {
@@ -360,14 +367,14 @@ export const useBookingService = (): UseBookingServiceResult => {
       console.error(errorMessage);
       return [];
     }
-    
+
     if (!date) {
       const errorMessage = '날짜가 제공되지 않았습니다.';
       setError(errorMessage);
       console.error(errorMessage);
       return [];
     }
-    
+
     // 날짜 유효성 검사
     if (!isValidDate(date)) {
       const errorMessage = '유효하지 않은 날짜 형식입니다. (YYYY-MM-DD 형식이어야 합니다)';
@@ -375,33 +382,33 @@ export const useBookingService = (): UseBookingServiceResult => {
       console.error(errorMessage);
       return [];
     }
-    
+
     // 과거 날짜 검사 - 어제까지의 날짜는 조회 불가
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     yesterday.setHours(23, 59, 59, 999);
-    
+
     const selectedDate = new Date(date);
     selectedDate.setHours(0, 0, 0, 0);
-    
+
     if (selectedDate < yesterday) {
       const errorMessage = '과거 날짜에 대한 시간대는 조회할 수 없습니다.';
       setError(errorMessage);
       console.error(errorMessage);
       return [];
     }
-    
+
     // 너무 먼 미래 날짜 검사 (3개월 이후)
     const threeMonthsLater = new Date();
     threeMonthsLater.setMonth(threeMonthsLater.getMonth() + 3);
-    
+
     if (selectedDate > threeMonthsLater) {
       const errorMessage = '3개월 이후의 날짜는 조회할 수 없습니다.';
       setError(errorMessage);
       console.error(errorMessage);
       return [];
     }
-    
+
     if (!serviceType) {
       const errorMessage = '서비스 유형이 제공되지 않았습니다.';
       setError(errorMessage);
@@ -412,14 +419,14 @@ export const useBookingService = (): UseBookingServiceResult => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const timeSlots = await bookingService.getAvailableTimeSlots(shopId, date, serviceType);
       return timeSlots || [];
     } catch (err) {
       const errorMessage = '가용 시간대를 조회하는 중 오류가 발생했습니다.';
       setError(errorMessage);
       console.error(errorMessage, err);
-      
+
       // 빈 배열 반환
       return [];
     } finally {
@@ -434,7 +441,7 @@ export const useBookingService = (): UseBookingServiceResult => {
     loading,
     error,
     pagination,
-    
+
     // 액션
     getBookings,
     getBookingById,
@@ -445,4 +452,4 @@ export const useBookingService = (): UseBookingServiceResult => {
     getAvailableTimeSlots,
     setSelectedBooking
   };
-}; 
+};

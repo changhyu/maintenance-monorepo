@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+
 import { DateRangePicker, FilterSelect, DateRange, FilterOption } from './common';
 import './dashboard/Dashboard.css';
 
@@ -17,18 +18,17 @@ export interface DashboardFilters {
 /**
  * 대시보드 필터 컴포넌트
  */
-const DashboardFilter: React.FC<DashboardFilterProps> = ({
-  onFilterChange,
-  className = '',
-}) => {
+const DashboardFilter: React.FC<DashboardFilterProps> = ({ onFilterChange, className = '' }) => {
   const [filters, setFilters] = useState<DashboardFilters>({
     dateRange: {
-      startDate: new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString().split('T')[0],
-      endDate: new Date().toISOString().split('T')[0],
+      startDate: new Date(new Date().setMonth(new Date().getMonth() - 1))
+        .toISOString()
+        .split('T')[0],
+      endDate: new Date().toISOString().split('T')[0]
     },
     vehicleType: '',
     maintenanceStatus: '',
-    priority: '',
+    priority: ''
   });
 
   // 차량 유형 옵션
@@ -38,7 +38,7 @@ const DashboardFilter: React.FC<DashboardFilterProps> = ({
     { value: 'suv', label: 'SUV' },
     { value: 'van', label: '밴' },
     { value: 'truck', label: '트럭' },
-    { value: 'other', label: '기타' },
+    { value: 'other', label: '기타' }
   ];
 
   // 정비 상태 옵션
@@ -47,7 +47,7 @@ const DashboardFilter: React.FC<DashboardFilterProps> = ({
     { value: 'scheduled', label: '예약됨' },
     { value: 'inProgress', label: '진행 중' },
     { value: 'completed', label: '완료됨' },
-    { value: 'cancelled', label: '취소됨' },
+    { value: 'cancelled', label: '취소됨' }
   ];
 
   // 우선순위 옵션
@@ -55,7 +55,7 @@ const DashboardFilter: React.FC<DashboardFilterProps> = ({
     { value: '', label: '모든 우선순위' },
     { value: 'high', label: '높음' },
     { value: 'medium', label: '중간' },
-    { value: 'low', label: '낮음' },
+    { value: 'low', label: '낮음' }
   ];
 
   // 날짜 범위 변경 핸들러
@@ -76,12 +76,14 @@ const DashboardFilter: React.FC<DashboardFilterProps> = ({
   const handleResetFilters = () => {
     const defaultFilters: DashboardFilters = {
       dateRange: {
-        startDate: new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString().split('T')[0],
-        endDate: new Date().toISOString().split('T')[0],
+        startDate: new Date(new Date().setMonth(new Date().getMonth() - 1))
+          .toISOString()
+          .split('T')[0],
+        endDate: new Date().toISOString().split('T')[0]
       },
       vehicleType: '',
       maintenanceStatus: '',
-      priority: '',
+      priority: ''
     };
     setFilters(defaultFilters);
     onFilterChange(defaultFilters);
@@ -91,14 +93,11 @@ const DashboardFilter: React.FC<DashboardFilterProps> = ({
     <div className={`bg-white shadow rounded-lg p-4 ${className}`}>
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-lg font-medium text-gray-800">필터 옵션</h2>
-        <button
-          onClick={handleResetFilters}
-          className="text-sm text-blue-600 hover:text-blue-800"
-        >
+        <button onClick={handleResetFilters} className="text-sm text-blue-600 hover:text-blue-800">
           필터 초기화
         </button>
       </div>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div>
           <div className="filter-label">날짜 범위</div>
@@ -108,25 +107,25 @@ const DashboardFilter: React.FC<DashboardFilterProps> = ({
             onChange={handleDateRangeChange}
           />
         </div>
-        
+
         <FilterSelect
           options={vehicleTypeOptions}
           value={[filters.vehicleType || '']}
-          onChange={(values) => handleFilterChange('vehicleType', values[0] || '')}
+          onChange={values => handleFilterChange('vehicleType', values[0] || '')}
           label="차량 유형"
         />
-        
+
         <FilterSelect
           options={maintenanceStatusOptions}
           value={[filters.maintenanceStatus || '']}
-          onChange={(values) => handleFilterChange('maintenanceStatus', values[0] || '')}
+          onChange={values => handleFilterChange('maintenanceStatus', values[0] || '')}
           label="정비 상태"
         />
-        
+
         <FilterSelect
           options={priorityOptions}
           value={[filters.priority || '']}
-          onChange={(values) => handleFilterChange('priority', values[0] || '')}
+          onChange={values => handleFilterChange('priority', values[0] || '')}
           label="우선순위"
         />
       </div>
@@ -134,4 +133,4 @@ const DashboardFilter: React.FC<DashboardFilterProps> = ({
   );
 };
 
-export default DashboardFilter; 
+export default DashboardFilter;

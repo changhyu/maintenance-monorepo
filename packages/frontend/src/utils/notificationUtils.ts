@@ -5,6 +5,7 @@
 import dayjs from 'dayjs';
 import 'dayjs/locale/ko';
 import relativeTime from 'dayjs/plugin/relativeTime';
+
 import { Notification, NotificationType, NotificationPriority } from '../types/notification';
 
 // dayjs 설정
@@ -139,14 +140,16 @@ export const getNotificationPriorityColor = (priority: NotificationPriority): st
  */
 export const getNotificationSummary = (notification: Notification): string => {
   // 알림 제목은 최대 50자, 내용은 100자로 제한
-  const title = notification.title.length > 50
-    ? `${notification.title.substring(0, 47)}...`
-    : notification.title;
-  
-  const message = notification.message.length > 100
-    ? `${notification.message.substring(0, 97)}...`
-    : notification.message;
-  
+  const title =
+    notification.title.length > 50
+      ? `${notification.title.substring(0, 47)}...`
+      : notification.title;
+
+  const message =
+    notification.message.length > 100
+      ? `${notification.message.substring(0, 97)}...`
+      : notification.message;
+
   return `${title} - ${message}`;
 };
 
@@ -155,19 +158,21 @@ export const getNotificationSummary = (notification: Notification): string => {
  * @param notifications - 알림 배열
  * @returns 타입별로 그룹화된 알림 객체
  */
-export const groupNotificationsByType = (notifications: Notification[]): Record<NotificationType, Notification[]> => {
+export const groupNotificationsByType = (
+  notifications: Notification[]
+): Record<NotificationType, Notification[]> => {
   const result: Record<string, Notification[]> = {};
-  
+
   // 모든 타입에 대해 빈 배열로 초기화
-  Object.values(NotificationType).forEach((type) => {
+  Object.values(NotificationType).forEach(type => {
     result[type] = [];
   });
-  
+
   // 각 알림을 타입에 따라 그룹화
-  notifications.forEach((notification) => {
+  notifications.forEach(notification => {
     result[notification.type].push(notification);
   });
-  
+
   return result as Record<NotificationType, Notification[]>;
 };
 
@@ -176,18 +181,20 @@ export const groupNotificationsByType = (notifications: Notification[]): Record<
  * @param notifications - 알림 배열
  * @returns 날짜별로 그룹화된 알림 객체
  */
-export const groupNotificationsByDate = (notifications: Notification[]): Record<string, Notification[]> => {
+export const groupNotificationsByDate = (
+  notifications: Notification[]
+): Record<string, Notification[]> => {
   const result: Record<string, Notification[]> = {};
-  
-  notifications.forEach((notification) => {
+
+  notifications.forEach(notification => {
     const date = dayjs(notification.createdAt).format('YYYY-MM-DD');
-    
+
     if (!result[date]) {
       result[date] = [];
     }
-    
+
     result[date].push(notification);
   });
-  
+
   return result;
-}; 
+};

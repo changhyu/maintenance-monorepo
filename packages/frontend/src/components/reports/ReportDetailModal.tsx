@@ -1,9 +1,17 @@
 import React, { useRef } from 'react';
+
+import {
+  DownloadOutlined,
+  FileTextOutlined,
+  TableOutlined,
+  BarChartOutlined,
+  PrinterOutlined
+} from '@ant-design/icons';
 import { Modal, Table, Typography, Descriptions, Space, Button, Tabs, message } from 'antd';
-import { DownloadOutlined, FileTextOutlined, TableOutlined, BarChartOutlined, PrinterOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { Report, ReportType, ReportFormat, ExportOptions } from '../../services/reportService';
+
 import ReportChart from './ReportChart';
+import { Report, ReportType, ReportFormat, ExportOptions } from '../../services/reportService';
 import './styles.css';
 
 const { Title, Text } = Typography;
@@ -31,7 +39,7 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
   const [exportLoading, setExportLoading] = React.useState<boolean>(false);
   const [printLoading, setPrintLoading] = React.useState<boolean>(false);
   const chartRef = useRef<HTMLDivElement>(null);
-  
+
   // 보고서 내보내기
   const handleExport = async (format: ReportFormat) => {
     if (!report) return;
@@ -51,14 +59,14 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
   // 차트 이미지 캡처 함수
   const captureChart = async (): Promise<string | null> => {
     if (!chartRef.current) return null;
-    
+
     try {
       // 동적으로 html2canvas 라이브러리 로드
       const html2canvas = (await import('html2canvas')).default;
       const canvas = await html2canvas(chartRef.current, {
         scale: 2, // 고해상도 출력
         useCORS: true, // 외부 이미지 로드 허용
-        logging: false, // 콘솔 로그 비활성화
+        logging: false // 콘솔 로그 비활성화
       });
       return canvas.toDataURL('image/png');
     } catch (error) {
@@ -71,26 +79,26 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
   // 보고서 인쇄
   const handlePrint = async () => {
     if (!report) return;
-    
+
     setPrintLoading(true);
-    
+
     try {
       // 차트 캡처 시도
       let chartImageUrl = null;
       if (chartRef.current) {
         chartImageUrl = await captureChart();
       }
-      
+
       setTimeout(() => {
         const printContent = document.getElementById('report-print-content');
-        
+
         if (printContent) {
           // 차트 이미지 요소 추가
           const chartContainer = document.getElementById('print-chart-container');
           if (chartContainer && chartImageUrl) {
             chartContainer.innerHTML = `<img src="${chartImageUrl}" style="max-width:100%; height:auto;" alt="보고서 차트" />`;
           }
-          
+
           const printStyles = `
             <style>
               @media print {
@@ -169,7 +177,7 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
               }
             </style>
           `;
-          
+
           const printWindow = window.open('', '_blank');
           if (printWindow) {
             printWindow.document.write(`
@@ -190,10 +198,10 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                 </body>
               </html>
             `);
-            
+
             printWindow.document.close();
             printWindow.focus();
-            
+
             // 잠시 후 인쇄 다이얼로그 표시
             setTimeout(() => {
               printWindow.print();
@@ -224,7 +232,9 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
         return (
           <Descriptions bordered column={2}>
             <Descriptions.Item label="총 작업 수">{report.data.totalTasks}</Descriptions.Item>
-            <Descriptions.Item label="완료된 작업 수">{report.data.completedTasks}</Descriptions.Item>
+            <Descriptions.Item label="완료된 작업 수">
+              {report.data.completedTasks}
+            </Descriptions.Item>
             <Descriptions.Item label="완료율">{`${report.data.completionRate.toFixed(1)}%`}</Descriptions.Item>
             <Descriptions.Item label="높은 우선순위">
               {`${report.data.byPriority.high.completed}/${report.data.byPriority.high.total} (${report.data.byPriority.high.rate.toFixed(1)}%)`}
@@ -240,11 +250,15 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
       case ReportType.VEHICLE_HISTORY:
         return (
           <Descriptions bordered column={2}>
-            <Descriptions.Item label="차량 ID" span={2}>{report.data.vehicleInfo.id}</Descriptions.Item>
+            <Descriptions.Item label="차량 ID" span={2}>
+              {report.data.vehicleInfo.id}
+            </Descriptions.Item>
             <Descriptions.Item label="차량명">{report.data.vehicleInfo.name}</Descriptions.Item>
             <Descriptions.Item label="모델">{report.data.vehicleInfo.model}</Descriptions.Item>
             <Descriptions.Item label="연식">{report.data.vehicleInfo.year}</Descriptions.Item>
-            <Descriptions.Item label="등록번호">{report.data.vehicleInfo.registrationNumber}</Descriptions.Item>
+            <Descriptions.Item label="등록번호">
+              {report.data.vehicleInfo.registrationNumber}
+            </Descriptions.Item>
             <Descriptions.Item label="총 정비 비용">{`${report.data.totalCost.toLocaleString()}원`}</Descriptions.Item>
             <Descriptions.Item label="평균 정비 간격">{`${report.data.averageInterval}일`}</Descriptions.Item>
           </Descriptions>
@@ -263,21 +277,39 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
         return (
           <Descriptions bordered column={2}>
             <Descriptions.Item label="기간">{`${report.data.period.start} ~ ${report.data.period.end}`}</Descriptions.Item>
-            <Descriptions.Item label="총 차량 수">{report.data.overview.totalVehicles}</Descriptions.Item>
-            <Descriptions.Item label="총 정비 건수">{report.data.overview.totalMaintenances}</Descriptions.Item>
-            <Descriptions.Item label="차량 당 평균 정비 건수">{report.data.overview.averagePerVehicle.toFixed(1)}</Descriptions.Item>
-            <Descriptions.Item label="완료된 정비">{report.data.byStatus.completed}</Descriptions.Item>
-            <Descriptions.Item label="대기 중인 정비">{report.data.byStatus.pending}</Descriptions.Item>
-            <Descriptions.Item label="예정된 정비">{report.data.byStatus.scheduled}</Descriptions.Item>
-            <Descriptions.Item label="지연된 정비">{report.data.byStatus.overdue}</Descriptions.Item>
+            <Descriptions.Item label="총 차량 수">
+              {report.data.overview.totalVehicles}
+            </Descriptions.Item>
+            <Descriptions.Item label="총 정비 건수">
+              {report.data.overview.totalMaintenances}
+            </Descriptions.Item>
+            <Descriptions.Item label="차량 당 평균 정비 건수">
+              {report.data.overview.averagePerVehicle.toFixed(1)}
+            </Descriptions.Item>
+            <Descriptions.Item label="완료된 정비">
+              {report.data.byStatus.completed}
+            </Descriptions.Item>
+            <Descriptions.Item label="대기 중인 정비">
+              {report.data.byStatus.pending}
+            </Descriptions.Item>
+            <Descriptions.Item label="예정된 정비">
+              {report.data.byStatus.scheduled}
+            </Descriptions.Item>
+            <Descriptions.Item label="지연된 정비">
+              {report.data.byStatus.overdue}
+            </Descriptions.Item>
           </Descriptions>
         );
       case ReportType.MAINTENANCE_FORECAST:
         return (
           <Descriptions bordered column={1}>
             <Descriptions.Item label="예측 기간">{`${report.data.upcoming[0]?.estimatedDate} ~ ${report.data.upcoming[report.data.upcoming.length - 1]?.estimatedDate}`}</Descriptions.Item>
-            <Descriptions.Item label="예상 정비 건수">{report.data.upcoming.length}</Descriptions.Item>
-            <Descriptions.Item label="잠재적 문제 건수">{report.data.potentialIssues.length}</Descriptions.Item>
+            <Descriptions.Item label="예상 정비 건수">
+              {report.data.upcoming.length}
+            </Descriptions.Item>
+            <Descriptions.Item label="잠재적 문제 건수">
+              {report.data.potentialIssues.length}
+            </Descriptions.Item>
           </Descriptions>
         );
       default:
@@ -305,7 +337,12 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
             { title: '날짜', dataIndex: 'date', key: 'date' },
             { title: '유형', dataIndex: 'type', key: 'type' },
             { title: '설명', dataIndex: 'description', key: 'description' },
-            { title: '비용', dataIndex: 'cost', key: 'cost', render: (cost: number) => `${cost.toLocaleString()}원` },
+            {
+              title: '비용',
+              dataIndex: 'cost',
+              key: 'cost',
+              render: (cost: number) => `${cost.toLocaleString()}원`
+            },
             { title: '정비사', dataIndex: 'technicianName', key: 'technicianName' },
             { title: '상태', dataIndex: 'status', key: 'status' }
           ]
@@ -316,7 +353,12 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
           columns: [
             { title: '차량 ID', dataIndex: 'vehicleId', key: 'vehicleId' },
             { title: '차량명', dataIndex: 'vehicleName', key: 'vehicleName' },
-            { title: '총 비용', dataIndex: 'totalCost', key: 'totalCost', render: (cost: number) => `${cost.toLocaleString()}원` }
+            {
+              title: '총 비용',
+              dataIndex: 'totalCost',
+              key: 'totalCost',
+              render: (cost: number) => `${cost.toLocaleString()}원`
+            }
           ]
         };
       case ReportType.MAINTENANCE_SUMMARY:
@@ -325,7 +367,12 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
           columns: [
             { title: '정비 유형', dataIndex: 'type', key: 'type' },
             { title: '건수', dataIndex: 'count', key: 'count' },
-            { title: '비율', dataIndex: 'percentage', key: 'percentage', render: (percentage: number) => `${percentage.toFixed(1)}%` }
+            {
+              title: '비율',
+              dataIndex: 'percentage',
+              key: 'percentage',
+              render: (percentage: number) => `${percentage.toFixed(1)}%`
+            }
           ]
         };
       case ReportType.MAINTENANCE_FORECAST:
@@ -336,7 +383,12 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
             { title: '차량명', dataIndex: 'vehicleName', key: 'vehicleName' },
             { title: '정비 유형', dataIndex: 'maintenanceType', key: 'maintenanceType' },
             { title: '예상 일자', dataIndex: 'estimatedDate', key: 'estimatedDate' },
-            { title: '신뢰도', dataIndex: 'confidence', key: 'confidence', render: (confidence: number) => `${(confidence * 100).toFixed(1)}%` }
+            {
+              title: '신뢰도',
+              dataIndex: 'confidence',
+              key: 'confidence',
+              render: (confidence: number) => `${(confidence * 100).toFixed(1)}%`
+            }
           ]
         };
       default:
@@ -368,7 +420,9 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
 
   // 테이블 행 키 생성 함수
   const getRowKey = (record: any) => {
-    return record.id || record.date || record.vehicleId || Math.random().toString(36).substring(2, 9);
+    return (
+      record.id || record.date || record.vehicleId || Math.random().toString(36).substring(2, 9)
+    );
   };
 
   return (
@@ -381,12 +435,7 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
         <Button key="close" onClick={onClose}>
           닫기
         </Button>,
-        <Button
-          key="print"
-          icon={<PrinterOutlined />}
-          loading={printLoading}
-          onClick={handlePrint}
-        >
+        <Button key="print" icon={<PrinterOutlined />} loading={printLoading} onClick={handlePrint}>
           인쇄
         </Button>,
         <Button
@@ -413,7 +462,9 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
           <div className="report-detail-header">
             <Space direction="vertical" size="small">
               <Title level={4}>{report.title}</Title>
-              <Text type="secondary">생성일: {dayjs(report.createdAt).format('YYYY년 MM월 DD일 HH:mm')}</Text>
+              <Text type="secondary">
+                생성일: {dayjs(report.createdAt).format('YYYY년 MM월 DD일 HH:mm')}
+              </Text>
             </Space>
           </div>
 
@@ -422,7 +473,14 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
               {renderOverview()}
             </TabPane>
 
-            <TabPane tab={<><TableOutlined /> 데이터</>} key="data">
+            <TabPane
+              tab={
+                <>
+                  <TableOutlined /> 데이터
+                </>
+              }
+              key="data"
+            >
               <Table
                 dataSource={tableData}
                 columns={columns}
@@ -433,7 +491,14 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
               />
             </TabPane>
 
-            <TabPane tab={<><BarChartOutlined /> 차트</>} key="chart">
+            <TabPane
+              tab={
+                <>
+                  <BarChartOutlined /> 차트
+                </>
+              }
+              key="chart"
+            >
               <div ref={chartRef}>
                 <ReportChart
                   type={report.type}
@@ -477,7 +542,7 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                 </tbody>
               </table>
             </div>
-            
+
             <div className="print-section page-break">
               <h2>차트</h2>
               <div id="print-chart-container" className="chart-section">
@@ -491,4 +556,4 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
   );
 };
 
-export default ReportDetailModal; 
+export default ReportDetailModal;

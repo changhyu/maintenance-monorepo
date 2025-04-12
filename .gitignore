@@ -46,7 +46,4 @@ yarn-error.log*
 *.db-wal
 
 # Turbo
-.turbo
-
-# Convex
-.convex 
+.turbo 

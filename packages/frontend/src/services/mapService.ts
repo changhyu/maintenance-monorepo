@@ -1,5 +1,5 @@
-import { ApiClient } from '../../../api-client/src/client';
 import { notificationService } from './notificationService';
+import { ApiClient } from '../../../api-client/src/client';
 import { NotificationCreate, NotificationType } from '../types/notification';
 
 /**
@@ -79,10 +79,7 @@ export interface VehicleLocation extends Location {
 /**
  * 거리 단위 열거형
  */
-export enum DistanceUnit {
-  KILOMETERS = 'km',
-  MILES = 'mi'
-}
+export type DistanceUnit = 'km' | 'mi';
 
 /**
  * 검색 반경 인터페이스
@@ -236,8 +233,8 @@ export interface MapBoundary {
   bounds: {
     north: number; // 북쪽 위도
     south: number; // 남쪽 위도
-    east: number;  // 동쪽 경도
-    west: number;  // 서쪽 경도
+    east: number; // 동쪽 경도
+    west: number; // 서쪽 경도
   };
   userId: string;
   createdAt: Date;
@@ -262,6 +259,27 @@ export interface MapBoundaryEventDetails {
 }
 
 /**
+ * 차량 상태 정보 인터페이스
+ */
+export interface VehicleStatus {
+  vehicleId: string;
+  status: 'operational' | 'maintenance' | 'broken' | 'inactive';
+  healthScore: number; // 0-100 사이의 값
+  fuelLevel?: number; // 백분율
+  batteryLevel?: number; // 백분율 (전기 차량의 경우)
+  mileage: number;
+  nextServiceDate?: string;
+  alerts?: string[];
+  maintenanceItems?: Array<{
+    id: string;
+    name: string;
+    status: 'good' | 'warning' | 'critical';
+    dueDate?: string;
+  }>;
+  lastUpdated: string;
+}
+
+/**
  * 지도 서비스 클래스
  */
 export class MapService {
@@ -270,7 +288,8 @@ export class MapService {
   private readonly geofences: Geofence[] = [];
   private readonly activeGeofences: Geofence[] = [];
   private monitoringIntervals: Record<string, number> = {};
-  private activeVehicleLocations: Record<string, { lat: number; lng: number; timestamp: Date }> = {};
+  private activeVehicleLocations: Record<string, { lat: number; lng: number; timestamp: Date }> =
+    {};
   private lastGeofenceEvents: Record<string, Record<string, GeofenceEventDetails>> = {};
   private activeBoundaries: MapBoundary[] = [];
   private lastBoundaryEvents: Record<string, Record<string, MapBoundaryEventDetails>> = {};
@@ -294,10 +313,10 @@ export class MapService {
    */
   async searchLocation(address: string): Promise<Location[]> {
     try {
-      const response = await this.apiClient.get(`${this.basePath}/geocode`, {
+      const response = await this.apiClient.get<Location[]>(`${this.basePath}/geocode`, {
         params: { address }
       });
-      return response.data;
+      return response;
     } catch (error) {
       console.error('[mapService] 위치 검색 중 오류 발생:', error);
       return [];
@@ -311,10 +330,10 @@ export class MapService {
    */
   async reverseGeocode(coordinates: Coordinates): Promise<Location | null> {
     try {
-      const response = await this.apiClient.get(`${this.basePath}/reverse-geocode`, {
+      const response = await this.apiClient.get<Location>(`${this.basePath}/reverse-geocode`, {
         params: coordinates
       });
-      return response.data;
+      return response;
     } catch (error) {
       console.error('[mapService] 역지오코딩 중 오류 발생:', error);
       return null;
@@ -328,10 +347,8 @@ export class MapService {
    */
   async findShopsNearby(search: SearchRadius): Promise<ShopLocation[]> {
     try {
-      const response = await this.apiClient.get(`${this.basePath}/shops/nearby`, {
-        params: search
-      });
-      return response.data;
+      const response = await this.apiClient.post<ShopLocation[]>(`${this.basePath}/shops/search/nearby`, search);
+      return response;
     } catch (error) {
       console.error('[mapService] 주변 정비소 검색 중 오류 발생:', error);
       return [];
@@ -345,12 +362,10 @@ export class MapService {
    */
   async findShopsInBounds(bounds: MapBounds): Promise<ShopLocation[]> {
     try {
-      const response = await this.apiClient.get(`${this.basePath}/shops/in-bounds`, {
-        params: bounds
-      });
-      return response.data;
+      const response = await this.apiClient.post<ShopLocation[]>('/api/shops/search/bounds', bounds);
+      return response;
     } catch (error) {
-      console.error('[mapService] 영역 내 정비소 검색 중 오류 발생:', error);
+      console.error('범위 내 정비소 검색 중 오류 발생:', error);
       return [];
     }
   }
@@ -362,10 +377,10 @@ export class MapService {
    */
   async getVehicleLocation(vehicleId: string): Promise<VehicleLocation | null> {
     try {
-      const response = await this.apiClient.get(`${this.basePath}/vehicles/${vehicleId}/location`);
-      return response.data;
+      const response = await this.apiClient.get<VehicleLocation>(`${this.basePath}/vehicles/${vehicleId}/location`);
+      return response;
     } catch (error) {
-      console.error(`[mapService] 차량 ID ${vehicleId} 위치 조회 중 오류 발생:`, error);
+      console.error(`차량 ID ${vehicleId} 위치 조회 중 오류 발생:`, error);
       return null;
     }
   }
@@ -377,10 +392,10 @@ export class MapService {
    */
   async getUserVehiclesLocations(userId: string): Promise<VehicleLocation[]> {
     try {
-      const response = await this.apiClient.get(`${this.basePath}/users/${userId}/vehicles/locations`);
-      return response.data;
+      const response = await this.apiClient.get<VehicleLocation[]>(`/api/users/${userId}/vehicles/locations`);
+      return response;
     } catch (error) {
-      console.error(`[mapService] 사용자 ID ${userId}의 차량 위치 조회 중 오류 발생:`, error);
+      console.error(`사용자 ID ${userId}의 차량 위치 조회 중 오류 발생:`, error);
       return [];
     }
   }
@@ -398,14 +413,14 @@ export class MapService {
     waypoints?: Coordinates[]
   ): Promise<Route | null> {
     try {
-      const response = await this.apiClient.post(`${this.basePath}/routes`, {
+      const response = await this.apiClient.post<Route>('/api/routes/calculate', {
         origin,
         destination,
         waypoints
       });
-      return response.data;
+      return response;
     } catch (error) {
-      console.error('[mapService] 경로 계산 중 오류 발생:', error);
+      console.error('경로 계산 중 오류 발생:', error);
       return null;
     }
   }
@@ -420,15 +435,15 @@ export class MapService {
   async calculateDistance(
     origin: Coordinates,
     destination: Coordinates,
-    unit: DistanceUnit = DistanceUnit.KILOMETERS
+    unit: DistanceUnit = 'km'
   ): Promise<number> {
     try {
-      const response = await this.apiClient.post(`${this.basePath}/distance`, {
+      const response = await this.apiClient.post<{ distance: number }>(`${this.basePath}/distance`, {
         origin,
         destination,
         unit
       });
-      return response.data.distance;
+      return response.distance;
     } catch (error) {
       console.error('[mapService] 거리 계산 중 오류 발생:', error);
       // Fallback: 직선 거리 계산
@@ -443,10 +458,10 @@ export class MapService {
    */
   async getShopDetails(shopId: string): Promise<ShopLocation | null> {
     try {
-      const response = await this.apiClient.get(`${this.basePath}/shops/${shopId}`);
-      return response.data;
+      const response = await this.apiClient.get<ShopLocation>(`/api/shops/${shopId}`);
+      return response;
     } catch (error) {
-      console.error(`[mapService] 정비소 ID ${shopId} 조회 중 오류 발생:`, error);
+      console.error(`정비소 ID ${shopId} 상세 정보 조회 중 오류 발생:`, error);
       return null;
     }
   }
@@ -459,12 +474,18 @@ export class MapService {
    */
   async findNearestShopsToVehicle(vehicleId: string, limit: number = 5): Promise<ShopLocation[]> {
     try {
-      const response = await this.apiClient.get(`${this.basePath}/vehicles/${vehicleId}/nearest-shops`, {
-        params: { limit }
-      });
-      return response.data;
+      const response = await this.apiClient.get<ShopLocation[]>(
+        `${this.basePath}/vehicles/${vehicleId}/nearest-shops`,
+        {
+          params: { limit }
+        }
+      );
+      return response;
     } catch (error) {
-      console.error(`[mapService] 차량 ID ${vehicleId}에서 가까운 정비소 검색 중 오류 발생:`, error);
+      console.error(
+        `[mapService] 차량 ID ${vehicleId}에서 가까운 정비소 검색 중 오류 발생:`,
+        error
+      );
       return [];
     }
   }
@@ -477,11 +498,11 @@ export class MapService {
    */
   async findShopsByServices(search: SearchRadius, services: string[]): Promise<ShopLocation[]> {
     try {
-      const response = await this.apiClient.post(`${this.basePath}/shops/by-services`, {
+      const response = await this.apiClient.post<ShopLocation[]>(`${this.basePath}/shops/by-services`, {
         ...search,
         services
       });
-      return response.data;
+      return response;
     } catch (error) {
       console.error('[mapService] 서비스별 정비소 검색 중 오류 발생:', error);
       return [];
@@ -503,13 +524,13 @@ export class MapService {
     sortBy: 'distance' | 'rating' | 'name' = 'distance'
   ): Promise<ShopLocation[]> {
     try {
-      const response = await this.apiClient.post(`${this.basePath}/shops/search`, {
+      const response = await this.apiClient.post<ShopLocation[]>(`${this.basePath}/shops/search`, {
         location,
         query,
         filters,
         sortBy
       });
-      return response.data;
+      return response;
     } catch (error) {
       console.error('[mapService] 정비소 검색 중 오류 발생:', error);
       return [];
@@ -523,8 +544,8 @@ export class MapService {
    */
   async createGeofence(geofence: GeofenceCreate): Promise<Geofence | null> {
     try {
-      const response = await this.apiClient.post(`${this.basePath}/geofences`, geofence);
-      return response.data;
+      const response = await this.apiClient.post<Geofence>(`${this.basePath}/geofences`, geofence);
+      return response;
     } catch (error) {
       console.error('[mapService] 지오펜스 생성 중 오류 발생:', error);
       return null;
@@ -538,10 +559,10 @@ export class MapService {
    */
   async getGeofences(active?: boolean): Promise<Geofence[]> {
     try {
-      const response = await this.apiClient.get(`${this.basePath}/geofences`, {
+      const response = await this.apiClient.get<Geofence[]>(`${this.basePath}/geofences`, {
         params: { active }
       });
-      return response.data;
+      return response;
     } catch (error) {
       console.error('[mapService] 지오펜스 목록 조회 중 오류 발생:', error);
       return [];
@@ -555,8 +576,8 @@ export class MapService {
    */
   async getGeofence(geofenceId: string): Promise<Geofence | null> {
     try {
-      const response = await this.apiClient.get(`${this.basePath}/geofences/${geofenceId}`);
-      return response.data;
+      const response = await this.apiClient.get<Geofence>(`${this.basePath}/geofences/${geofenceId}`);
+      return response;
     } catch (error) {
       console.error(`[mapService] 지오펜스 ID ${geofenceId} 조회 중 오류 발생:`, error);
       return null;
@@ -569,10 +590,16 @@ export class MapService {
    * @param updates 업데이트할 데이터
    * @returns 업데이트된 지오펜스
    */
-  async updateGeofence(geofenceId: string, updates: Partial<GeofenceCreate>): Promise<Geofence | null> {
+  async updateGeofence(
+    geofenceId: string,
+    updates: Partial<GeofenceCreate>
+  ): Promise<Geofence | null> {
     try {
-      const response = await this.apiClient.put(`${this.basePath}/geofences/${geofenceId}`, updates);
-      return response.data;
+      const response = await this.apiClient.put<Geofence>(
+        `${this.basePath}/geofences/${geofenceId}`,
+        updates
+      );
+      return response;
     } catch (error) {
       console.error(`[mapService] 지오펜스 ID ${geofenceId} 업데이트 중 오류 발생:`, error);
       return null;
@@ -618,7 +645,9 @@ export class MapService {
    */
   async unassignGeofenceFromVehicles(geofenceId: string, vehicleIds: string[]): Promise<boolean> {
     try {
-      await this.apiClient.post(`${this.basePath}/geofences/${geofenceId}/unassign`, { vehicleIds });
+      await this.apiClient.post(`${this.basePath}/geofences/${geofenceId}/unassign`, {
+        vehicleIds
+      });
       return true;
     } catch (error) {
       console.error(`[mapService] 지오펜스 ID ${geofenceId} 차량 해제 중 오류 발생:`, error);
@@ -639,10 +668,13 @@ export class MapService {
     endDate: string
   ): Promise<GeofenceEvent[]> {
     try {
-      const response = await this.apiClient.get(`${this.basePath}/vehicles/${vehicleId}/geofence-events`, {
-        params: { startDate, endDate }
-      });
-      return response.data;
+      const response = await this.apiClient.get<GeofenceEvent[]>(
+        `${this.basePath}/vehicles/${vehicleId}/geofence-events`,
+        {
+          params: { startDate, endDate }
+        }
+      );
+      return response;
     } catch (error) {
       console.error(`[mapService] 차량 ID ${vehicleId} 지오펜스 이벤트 조회 중 오류 발생:`, error);
       return [];
@@ -680,20 +712,23 @@ export class MapService {
     try {
       if (typeof geofence === 'string') {
         // ID가 전달된 경우 API로 확인
-        const response = await this.apiClient.post(`${this.basePath}/geofences/${geofence}/check`, coordinates);
-        return response.data.isInside;
+        const response = await this.apiClient.post<{ isInside: boolean }>(
+          `${this.basePath}/geofences/${geofence}/check`,
+          coordinates
+        );
+        return response.isInside;
       } else {
         // 객체가 전달된 경우 클라이언트에서 계산
         switch (geofence.type) {
           case GeofenceType.CIRCLE: {
             // 원형 지오펜스
-            const center = Array.isArray(geofence.coordinates) 
-              ? geofence.coordinates[0] 
+            const center = Array.isArray(geofence.coordinates)
+              ? geofence.coordinates[0]
               : geofence.coordinates;
             const distance = this.calculateHaversineDistance(
               center,
               coordinates,
-              DistanceUnit.KILOMETERS
+              'km'
             );
             return distance <= (geofence.radius || 0) / 1000; // radius를 km로 변환
           }
@@ -724,15 +759,17 @@ export class MapService {
   private calculateHaversineDistance(
     point1: Coordinates,
     point2: Coordinates,
-    unit: DistanceUnit = DistanceUnit.KILOMETERS
+    unit: DistanceUnit = 'km'
   ): number {
-    const R = unit === DistanceUnit.KILOMETERS ? 6371 : 3959; // 지구 반경 (km 또는 마일)
+    const R = unit === 'km' ? 6371 : 3959; // 지구 반경 (km 또는 마일)
     const dLat = this.toRadians(point2.latitude - point1.latitude);
     const dLon = this.toRadians(point2.longitude - point1.longitude);
     const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(this.toRadians(point1.latitude)) * Math.cos(this.toRadians(point2.latitude)) *
-      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      Math.cos(this.toRadians(point1.latitude)) *
+        Math.cos(this.toRadians(point2.latitude)) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   }
@@ -759,9 +796,10 @@ export class MapService {
       const yi = polygon[i].latitude;
       const xj = polygon[j].longitude;
       const yj = polygon[j].latitude;
-      
-      const intersect = ((yi > point.latitude) !== (yj > point.latitude)) &&
-        (point.longitude < (xj - xi) * (point.latitude - yi) / (yj - yi) + xi);
+
+      const intersect =
+        yi > point.latitude !== yj > point.latitude &&
+        point.longitude < ((xj - xi) * (point.latitude - yi)) / (yj - yi) + xi;
       if (intersect) inside = !inside;
     }
     return inside;
@@ -779,45 +817,55 @@ export class MapService {
     }
 
     const interval = options.refreshInterval || 30000; // 기본 30초
-    
+
     try {
       // 모든 활성 차량 모니터링 시작
       this.monitoringIntervals['global'] = window.setInterval(async () => {
         try {
           // 활성 차량 위치 가져오기
-          const vehicles = await this.apiClient.get('/vehicles/active-locations');
+          const vehicles = await this.apiClient.get<Array<{
+            id: string;
+            latitude: number;
+            longitude: number;
+            speed?: number;
+            heading?: number;
+          }>>('/vehicles/active-locations');
           const activeGeofences = await this.getGeofences(true);
-          
+
           // 각 차량에 대해 지오펜스 검사
-          for (const vehicle of vehicles.data) {
+          for (const vehicle of vehicles) {
             const vehicleId = vehicle.id;
-            const currentLocation: LatLng = { 
-              lat: vehicle.latitude, 
-              lng: vehicle.longitude 
+            const currentLocation: LatLng = {
+              lat: vehicle.latitude,
+              lng: vehicle.longitude
             };
             const timestamp = new Date();
-            
+
             // 이전 위치 기록 가져오기
             const previousLocation = this.activeVehicleLocations[vehicleId];
-            this.activeVehicleLocations[vehicleId] = { 
-              ...currentLocation, 
-              timestamp 
+            this.activeVehicleLocations[vehicleId] = {
+              ...currentLocation,
+              timestamp
             };
-            
+
             // 모든 지오펜스에 대해 검사
             for (const geofence of activeGeofences) {
               const geofenceId = geofence.id;
               // 이전 위치 존재 시 해당 위치가 지오펜스 내부에 있었는지 확인
-              const wasInside = previousLocation ? 
-                await this.isPointInGeofence(
-                  this.latLngToCoordinates({ lat: previousLocation.lat, lng: previousLocation.lng }), 
-                  geofence
-                ) : false;
+              const wasInside = previousLocation
+                ? await this.isPointInGeofence(
+                    this.latLngToCoordinates({
+                      lat: previousLocation.lat,
+                      lng: previousLocation.lng
+                    }),
+                    geofence
+                  )
+                : false;
               const isInside = await this.isPointInGeofence(
-                this.latLngToCoordinates(currentLocation), 
+                this.latLngToCoordinates(currentLocation),
                 geofence
               );
-              
+
               // 지오펜스 출입 이벤트 생성
               if (!wasInside && isInside) {
                 // 진입 이벤트
@@ -830,17 +878,16 @@ export class MapService {
                   speed: vehicle.speed,
                   direction: vehicle.heading
                 };
-                
+
                 this.lastGeofenceEvents[vehicleId] = this.lastGeofenceEvents[vehicleId] || {};
                 this.lastGeofenceEvents[vehicleId][geofenceId] = eventDetails;
-                
+
                 // 이벤트 저장 및 알림
                 this.recordGeofenceEvent(eventDetails);
                 if (options.alertOnEnter) {
-                  this.sendGeofenceAlert(eventDetails, options.notificationChannels)
-                    .catch(err => {
-                      console.error('[mapService] 지오펜스 알림 전송 실패:', err);
-                    });
+                  this.sendGeofenceAlert(eventDetails, options.notificationChannels).catch(err => {
+                    console.error('[mapService] 지오펜스 알림 전송 실패:', err);
+                  });
                 }
               } else if (wasInside && !isInside) {
                 // 이탈 이벤트
@@ -853,17 +900,16 @@ export class MapService {
                   speed: vehicle.speed,
                   direction: vehicle.heading
                 };
-                
+
                 this.lastGeofenceEvents[vehicleId] = this.lastGeofenceEvents[vehicleId] || {};
                 delete this.lastGeofenceEvents[vehicleId][geofenceId];
-                
+
                 // 이벤트 저장 및 알림
                 this.recordGeofenceEvent(eventDetails);
                 if (options.alertOnExit) {
-                  this.sendGeofenceAlert(eventDetails, options.notificationChannels)
-                    .catch(err => {
-                      console.error('[mapService] 지오펜스 알림 전송 실패:', err);
-                    });
+                  this.sendGeofenceAlert(eventDetails, options.notificationChannels).catch(err => {
+                    console.error('[mapService] 지오펜스 알림 전송 실패:', err);
+                  });
                 }
               } else if (isInside && options.dwellThreshold) {
                 // 체류 이벤트 검사
@@ -881,17 +927,18 @@ export class MapService {
                       speed: vehicle.speed,
                       direction: vehicle.heading
                     };
-                    
+
                     // 체류 이벤트로 업데이트
                     this.lastGeofenceEvents[vehicleId][geofenceId] = eventDetails;
-                    
+
                     // 이벤트 저장 및 알림
                     this.recordGeofenceEvent(eventDetails);
                     if (options.alertOnDwell) {
-                      this.sendGeofenceAlert(eventDetails, options.notificationChannels)
-                        .catch(err => {
+                      this.sendGeofenceAlert(eventDetails, options.notificationChannels).catch(
+                        err => {
                           console.error('[mapService] 지오펜스 알림 전송 실패:', err);
-                        });
+                        }
+                      );
                     }
                   }
                 }
@@ -902,7 +949,7 @@ export class MapService {
           console.error('[mapService] 지오펜스 모니터링 중 오류 발생:', error);
         }
       }, interval);
-      
+
       this.monitoringActive = true;
       return true;
     } catch (error) {
@@ -920,13 +967,13 @@ export class MapService {
       console.warn('[mapService] 지오펜스 모니터링이 이미 비활성화되어 있습니다.');
       return false;
     }
-    
+
     try {
       // 모든 모니터링 간격 정리
       Object.values(this.monitoringIntervals).forEach(intervalId => {
         window.clearInterval(intervalId);
       });
-      
+
       this.monitoringIntervals = {};
       this.monitoringActive = false;
       return true;
@@ -958,20 +1005,22 @@ export class MapService {
    * @returns 알림 전송 성공 여부
    */
   private async sendGeofenceAlert(
-    eventDetails: GeofenceEventDetails, 
+    eventDetails: GeofenceEventDetails,
     channels: Array<'EMAIL' | 'SMS' | 'PUSH' | 'SYSTEM'> = ['SYSTEM']
   ): Promise<boolean> {
     try {
       // 지오펜스 및 차량 정보 가져오기
       const geofence = await this.getGeofence(eventDetails.geofenceId);
-      const vehicleResponse = await this.apiClient.get(`/vehicles/${eventDetails.vehicleId}`);
-      const vehicle = vehicleResponse.data;
-      
+      const vehicleResponse = await this.apiClient.get<{ id: string; name?: string }>(`/vehicles/${eventDetails.vehicleId}`);
+      const vehicle = vehicleResponse;
+
       if (!geofence || !vehicle) {
-        console.error('[mapService] 지오펜스 알림 전송 실패: 지오펜스 또는 차량 정보를 찾을 수 없습니다.');
+        console.error(
+          '[mapService] 지오펜스 알림 전송 실패: 지오펜스 또는 차량 정보를 찾을 수 없습니다.'
+        );
         return false;
       }
-      
+
       // 이벤트 타입에 따른 메시지 생성
       let message = '';
       switch (eventDetails.eventType) {
@@ -985,7 +1034,7 @@ export class MapService {
           message = `차량 ${vehicle.name || vehicle.id}이(가) 지오펜스 ${geofence.name}에 장기간 체류 중입니다.`;
           break;
       }
-      
+
       // 각 채널별 알림 전송
       const notificationPromises = channels.map(channel => {
         const notificationData = {
@@ -997,10 +1046,10 @@ export class MapService {
           priority: 'HIGH',
           userId: geofence.userId || 'system' // 지오펜스 소유자에게 알림
         };
-        
+
         return this.apiClient.post('/notifications', notificationData);
       });
-      
+
       await Promise.all(notificationPromises);
       return true;
     } catch (error) {
@@ -1016,7 +1065,7 @@ export class MapService {
    * @returns 구독 해제 함수
    */
   subscribeToGeofenceEvents(
-    vehicleId: string, 
+    vehicleId: string,
     callback: (event: GeofenceEventDetails) => void
   ): () => void {
     // 웹소켓 연결 또는 폴링을 통한 이벤트 구독 로직
@@ -1024,7 +1073,7 @@ export class MapService {
     const intervalId = window.setInterval(async () => {
       try {
         const lastEvents = await this.getGeofenceEvents(vehicleId, undefined, undefined);
-        
+
         // 마지막 이벤트 전달
         if (lastEvents.length > 0) {
           callback(lastEvents[0]);
@@ -1033,7 +1082,7 @@ export class MapService {
         console.error(`[mapService] 지오펜스 이벤트 구독 중 오류 (차량 ID: ${vehicleId}):`, error);
       }
     }, 10000); // 10초마다 확인
-    
+
     // 구독 해제 함수 반환
     return () => {
       window.clearInterval(intervalId);
@@ -1047,8 +1096,8 @@ export class MapService {
    */
   async bulkImportGeofences(geofences: Omit<Geofence, 'id'>[]): Promise<string[]> {
     try {
-      const response = await this.apiClient.post('/geofences/bulk', { geofences });
-      return response.data.ids;
+      const response = await this.apiClient.post<{ ids: string[] }>('/geofences/bulk', { geofences });
+      return response.ids;
     } catch (error) {
       console.error('[mapService] 지오펜스 대량 가져오기 실패:', error);
       return [];
@@ -1062,63 +1111,67 @@ export class MapService {
    */
   async exportGeofencesToGeoJSON(geofenceIds?: string[]): Promise<any> {
     try {
-      const allGeofences = geofenceIds 
+      const allGeofences = geofenceIds
         ? await Promise.all(geofenceIds.map(id => this.getGeofence(id)))
         : await this.getGeofences(true);
-      
+
       // GeoJSON FeatureCollection 형식으로 변환
-      const features = allGeofences.map(geofence => {
-        if (!geofence) return null;
-        
-        // 지오펜스 타입에 따라 다른 geometry 생성
-        let geometry;
-        if (geofence.type === GeofenceType.CIRCLE) {
-          const center = Array.isArray(geofence.coordinates) 
-            ? geofence.coordinates[0] 
-            : geofence.coordinates;
-            
-          geometry = {
-            type: 'Point',
-            coordinates: [center.longitude, center.latitude]
-          };
-        } else if (geofence.type === GeofenceType.POLYGON) {
-          // 폴리곤의 경우 첫 번째와 마지막 좌표가 동일해야 함
-          if (!Array.isArray(geofence.coordinates)) {
+      const features = allGeofences
+        .map(geofence => {
+          if (!geofence) return null;
+
+          // 지오펜스 타입에 따라 다른 geometry 생성
+          let geometry;
+          if (geofence.type === GeofenceType.CIRCLE) {
+            const center = Array.isArray(geofence.coordinates)
+              ? geofence.coordinates[0]
+              : geofence.coordinates;
+
+            geometry = {
+              type: 'Point',
+              coordinates: [center.longitude, center.latitude]
+            };
+          } else if (geofence.type === GeofenceType.POLYGON) {
+            // 폴리곤의 경우 첫 번째와 마지막 좌표가 동일해야 함
+            if (!Array.isArray(geofence.coordinates)) {
+              return null;
+            }
+
+            const geoCoords = [...geofence.coordinates];
+            if (
+              geoCoords.length > 0 &&
+              (geoCoords[0].latitude !== geoCoords[geoCoords.length - 1].latitude ||
+                geoCoords[0].longitude !== geoCoords[geoCoords.length - 1].longitude)
+            ) {
+              geoCoords.push(geoCoords[0]);
+            }
+
+            geometry = {
+              type: 'Polygon',
+              coordinates: [geoCoords.map(v => [v.longitude, v.latitude])]
+            };
+          } else {
             return null;
           }
-          
-          const geoCoords = [...geofence.coordinates];
-          if (geoCoords.length > 0 && 
-              (geoCoords[0].latitude !== geoCoords[geoCoords.length - 1].latitude || 
-               geoCoords[0].longitude !== geoCoords[geoCoords.length - 1].longitude)) {
-            geoCoords.push(geoCoords[0]);
-          }
-          
-          geometry = {
-            type: 'Polygon',
-            coordinates: [geoCoords.map(v => [v.longitude, v.latitude])]
+
+          return {
+            type: 'Feature',
+            geometry,
+            properties: {
+              id: geofence.id,
+              name: geofence.name,
+              description: geofence.description,
+              type: geofence.type,
+              radius: geofence.radius,
+              color: geofence.color,
+              alertSettings: geofence.alerts,
+              createdAt: geofence.createdAt,
+              userId: geofence.userId || 'unknown' // 생성자 ID 필드
+            }
           };
-        } else {
-          return null;
-        }
-        
-        return {
-          type: 'Feature',
-          geometry,
-          properties: {
-            id: geofence.id,
-            name: geofence.name,
-            description: geofence.description,
-            type: geofence.type,
-            radius: geofence.radius,
-            color: geofence.color,
-            alertSettings: geofence.alerts,
-            createdAt: geofence.createdAt,
-            userId: geofence.userId || 'unknown' // 생성자 ID 필드
-          }
-        };
-      }).filter(Boolean);
-      
+        })
+        .filter(Boolean);
+
       return {
         type: 'FeatureCollection',
         features
@@ -1137,26 +1190,26 @@ export class MapService {
    * @returns 차량별 방문 횟수
    */
   async analyzeGeofenceVisits(
-    geofenceId: string, 
-    startDate: Date, 
+    geofenceId: string,
+    startDate: Date,
     endDate: Date
-  ): Promise<Array<{ vehicleId: string, vehicleName: string, visitCount: number }>> {
+  ): Promise<Array<{ vehicleId: string; vehicleName: string; visitCount: number }>> {
     try {
       const events = await this.getGeofenceEvents(geofenceId, startDate, endDate);
-      
+
       // 차량별 방문 횟수 집계
       const visitCountMap: Record<string, number> = {};
       events.forEach(event => {
         visitCountMap[event.vehicleId] = (visitCountMap[event.vehicleId] || 0) + 1;
       });
-      
+
       // 차량 정보 가져오기
       const vehicleInfoPromises = Object.keys(visitCountMap).map(async vehicleId => {
         try {
-          const response = await this.apiClient.get(`/vehicles/${vehicleId}`);
+          const response = await this.apiClient.get<{ name?: string }>(`/vehicles/${vehicleId}`);
           return {
             vehicleId,
-            vehicleName: response.data.name || vehicleId,
+            vehicleName: response.name || vehicleId,
             visitCount: visitCountMap[vehicleId]
           };
         } catch (error) {
@@ -1167,7 +1220,7 @@ export class MapService {
           };
         }
       });
-      
+
       const results = await Promise.all(vehicleInfoPromises);
       return results.sort((a, b) => b.visitCount - a.visitCount); // 방문 횟수 내림차순 정렬
     } catch (error) {
@@ -1189,30 +1242,30 @@ export class MapService {
     geofenceId: string,
     startDate: Date,
     endDate: Date
-  ): Promise<{ 
-    totalDwellTimeMs: number,
-    averageDwellTimeMs: number,
+  ): Promise<{
+    totalDwellTimeMs: number;
+    averageDwellTimeMs: number;
     dwellSessions: Array<{
-      enterTime: Date,
-      exitTime: Date,
-      durationMs: number
-    }>
+      enterTime: Date;
+      exitTime: Date;
+      durationMs: number;
+    }>;
   }> {
     try {
       // 모든 출입 이벤트 가져오기
       const events = await this.getGeofenceEvents(geofenceId, startDate, endDate);
-      
+
       // 시간순 정렬
       events.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
-      
+
       const dwellSessions: Array<{
-        enterTime: Date,
-        exitTime: Date,
-        durationMs: number
+        enterTime: Date;
+        exitTime: Date;
+        durationMs: number;
       }> = [];
-      
+
       let enterTime: Date | null = null;
-      
+
       // 체류 시간 계산
       for (const event of events) {
         if (event.eventType === 'ENTER') {
@@ -1222,42 +1275,44 @@ export class MapService {
         } else if (event.eventType === 'EXIT' && enterTime !== null) {
           const exitTime = event.timestamp;
           const durationMs = exitTime.getTime() - enterTime.getTime();
-          
+
           dwellSessions.push({
             enterTime,
             exitTime,
             durationMs
           });
-          
+
           enterTime = null;
         }
       }
-      
+
       // 마지막 ENTER 이벤트가 있고 EXIT이 없는 경우 현재 시간까지 계산
       if (enterTime !== null) {
         const exitTime = new Date();
         const durationMs = exitTime.getTime() - enterTime.getTime();
-        
+
         dwellSessions.push({
           enterTime,
           exitTime,
           durationMs
         });
       }
-      
+
       // 집계
       const totalDwellTimeMs = dwellSessions.reduce((sum, session) => sum + session.durationMs, 0);
-      const averageDwellTimeMs = dwellSessions.length > 0 
-        ? totalDwellTimeMs / dwellSessions.length 
-        : 0;
-      
+      const averageDwellTimeMs =
+        dwellSessions.length > 0 ? totalDwellTimeMs / dwellSessions.length : 0;
+
       return {
         totalDwellTimeMs,
         averageDwellTimeMs,
         dwellSessions
       };
     } catch (error) {
-      console.error(`[mapService] 차량 ID ${vehicleId}의 지오펜스 ID ${geofenceId} 체류 시간 분석 실패:`, error);
+      console.error(
+        `[mapService] 차량 ID ${vehicleId}의 지오펜스 ID ${geofenceId} 체류 시간 분석 실패:`,
+        error
+      );
       return {
         totalDwellTimeMs: 0,
         averageDwellTimeMs: 0,
@@ -1297,14 +1352,14 @@ export class MapService {
    */
   async createMapBoundary(boundary: Omit<MapBoundary, 'id' | 'createdAt'>): Promise<string | null> {
     try {
-      const response = await this.apiClient.post('/map/boundaries', boundary);
-      return response.data.id;
+      const response = await this.apiClient.post<{ id: string }>('/map/boundaries', boundary);
+      return response.id;
     } catch (error) {
       console.error('[mapService] 지도 경계 생성 실패:', error);
       return null;
     }
   }
-  
+
   /**
    * 지도 경계 업데이트
    * @param id 경계 ID
@@ -1320,7 +1375,7 @@ export class MapService {
       return false;
     }
   }
-  
+
   /**
    * 지도 경계 삭제
    * @param id 삭제할 경계 ID
@@ -1335,7 +1390,7 @@ export class MapService {
       return false;
     }
   }
-  
+
   /**
    * 사용자의 지도 경계 목록 조회
    * @param userId 사용자 ID
@@ -1343,14 +1398,14 @@ export class MapService {
    */
   async getUserMapBoundaries(userId: string): Promise<MapBoundary[]> {
     try {
-      const response = await this.apiClient.get(`${this.basePath}/map/boundaries?userId=${userId}`);
-      return response.data;
+      const response = await this.apiClient.get<MapBoundary[]>(`${this.basePath}/map/boundaries?userId=${userId}`);
+      return response;
     } catch (error) {
       console.error(`[mapService] 사용자 ID ${userId}의 지도 경계 목록 조회 실패:`, error);
       return [];
     }
   }
-  
+
   /**
    * 좌표가 경계 내에 있는지 확인
    * @param coords 확인할 좌표
@@ -1366,7 +1421,7 @@ export class MapService {
       coords.longitude >= bounds.west
     );
   }
-  
+
   /**
    * 지도 경계 모니터링 시작
    * @param userId 사용자 ID
@@ -1383,53 +1438,52 @@ export class MapService {
     if (this.monitoringIntervals['boundary']) {
       this.stopBoundaryMonitoring();
     }
-    
+
     // 사용자의 활성화된 지도 경계 로드
     try {
       const boundaries = await this.getUserMapBoundaries(userId);
       this.activeBoundaries = boundaries.filter(b => b.active);
-      
+
       if (this.activeBoundaries.length === 0) {
         console.log('활성화된 지도 경계가 없습니다.');
         return false;
       }
-      
+
       // 모니터링 인터벌 설정
       const intervalId = window.setInterval(async () => {
         // 모니터링할 차량이 지정되지 않은 경우 모든 활성 차량 사용
-        const vehiclesToMonitor = vehicleIds.length > 0 
-          ? vehicleIds 
-          : Object.keys(this.activeVehicleLocations);
-          
+        const vehiclesToMonitor =
+          vehicleIds.length > 0 ? vehicleIds : Object.keys(this.activeVehicleLocations);
+
         if (vehiclesToMonitor.length === 0) {
           console.log('모니터링할 차량이 없습니다.');
           return;
         }
-        
+
         // 각 차량의 위치 업데이트 및 경계 확인
         for (const vehicleId of vehiclesToMonitor) {
           try {
             // 차량 정보 조회
             const vehicle = await this.getVehicleLocation(vehicleId);
             if (!vehicle) continue;
-            
-            const currentLocation: LatLng = { 
-              lat: vehicle.latitude, 
-              lng: vehicle.longitude 
+
+            const currentLocation: LatLng = {
+              lat: vehicle.latitude,
+              lng: vehicle.longitude
             };
             const currentCoords = this.latLngToCoordinates(currentLocation);
-            
+
             // 각 경계에 대해 검사
             for (const boundary of this.activeBoundaries) {
               const boundaryId = boundary.id;
-              
+
               // 이 차량에 대한 이전 이벤트 가져오기
               this.lastBoundaryEvents[vehicleId] = this.lastBoundaryEvents[vehicleId] || {};
               const lastEvent = this.lastBoundaryEvents[vehicleId][boundaryId];
-              
+
               // 경계 내부에 있는지 확인
               const isInside = this.isPointInBoundary(currentCoords, boundary);
-              
+
               // 이전 이벤트가 없고 현재 경계 밖에 있는 경우
               // 또는 이전에 경계 내부에 있었는데 현재 경계 밖으로 나간 경우
               if ((!lastEvent && !isInside) || (lastEvent?.eventType === 'reentry' && !isInside)) {
@@ -1444,10 +1498,10 @@ export class MapService {
                     eventType: 'exit',
                     location: currentCoords
                   };
-                  
+
                   // 이벤트 기록
                   this.lastBoundaryEvents[vehicleId][boundaryId] = eventDetails;
-                  
+
                   // 알림 생성
                   await this.createBoundaryAlert(eventDetails, boundary);
                 }
@@ -1464,10 +1518,10 @@ export class MapService {
                   eventType: 'reentry',
                   location: currentCoords
                 };
-                
+
                 // 이벤트 기록
                 this.lastBoundaryEvents[vehicleId][boundaryId] = eventDetails;
-                
+
                 // 알림 생성 (선택적)
                 if (boundary.options.notifyOnExit) {
                   await this.createBoundaryAlert(eventDetails, boundary);
@@ -1479,7 +1533,7 @@ export class MapService {
           }
         }
       }, intervalMs);
-      
+
       // 인터벌 ID 저장
       this.monitoringIntervals['boundary'] = intervalId;
       console.log('지도 경계 모니터링이 시작되었습니다.');
@@ -1489,7 +1543,7 @@ export class MapService {
       return false;
     }
   }
-  
+
   /**
    * 지도 경계 모니터링 중지
    */
@@ -1500,7 +1554,7 @@ export class MapService {
       console.log('지도 경계 모니터링이 중지되었습니다.');
     }
   }
-  
+
   /**
    * 경계 알림 생성
    * @param eventDetails 이벤트 상세 정보
@@ -1524,9 +1578,9 @@ export class MapService {
           location: eventDetails.location
         }
       };
-      
+
       await notificationService.createNotification(notification);
-      
+
       // 추가 연락처에 알림을 보낼 경우 - sendToContacts 함수는 제거
       if (boundary.options.notifyContacts && boundary.options.notifyContacts.length > 0) {
         // 여기에 연락처에 알림 보내는 코드 추가
@@ -1535,4 +1589,50 @@ export class MapService {
       console.error(`[mapService] 경계 ID ${eventDetails.boundaryId} 알림 생성 오류:`, error);
     }
   }
-} 
+
+  async submitShopReview(shopId: string, rating: number, comment: string, vehicleId?: string): Promise<boolean> {
+    try {
+      const response = await this.apiClient.post<{ success: boolean }>(`${this.basePath}/shops/${shopId}/reviews`, {
+        rating,
+        comment,
+        vehicleId
+      });
+      return response.success;
+    } catch (error) {
+      console.error(`정비소 ID ${shopId} 평가 제출 중 오류 발생:`, error);
+      return false;
+    }
+  }
+
+  async bookAppointment(
+    shopId: string,
+    date: string,
+    time: string,
+    vehicleId: string,
+    services: string[]
+  ): Promise<boolean> {
+    try {
+      const response = await this.apiClient.post<{ success: boolean }>(`${this.basePath}/appointments`, {
+        shopId,
+        date,
+        time,
+        vehicleId,
+        services
+      });
+      return response.success;
+    } catch (error) {
+      console.error('정비소 예약 중 오류 발생:', error);
+      return false;
+    }
+  }
+
+  async getVehicleStatus(vehicleId: string): Promise<VehicleStatus | null> {
+    try {
+      const response = await this.apiClient.get<VehicleStatus>(`${this.basePath}/vehicles/${vehicleId}/status`);
+      return response;
+    } catch (error) {
+      console.error(`차량 ID ${vehicleId} 상태 조회 중 오류 발생:`, error);
+      return null;
+    }
+  }
+}

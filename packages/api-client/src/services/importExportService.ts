@@ -8,6 +8,110 @@ export type ErrorWarningData = Record<string, unknown>;
 export type TransformFunction = (sourceData: DataObject) => unknown;
 export type ValidationFunction = (value: unknown) => boolean | string;
 
+// Sonar S4323 규칙을 위한 타입 별칭
+export type DataMigrationOptions = {
+  dryRun?: boolean;
+  batchSize?: number;
+  notifyOnCompletion?: boolean;
+};
+
+export type ValidateFileOptions = {
+  columnMapping?: Record<string, string>;
+  skipFirstRow?: boolean;
+  maxRecords?: number;
+};
+
+export type CopyOrMoveDataOptions = {
+  operation: 'copy' | 'move';
+  mappingRules?: Record<string, string | TransformFunction>;
+  additionalData?: Record<string, unknown>;
+};
+
+export type BackupDataOptions = {
+  includeRelations?: boolean;
+  includeAttachments?: boolean;
+  password?: string;
+  filename?: string;
+  compressionLevel?: 'none' | 'low' | 'medium' | 'high';
+};
+
+export type RestoreDataOptions = {
+  entityTypes?: ImportExportEntityType[];
+  password?: string;
+  conflictStrategy?: 'skip' | 'overwrite' | 'rename';
+  resetIds?: boolean;
+  dryRun?: boolean;
+};
+
+export type ImportResultResponse = {
+  success: boolean;
+  message: string;
+};
+
+export type PaginatedResponse<T> = {
+  total: number;
+  page: number;
+  limit: number;
+  results: T[];
+};
+
+export type ValidateFileResponse = {
+  valid: boolean;
+  totalRecords: number;
+  validRecords: number;
+  invalidRecords: number;
+  errors: Array<{
+    row: number;
+    column?: string;
+    message: string;
+    value?: unknown;
+  }>;
+  warnings: Array<{
+    row: number;
+    column?: string;
+    message: string;
+    value?: unknown;
+  }>;
+  sampleData?: DataObject[];
+  detectedColumns?: string[];
+  suggestedMapping?: Record<string, string>;
+};
+
+export type CopyOrMoveDataResponse = {
+  success: boolean;
+  sourceCount: number;
+  targetCount: number;
+  targetIds: string[];
+  errors?: Array<{
+    sourceId: string;
+    message: string;
+  }>;
+};
+
+export type BackupDataResponse = {
+  success: boolean;
+  backupId: string;
+  downloadUrl: string;
+  expiresAt: string;
+  stats: Record<ImportExportEntityType, { count: number }>;
+};
+
+export type RestoreDataResponse = {
+  success: boolean;
+  restoreId: string;
+  stats: Record<ImportExportEntityType, {
+    total: number;
+    restored: number;
+    skipped: number;
+    failed: number;
+  }>;
+  errors?: Array<{
+    entityType: ImportExportEntityType;
+    id?: string;
+    message: string;
+  }>;
+};
+
 export enum ImportExportFormat {
   CSV = 'csv',
   EXCEL = 'excel',
@@ -226,13 +330,21 @@ export interface ImportTemplate {
   updatedAt: string;
 }
 
+// 추가 타입 별칭 정의
+export type CreateImportTemplateParams = Omit<ImportTemplate, 'id' | 'createdAt' | 'updatedAt'>;
+export type UpdateImportTemplateParams = Partial<Omit<ImportTemplate, 'id' | 'createdAt' | 'updatedAt'>>;
+export type CreateColumnMappingTemplateParams = Omit<ColumnMappingTemplate, 'id' | 'createdAt' | 'updatedAt'>;
+export type UpdateColumnMappingTemplateParams = Partial<Omit<ColumnMappingTemplate, 'id' | 'createdAt' | 'updatedAt'>>;
+export type CreateDataMigrationConfigParams = Omit<DataMigrationConfig, 'id' | 'createdAt' | 'updatedAt'>;
+export type UpdateDataMigrationConfigParams = Partial<Omit<DataMigrationConfig, 'id' | 'createdAt' | 'updatedAt'>>;
+
 export class ImportExportService {
-  private client: ApiClient;
-  private importPath = '/import';
-  private exportPath = '/export';
-  private templatesPath = '/import-templates';
-  private mappingsPath = '/column-mappings';
-  private migrationsPath = '/data-migrations';
+  private readonly client: ApiClient;
+  private readonly importPath = '/import';
+  private readonly exportPath = '/export';
+  private readonly templatesPath = '/import-templates';
+  private readonly mappingsPath = '/column-mappings';
+  private readonly migrationsPath = '/data-migrations';
 
   constructor(apiClient: ApiClient) {
     this.client = apiClient;
@@ -246,13 +358,27 @@ export class ImportExportService {
     formData.append('file', options.file);
     formData.append('entityType', options.entityType);
     
-    if (options.format) formData.append('format', options.format);
-    if (options.skipFirstRow !== undefined) formData.append('skipFirstRow', options.skipFirstRow.toString());
-    if (options.validationOnly !== undefined) formData.append('validationOnly', options.validationOnly.toString());
-    if (options.updateExisting !== undefined) formData.append('updateExisting', options.updateExisting.toString());
-    if (options.identifierField) formData.append('identifierField', options.identifierField);
-    if (options.batchSize) formData.append('batchSize', options.batchSize.toString());
-    if (options.notifyOnCompletion !== undefined) formData.append('notifyOnCompletion', options.notifyOnCompletion.toString());
+    if (options.format) {
+      formData.append('format', options.format);
+    }
+    if (options.skipFirstRow !== undefined) {
+      formData.append('skipFirstRow', options.skipFirstRow.toString());
+    }
+    if (options.validationOnly !== undefined) {
+      formData.append('validationOnly', options.validationOnly.toString());
+    }
+    if (options.updateExisting !== undefined) {
+      formData.append('updateExisting', options.updateExisting.toString());
+    }
+    if (options.identifierField) {
+      formData.append('identifierField', options.identifierField);
+    }
+    if (options.batchSize) {
+      formData.append('batchSize', options.batchSize.toString());
+    }
+    if (options.notifyOnCompletion !== undefined) {
+      formData.append('notifyOnCompletion', options.notifyOnCompletion.toString());
+    }
     
     if (options.columnMapping) {
       formData.append('columnMapping', JSON.stringify(options.columnMapping));
@@ -275,8 +401,8 @@ export class ImportExportService {
   }
 
   // 가져오기 작업 취소
-  async cancelImport(importId: string): Promise<{ success: boolean; message: string }> {
-    return this.client.post<{ success: boolean; message: string }>(`${this.importPath}/${importId}/cancel`, {});
+  async cancelImport(importId: string): Promise<ImportResultResponse> {
+    return this.client.post<ImportResultResponse>(`${this.importPath}/${importId}/cancel`, {});
   }
 
   // 가져오기 작업 목록 조회
@@ -289,18 +415,8 @@ export class ImportExportService {
       startDate?: string;
       endDate?: string;
     }
-  ): Promise<{
-    total: number;
-    page: number;
-    limit: number;
-    results: ImportResult[];
-  }> {
-    return this.client.get<{
-      total: number;
-      page: number;
-      limit: number;
-      results: ImportResult[];
-    }>(`${this.importPath}/history`, {
+  ): Promise<PaginatedResponse<ImportResult>> {
+    return this.client.get<PaginatedResponse<ImportResult>>(`${this.importPath}/history`, {
       params: {
         page,
         limit,
@@ -340,18 +456,8 @@ export class ImportExportService {
       startDate?: string;
       endDate?: string;
     }
-  ): Promise<{
-    total: number;
-    page: number;
-    limit: number;
-    results: ExportResult[];
-  }> {
-    return this.client.get<{
-      total: number;
-      page: number;
-      limit: number;
-      results: ExportResult[];
-    }>(`${this.exportPath}/history`, {
+  ): Promise<PaginatedResponse<ExportResult>> {
+    return this.client.get<PaginatedResponse<ExportResult>>(`${this.exportPath}/history`, {
       params: {
         page,
         limit,
@@ -416,14 +522,14 @@ export class ImportExportService {
   }
 
   // 커스텀 가져오기 템플릿 생성
-  async createImportTemplate(template: Omit<ImportTemplate, 'id' | 'createdAt' | 'updatedAt'>): Promise<ImportTemplate> {
+  async createImportTemplate(template: CreateImportTemplateParams): Promise<ImportTemplate> {
     return this.client.post<ImportTemplate>(this.templatesPath, template);
   }
 
   // 가져오기 템플릿 업데이트
   async updateImportTemplate(
     templateId: string,
-    updates: Partial<Omit<ImportTemplate, 'id' | 'createdAt' | 'updatedAt'>>
+    updates: UpdateImportTemplateParams
   ): Promise<ImportTemplate> {
     return this.client.put<ImportTemplate>(`${this.templatesPath}/${templateId}`, updates);
   }
@@ -447,7 +553,7 @@ export class ImportExportService {
 
   // 컬럼 매핑 템플릿 생성
   async createColumnMappingTemplate(
-    template: Omit<ColumnMappingTemplate, 'id' | 'createdAt' | 'updatedAt'>
+    template: CreateColumnMappingTemplateParams
   ): Promise<ColumnMappingTemplate> {
     return this.client.post<ColumnMappingTemplate>(this.mappingsPath, template);
   }
@@ -455,7 +561,7 @@ export class ImportExportService {
   // 컬럼 매핑 템플릿 업데이트
   async updateColumnMappingTemplate(
     templateId: string,
-    updates: Partial<Omit<ColumnMappingTemplate, 'id' | 'createdAt' | 'updatedAt'>>
+    updates: UpdateColumnMappingTemplateParams
   ): Promise<ColumnMappingTemplate> {
     return this.client.put<ColumnMappingTemplate>(`${this.mappingsPath}/${templateId}`, updates);
   }
@@ -479,7 +585,9 @@ export class ImportExportService {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('entityType', entityType);
-    if (format) formData.append('format', format);
+    if (format) {
+      formData.append('format', format);
+    }
 
     return this.client.post<Record<string, string>>(`${this.mappingsPath}/suggest`, formData, {
       headers: {
@@ -502,7 +610,7 @@ export class ImportExportService {
 
   // 데이터 마이그레이션 설정 생성
   async createDataMigrationConfig(
-    config: Omit<DataMigrationConfig, 'id' | 'createdAt' | 'updatedAt'>
+    config: CreateDataMigrationConfigParams
   ): Promise<DataMigrationConfig> {
     return this.client.post<DataMigrationConfig>(this.migrationsPath, config);
   }
@@ -510,7 +618,7 @@ export class ImportExportService {
   // 데이터 마이그레이션 설정 업데이트
   async updateDataMigrationConfig(
     configId: string,
-    updates: Partial<Omit<DataMigrationConfig, 'id' | 'createdAt' | 'updatedAt'>>
+    updates: UpdateDataMigrationConfigParams
   ): Promise<DataMigrationConfig> {
     return this.client.put<DataMigrationConfig>(`${this.migrationsPath}/${configId}`, updates);
   }
@@ -523,11 +631,7 @@ export class ImportExportService {
   // 데이터 마이그레이션 실행
   async runDataMigration(
     configId: string,
-    options?: {
-      dryRun?: boolean;
-      batchSize?: number;
-      notifyOnCompletion?: boolean;
-    }
+    options?: DataMigrationOptions
   ): Promise<DataMigrationResult> {
     return this.client.post<DataMigrationResult>(`${this.migrationsPath}/${configId}/run`, options || {});
   }
@@ -538,8 +642,8 @@ export class ImportExportService {
   }
 
   // 데이터 마이그레이션 취소
-  async cancelDataMigration(migrationId: string): Promise<{ success: boolean; message: string }> {
-    return this.client.post<{ success: boolean; message: string }>(`${this.migrationsPath}/results/${migrationId}/cancel`, {});
+  async cancelDataMigration(migrationId: string): Promise<ImportResultResponse> {
+    return this.client.post<ImportResultResponse>(`${this.migrationsPath}/results/${migrationId}/cancel`, {});
   }
 
   // 데이터 마이그레이션 결과 목록 조회
@@ -547,18 +651,8 @@ export class ImportExportService {
     page: number = 1,
     limit: number = 20,
     configId?: string
-  ): Promise<{
-    total: number;
-    page: number;
-    limit: number;
-    results: DataMigrationResult[];
-  }> {
-    return this.client.get<{
-      total: number;
-      page: number;
-      limit: number;
-      results: DataMigrationResult[];
-    }>(`${this.migrationsPath}/results`, {
+  ): Promise<PaginatedResponse<DataMigrationResult>> {
+    return this.client.get<PaginatedResponse<DataMigrationResult>>(`${this.migrationsPath}/results`, {
       params: {
         page,
         limit,
@@ -573,32 +667,8 @@ export class ImportExportService {
   async validateFile(
     entityType: ImportExportEntityType,
     file: File,
-    options?: {
-      columnMapping?: Record<string, string>;
-      skipFirstRow?: boolean;
-      maxRecords?: number;
-    }
-  ): Promise<{
-    valid: boolean;
-    totalRecords: number;
-    validRecords: number;
-    invalidRecords: number;
-    errors: Array<{
-      row: number;
-      column?: string;
-      message: string;
-      value?: unknown;
-    }>;
-    warnings: Array<{
-      row: number;
-      column?: string;
-      message: string;
-      value?: unknown;
-    }>;
-    sampleData?: DataObject[];
-    detectedColumns?: string[];
-    suggestedMapping?: Record<string, string>;
-  }> {
+    options?: ValidateFileOptions
+  ): Promise<ValidateFileResponse> {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('entityType', entityType);
@@ -615,27 +685,7 @@ export class ImportExportService {
       formData.append('maxRecords', options.maxRecords.toString());
     }
 
-    return this.client.post<{
-      valid: boolean;
-      totalRecords: number;
-      validRecords: number;
-      invalidRecords: number;
-      errors: Array<{
-        row: number;
-        column?: string;
-        message: string;
-        value?: unknown;
-      }>;
-      warnings: Array<{
-        row: number;
-        column?: string;
-        message: string;
-        value?: unknown;
-      }>;
-      sampleData?: DataObject[];
-      detectedColumns?: string[];
-      suggestedMapping?: Record<string, string>;
-    }>(`${this.importPath}/validate`, formData, {
+    return this.client.post<ValidateFileResponse>(`${this.importPath}/validate`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }
@@ -647,31 +697,9 @@ export class ImportExportService {
     sourceType: ImportExportEntityType,
     targetType: ImportExportEntityType,
     ids: string[],
-    options: {
-      operation: 'copy' | 'move';
-      mappingRules?: Record<string, string | TransformFunction>;
-      additionalData?: Record<string, unknown>;
-    }
-  ): Promise<{
-    success: boolean;
-    sourceCount: number;
-    targetCount: number;
-    targetIds: string[];
-    errors?: Array<{
-      sourceId: string;
-      message: string;
-    }>;
-  }> {
-    return this.client.post<{
-      success: boolean;
-      sourceCount: number;
-      targetCount: number;
-      targetIds: string[];
-      errors?: Array<{
-        sourceId: string;
-        message: string;
-      }>;
-    }>(`${this.importPath}/copy-move`, {
+    options: CopyOrMoveDataOptions
+  ): Promise<CopyOrMoveDataResponse> {
+    return this.client.post<CopyOrMoveDataResponse>(`${this.importPath}/copy-move`, {
       sourceType,
       targetType,
       ids,
@@ -683,27 +711,9 @@ export class ImportExportService {
   async backupData(
     entityTypes: ImportExportEntityType[],
     format: ImportExportFormat = ImportExportFormat.JSON,
-    options?: {
-      includeRelations?: boolean;
-      includeAttachments?: boolean;
-      password?: string;
-      filename?: string;
-      compressionLevel?: 'none' | 'low' | 'medium' | 'high';
-    }
-  ): Promise<{
-    success: boolean;
-    backupId: string;
-    downloadUrl: string;
-    expiresAt: string;
-    stats: Record<ImportExportEntityType, { count: number }>;
-  }> {
-    return this.client.post<{
-      success: boolean;
-      backupId: string;
-      downloadUrl: string;
-      expiresAt: string;
-      stats: Record<ImportExportEntityType, { count: number }>;
-    }>(`${this.exportPath}/backup`, {
+    options?: BackupDataOptions
+  ): Promise<BackupDataResponse> {
+    return this.client.post<BackupDataResponse>(`${this.exportPath}/backup`, {
       entityTypes,
       format,
       ...options
@@ -713,28 +723,8 @@ export class ImportExportService {
   // 데이터 복원
   async restoreData(
     backupFile: File,
-    options?: {
-      entityTypes?: ImportExportEntityType[];
-      password?: string;
-      conflictStrategy?: 'skip' | 'overwrite' | 'rename';
-      resetIds?: boolean;
-      dryRun?: boolean;
-    }
-  ): Promise<{
-    success: boolean;
-    restoreId: string;
-    stats: Record<ImportExportEntityType, {
-      total: number;
-      restored: number;
-      skipped: number;
-      failed: number;
-    }>;
-    errors?: Array<{
-      entityType: ImportExportEntityType;
-      id?: string;
-      message: string;
-    }>;
-  }> {
+    options?: RestoreDataOptions
+  ): Promise<RestoreDataResponse> {
     const formData = new FormData();
     formData.append('backupFile', backupFile);
     
@@ -748,21 +738,7 @@ export class ImportExportService {
       });
     }
 
-    return this.client.post<{
-      success: boolean;
-      restoreId: string;
-      stats: Record<ImportExportEntityType, {
-        total: number;
-        restored: number;
-        skipped: number;
-        failed: number;
-      }>;
-      errors?: Array<{
-        entityType: ImportExportEntityType;
-        id?: string;
-        message: string;
-      }>;
-    }>(`${this.importPath}/restore`, formData, {
+    return this.client.post<RestoreDataResponse>(`${this.importPath}/restore`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }

@@ -1,4 +1,5 @@
 import React from 'react';
+
 import { Button, Select, message } from 'antd';
 import { jsPDF } from 'jspdf';
 import * as XLSX from 'xlsx';
@@ -35,7 +36,9 @@ const ReportExport: React.FC<ReportExportProps> = ({ reportData }) => {
 
   const exportToExcel = () => {
     try {
-      const worksheet = XLSX.utils.json_to_sheet(Array.isArray(reportData) ? reportData : [reportData]);
+      const worksheet = XLSX.utils.json_to_sheet(
+        Array.isArray(reportData) ? reportData : [reportData]
+      );
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Report');
       XLSX.writeFile(workbook, 'report.xlsx');
@@ -50,15 +53,17 @@ const ReportExport: React.FC<ReportExportProps> = ({ reportData }) => {
     <div style={{ margin: '20px 0' }}>
       <Select
         value={exportType}
-        onChange={(value) => setExportType(value)}
+        onChange={value => setExportType(value)}
         style={{ width: 120, marginRight: 10 }}
       >
         <Option value="pdf">PDF</Option>
         <Option value="excel">Excel</Option>
       </Select>
-      <Button type="primary" onClick={handleExport}>보고서 내보내기</Button>
+      <Button type="primary" onClick={handleExport}>
+        보고서 내보내기
+      </Button>
     </div>
   );
 };
 
-export default ReportExport; 
+export default ReportExport;

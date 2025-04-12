@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+
 import { notificationService } from '../../services/notificationService';
 
 interface NotificationBadgeProps {
@@ -71,4 +72,4 @@ const NotificationBadge: React.FC<NotificationBadgeProps> = ({
   );
 };
 
-export default NotificationBadge; 
+export default NotificationBadge;

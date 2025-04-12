@@ -1,7 +1,9 @@
 import React from 'react';
-import { Todo as TodoType, TodoUpdateRequest } from '../../hooks/useTodoService';
+
+import { Todo as TodoType, TodoUpdateRequest } from '../../services/todoService';
 import TodoItem from '../TodoItem';
-import { FilterState } from '../../hooks/useFilterState';
+
+import type { FilterState } from '../../hooks/useFilterState';
 
 interface TodoListProps {
   loading: boolean;
@@ -27,15 +29,11 @@ const getPriorityClass = (priority: string): string => {
   }
 };
 
-export const TodoList: React.FC<TodoListProps> = ({
-  loading,
-  todos,
-  filterState,
-  onTodoClick,
-  onUpdateTodo,
-  onDeleteTodo,
-  onToggleComplete
-}) => {
+// 명시적 타입 정의를 사용한 함수 컴포넌트
+const TodoList = (props: TodoListProps): JSX.Element => {
+  const { loading, todos, filterState, onTodoClick, onUpdateTodo, onDeleteTodo, onToggleComplete } =
+    props;
+
   if (loading) {
     return <p className="text-gray-500">로딩 중...</p>;
   }
@@ -71,7 +69,7 @@ export const TodoList: React.FC<TodoListProps> = ({
 
   return (
     <ul className="space-y-2">
-      {todos.map((todo) => (
+      {todos.map(todo => (
         <TodoItem
           key={todo.id}
           todo={todo}
@@ -86,4 +84,4 @@ export const TodoList: React.FC<TodoListProps> = ({
   );
 };
 
-export default TodoList; 
+export default TodoList;

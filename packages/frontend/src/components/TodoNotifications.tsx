@@ -1,8 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import todoNotificationService, { TodoNotification, NotificationType } from '../services/todoNotificationService';
-import { formatRelativeTime } from '../utils/dateUtils';
-import { Badge, Dropdown, Button, List, Space, Typography, Tag, Tabs, Empty } from 'antd';
+
 import { BellOutlined, CheckOutlined, DeleteOutlined, FilterOutlined } from '@ant-design/icons';
+import { Badge, Dropdown, Button, List, Space, Typography, Tag, Tabs, Empty } from 'antd';
+
+import todoNotificationService, {
+  TodoNotification,
+  NotificationType
+} from '../services/todoNotificationService';
+import { formatRelativeTime } from '../utils/dateUtils';
 
 interface TodoNotificationsProps {
   className?: string;
@@ -43,7 +48,7 @@ const TodoNotifications: React.FC<TodoNotificationsProps> = ({ className = '', o
 
   // 알림 구독
   useEffect(() => {
-    const unsubscribe = todoNotificationService.subscribeToNotifications((newNotifications) => {
+    const unsubscribe = todoNotificationService.subscribeToNotifications(newNotifications => {
       if (sortByPriority) {
         setNotifications(todoNotificationService.getSortedNotifications());
       } else {
@@ -51,7 +56,7 @@ const TodoNotifications: React.FC<TodoNotificationsProps> = ({ className = '', o
       }
       setUnreadCount(todoNotificationService.getUnreadCount());
     });
-    
+
     return () => unsubscribe();
   }, [sortByPriority]);
 
@@ -60,7 +65,7 @@ const TodoNotifications: React.FC<TodoNotificationsProps> = ({ className = '', o
     const requestPermission = async () => {
       await todoNotificationService.requestNotificationPermission();
     };
-    
+
     requestPermission();
   }, []);
 
@@ -127,11 +132,11 @@ const TodoNotifications: React.FC<TodoNotificationsProps> = ({ className = '', o
       label: (
         <span>
           전체
-          <Badge 
-            count={notifications.length} 
-            size="small" 
-            style={{ marginLeft: 5 }} 
-            overflowCount={99} 
+          <Badge
+            count={notifications.length}
+            size="small"
+            style={{ marginLeft: 5 }}
+            overflowCount={99}
           />
         </span>
       )
@@ -143,12 +148,7 @@ const TodoNotifications: React.FC<TodoNotificationsProps> = ({ className = '', o
         label: (
           <span>
             {typeNameMap[type]}
-            <Badge 
-              count={count} 
-              size="small" 
-              style={{ marginLeft: 5 }} 
-              overflowCount={99} 
-            />
+            <Badge count={count} size="small" style={{ marginLeft: 5 }} overflowCount={99} />
           </span>
         )
       };
@@ -158,34 +158,44 @@ const TodoNotifications: React.FC<TodoNotificationsProps> = ({ className = '', o
   // 알림 드롭다운 내용
   const notificationDropdownContent = (
     <div className="notification-dropdown" style={{ width: 350, maxHeight: 400, overflow: 'auto' }}>
-      <div className="notification-header" style={{ padding: '10px', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between' }}>
-        <Typography.Title level={5} style={{ margin: 0 }}>알림</Typography.Title>
+      <div
+        className="notification-header"
+        style={{
+          padding: '10px',
+          borderBottom: '1px solid #f0f0f0',
+          display: 'flex',
+          justifyContent: 'space-between'
+        }}
+      >
+        <Typography.Title level={5} style={{ margin: 0 }}>
+          알림
+        </Typography.Title>
         <Space>
-          <Button 
-            type="text" 
-            size="small" 
-            icon={<FilterOutlined />} 
+          <Button
+            type="text"
+            size="small"
+            icon={<FilterOutlined />}
             onClick={toggleSort}
-            title={sortByPriority ? "시간순 정렬" : "우선순위순 정렬"}
+            title={sortByPriority ? '시간순 정렬' : '우선순위순 정렬'}
           />
-          <Button 
-            type="text" 
-            size="small" 
-            icon={<DeleteOutlined />} 
+          <Button
+            type="text"
+            size="small"
+            icon={<DeleteOutlined />}
             onClick={handleClearAll}
             title="모든 알림 삭제"
           />
         </Space>
       </div>
-      
-      <Tabs 
+
+      <Tabs
         activeKey={activeTabKey}
         onChange={handleTabChange}
         tabBarStyle={{ padding: '0 10px' }}
         tabBarExtraContent={
-          <Button 
-            type="text" 
-            size="small" 
+          <Button
+            type="text"
+            size="small"
             onClick={() => handleClearByType(activeTabKey)}
             title="현재 탭의 알림 삭제"
           >
@@ -194,14 +204,14 @@ const TodoNotifications: React.FC<TodoNotificationsProps> = ({ className = '', o
         }
         items={tabItems}
       />
-      
+
       <List
         dataSource={getFilteredNotifications()}
-        renderItem={(notification) => (
+        renderItem={notification => (
           <List.Item
             className={notification.read ? 'read' : 'unread'}
-            style={{ 
-              padding: '10px 15px', 
+            style={{
+              padding: '10px 15px',
               borderBottom: '1px solid #f0f0f0',
               backgroundColor: notification.read ? 'transparent' : '#f6f6f6',
               cursor: 'pointer'
@@ -212,7 +222,7 @@ const TodoNotifications: React.FC<TodoNotificationsProps> = ({ className = '', o
                 type="text"
                 size="small"
                 icon={<DeleteOutlined />}
-                onClick={(e) => handleDelete(notification, e)}
+                onClick={e => handleDelete(notification, e)}
               />
             ]}
           >
@@ -273,4 +283,4 @@ const TodoNotifications: React.FC<TodoNotificationsProps> = ({ className = '', o
   );
 };
 
-export default TodoNotifications; 
+export default TodoNotifications;

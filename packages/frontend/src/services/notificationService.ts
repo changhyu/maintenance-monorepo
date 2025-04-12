@@ -1,3 +1,5 @@
+import io from 'socket.io-client';
+
 import { api } from './api';
 import {
   Notification,
@@ -11,7 +13,12 @@ import {
   NotificationTemplate,
   NotificationSubscription
 } from '../types/notification';
-import io from 'socket.io-client';
+
+/**
+ * 소켓 서버 URL
+ * 프로덕션 환경에서는 적절한 URL로 대체해야 함
+ */
+const SOCKET_URL = 'http://localhost:3001';
 
 /**
  * 소켓 연결 인스턴스
@@ -64,7 +71,7 @@ export const notificationService = {
       // API 호출하는 실제 구현으로 대체 필요
       // const response = await this.apiClient.get(`${this.basePath}/count`);
       // return response.data;
-      
+
       // 임시 하드코딩 데이터
       return {
         total: 15,
@@ -81,7 +88,7 @@ export const notificationService = {
       };
     } catch (error) {
       console.error('[notificationService] 알림 개수 조회 실패:', error);
-      
+
       // 오류 발생 시 기본값 반환
       return {
         total: 0,
@@ -135,7 +142,10 @@ export const notificationService = {
    * @param updateData - 업데이트 데이터
    * @returns 업데이트된 알림 정보
    */
-  async updateNotification(notificationId: string, updateData: NotificationUpdate): Promise<Notification | null> {
+  async updateNotification(
+    notificationId: string,
+    updateData: NotificationUpdate
+  ): Promise<Notification | null> {
     try {
       const response = await api.patch(`/notifications/${notificationId}`, updateData);
       return response.data;
@@ -195,7 +205,9 @@ export const notificationService = {
    */
   async markAllAsRead(userId?: string): Promise<boolean> {
     try {
-      const endpoint = userId ? `/users/${userId}/notifications/read-all` : '/notifications/read-all';
+      const endpoint = userId
+        ? `/users/${userId}/notifications/read-all`
+        : '/notifications/read-all';
       const response = await api.post(endpoint);
       return response.data.success;
     } catch (error) {
@@ -265,7 +277,9 @@ export const notificationService = {
   /**
    * 푸시 알림 구독하기
    */
-  async subscribeToPushNotifications(subscription: Omit<NotificationSubscription, 'id' | 'userId' | 'createdAt' | 'updatedAt'>): Promise<NotificationSubscription | null> {
+  async subscribeToPushNotifications(
+    subscription: Omit<NotificationSubscription, 'id' | 'userId' | 'createdAt' | 'updatedAt'>
+  ): Promise<NotificationSubscription | null> {
     try {
       const response = await api.post('/notifications/subscribe', subscription);
       return response.data;
@@ -293,7 +307,10 @@ export const notificationService = {
    * @param userId - 사용자 ID
    * @param onNotification - 알림 수신 콜백 함수
    */
-  subscribeToNotifications(userId: string, onNotification: (notification: Notification) => void): void {
+  subscribeToNotifications(
+    userId: string,
+    onNotification: (notification: Notification) => void
+  ): void {
     if (!userId) {
       console.error('사용자 ID 없이 알림을 구독할 수 없습니다.');
       return;
@@ -305,7 +322,7 @@ export const notificationService = {
     }
 
     // 소켓 서버에 연결
-    socket = io(process.env.REACT_APP_SOCKET_URL || 'http://localhost:3001', {
+    socket = io(SOCKET_URL, {
       query: { userId },
       transports: ['websocket'],
       auth: {
@@ -379,7 +396,9 @@ export const notificationService = {
   /**
    * 알림 템플릿 생성하기 (관리자용)
    */
-  async createNotificationTemplate(templateData: Omit<NotificationTemplate, 'id' | 'createdAt' | 'updatedAt'>): Promise<NotificationTemplate | null> {
+  async createNotificationTemplate(
+    templateData: Omit<NotificationTemplate, 'id' | 'createdAt' | 'updatedAt'>
+  ): Promise<NotificationTemplate | null> {
     try {
       const response = await api.post('/admin/notification-templates', templateData);
       return response.data;
@@ -421,7 +440,12 @@ export const notificationService = {
   /**
    * 알림 배치 생성하기 (관리자용)
    */
-  async createNotificationBatch(batchData: Omit<NotificationBatch, 'id' | 'notificationCount' | 'status' | 'completedAt' | 'createdAt' | 'updatedAt'>): Promise<NotificationBatch | null> {
+  async createNotificationBatch(
+    batchData: Omit<
+      NotificationBatch,
+      'id' | 'notificationCount' | 'status' | 'completedAt' | 'createdAt' | 'updatedAt'
+    >
+  ): Promise<NotificationBatch | null> {
     try {
       const response = await api.post('/admin/notification-batches', batchData);
       return response.data;
@@ -497,4 +521,4 @@ export const notificationService = {
   }
 };
 
-export default notificationService; 
+export default notificationService;

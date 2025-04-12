@@ -1,5 +1,7 @@
 import React from 'react';
+
 import { Select, Tag } from 'antd';
+
 import type { SelectProps } from 'antd/es/select';
 
 export interface FilterOption {
@@ -31,14 +33,9 @@ const FilterSelect: React.FC<FilterSelectProps> = ({
     const { label, value, closable, onClose } = props;
     const option = options.find(opt => opt.value === value);
     const color = option?.color || 'blue';
-    
+
     return (
-      <Tag
-        color={color}
-        closable={closable}
-        onClose={onClose}
-        style={{ marginRight: 3 }}
-      >
+      <Tag color={color} closable={closable} onClose={onClose} style={{ marginRight: 3 }}>
         {label}
       </Tag>
     );
@@ -61,4 +58,4 @@ const FilterSelect: React.FC<FilterSelectProps> = ({
   );
 };
 
-export default FilterSelect; 
+export default FilterSelect;

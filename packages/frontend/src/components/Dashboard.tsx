@@ -1,28 +1,28 @@
 import React, { useEffect, useState } from 'react';
-import { 
-  Row, 
-  Col, 
-  Card, 
-  Statistic, 
-  Badge, 
-  Table, 
-  Tag, 
-  Empty, 
-  Spin, 
+
+import { CarOutlined, ToolOutlined, ReloadOutlined } from '@ant-design/icons';
+import {
+  Row,
+  Col,
+  Card,
+  Statistic,
+  Badge,
+  Table,
+  Tag,
+  Empty,
+  Spin,
   Button,
   Typography,
   message
 } from 'antd';
-import { 
-  CarOutlined, 
-  ToolOutlined, 
-  ReloadOutlined
-} from '@ant-design/icons';
 import moment from 'moment';
+
+import { useVehicleService, useMaintenanceService } from '../hooks';
 import { DashboardDataService } from '../services/DashboardDataService';
 import ReportWidgets from './dashboard/ReportWidgets';
-import { useVehicleService, useMaintenanceService } from '../hooks';
 import { Vehicle, VehicleStats } from '../services/vehicle';
+
+import type { ColumnsType } from 'antd/es/table';
 
 // 정비 일정/기록 인터페이스
 interface MaintenanceRecord {
@@ -48,7 +48,7 @@ interface PredictiveMaintenance {
 export const Dashboard: React.FC = () => {
   // 커스텀 훅 사용
   const { getVehicles } = useVehicleService();
-  const { getAllMaintenanceSchedules, schedules: maintenanceRecords } = useMaintenanceService();
+  const { getAllMaintenanceSchedules } = useMaintenanceService();
 
   const [vehicleStats, setVehicleStats] = useState<VehicleStats>({
     totalVehicles: 0,
@@ -77,39 +77,43 @@ export const Dashboard: React.FC = () => {
 
       // 차량 정보 가져오기
       const vehicles = await getVehicles();
-      
+
       // 차량 통계 계산
       // status 필드가 실제 Vehicle 인터페이스에 정의된 값과 일치하는지 확인
       const activeVehicles = vehicles.filter(v => v.status === 'active').length;
       const inMaintenanceVehicles = vehicles.filter(v => v.status === 'maintenance').length;
       const outOfServiceVehicles = vehicles.filter(v => v.status === 'outOfService').length;
-      
+
       setVehicleStats({
         totalVehicles: vehicles.length,
         activeVehicles,
         inMaintenanceVehicles,
         outOfServiceVehicles
       });
-      
+
       // 정비 데이터 가져오기
       const records = await getAllMaintenanceSchedules();
-      
+
       // 예정된 정비
       const upcoming = records
         .filter(record => record.status === 'scheduled')
-        .sort((a, b) => 
-          new Date(a.scheduledDate || '').getTime() - new Date(b.scheduledDate || '').getTime())
+        .sort(
+          (a, b) =>
+            new Date(a.scheduledDate || '').getTime() - new Date(b.scheduledDate || '').getTime()
+        )
         .slice(0, 5) as MaintenanceRecord[];
       setUpcomingMaintenance(upcoming);
-      
+
       // 최근 정비 기록
       const recent = records
         .filter(record => record.status === 'completed')
-        .sort((a, b) => 
-          new Date(b.completionDate || '').getTime() - new Date(a.completionDate || '').getTime())
+        .sort(
+          (a, b) =>
+            new Date(b.completionDate || '').getTime() - new Date(a.completionDate || '').getTime()
+        )
         .slice(0, 5) as MaintenanceRecord[];
       setRecentMaintenance(recent);
-      
+
       // 예측 정비 (예시 데이터)
       const predictive: PredictiveMaintenance[] = [
         {
@@ -135,7 +139,7 @@ export const Dashboard: React.FC = () => {
         }
       ];
       setPredictiveMaintenance(predictive);
-      
+
       setDataUpdated(new Date());
     } catch (err) {
       console.error('대시보드 데이터 로드 오류:', err);
@@ -162,10 +166,14 @@ export const Dashboard: React.FC = () => {
   const formatDate = (dateString: string): string => {
     return moment(dateString).format('YYYY년 MM월 DD일');
   };
-  
+
   // 시간 포맷팅
   const formatTime = (date: Date): string => {
-    return date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    return date.toLocaleTimeString('ko-KR', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
   };
 
   // 상태에 따른 색상 결정
@@ -212,13 +220,72 @@ export const Dashboard: React.FC = () => {
   if (error) {
     return (
       <div className="flex justify-center items-center h-full">
-        <Empty
-          description={error}
-          image={Empty.PRESENTED_IMAGE_SIMPLE}
-        />
+        <Empty description={error} image={Empty.PRESENTED_IMAGE_SIMPLE} />
       </div>
     );
   }
+
+  // 예측 정비 테이블용 컬럼 정의
+  const predictiveColumns: ColumnsType<PredictiveMaintenance> = [
+    { title: "차량 ID", dataIndex: "vehicleId", key: "vehicleId" },
+    { title: "부품", dataIndex: "component", key: "component" },
+    { 
+      title: "예상 정비일", 
+      dataIndex: "estimatedDate", 
+      key: "estimatedDate",
+      render: (date: Date) => formatDate(date.toISOString())
+    },
+    {
+      title: "심각도",
+      dataIndex: "severity",
+      key: "severity",
+      render: severity => <Tag color={getSeverityColor(severity)}>{severity.toUpperCase()}</Tag>
+    },
+    {
+      title: "확률",
+      dataIndex: "probability",
+      key: "probability",
+      render: probability => `${Math.round(probability * 100)}%`
+    }
+  ];
+
+  // 최근 정비 기록용 컬럼 (확장)
+  const maintenanceColumns: ColumnsType<MaintenanceRecord> = [
+    { title: "차량 ID", dataIndex: "vehicleId", key: "vehicleId" },
+    { title: "정비 유형", dataIndex: "maintenanceType", key: "maintenanceType" },
+    { 
+      title: "완료일", 
+      dataIndex: "completionDate", 
+      key: "completionDate",
+      render: date => (date ? formatDate(date) : '-')
+    },
+    { title: "설명", dataIndex: "description", key: "description", ellipsis: true },
+    {
+      title: "비용",
+      dataIndex: "cost",
+      key: "cost",
+      render: cost => (cost ? `₩${cost.toLocaleString()}` : '-')
+    },
+    {
+      title: "상태",
+      dataIndex: "status",
+      key: "status",
+      render: status => <Badge status={getStatusColor(status) as any} text={status} />
+    }
+  ];
+
+  // 예정된 정비 컬럼 정의
+  const upcomingMaintenanceColumns: ColumnsType<MaintenanceRecord> = [
+    { title: "차량 ID", dataIndex: "vehicleId", key: "vehicleId" },
+    { title: "정비 유형", dataIndex: "maintenanceType", key: "maintenanceType" },
+    { 
+      title: "예정일", 
+      dataIndex: "scheduledDate", 
+      key: "scheduledDate",
+      render: date => (date ? formatDate(date) : '-')
+    },
+    { title: "설명", dataIndex: "description", key: "description", ellipsis: true }
+  ];
 
   return (
     <div className="p-6">
@@ -228,8 +295,8 @@ export const Dashboard: React.FC = () => {
           <span className="text-sm text-gray-500 mr-4">
             최근 업데이트: {formatTime(dataUpdated)}
           </span>
-          <Button 
-            icon={<ReloadOutlined spin={dataRefreshing} />} 
+          <Button
+            icon={<ReloadOutlined spin={dataRefreshing} />}
             onClick={refreshDashboardData}
             loading={dataRefreshing}
           >
@@ -237,7 +304,7 @@ export const Dashboard: React.FC = () => {
           </Button>
         </div>
       </div>
-      
+
       {/* 차량 통계 */}
       <Row gutter={16} className="mb-6">
         <Col span={6}>
@@ -283,114 +350,45 @@ export const Dashboard: React.FC = () => {
 
       {/* 보고서 위젯 */}
       <ReportWidgets dashboardService={dashboardDataService} />
-      
+
       <Row gutter={16} className="mb-6">
         <Col span={12}>
           <Card title="예정된 정비" extra={<a href="/maintenance">더 보기</a>}>
             {upcomingMaintenance.length > 0 ? (
-              <Table
-                dataSource={upcomingMaintenance}
-                pagination={false}
-                size="small"
-                rowKey="id"
-              >
-                <Table.Column title="차량 ID" dataIndex="vehicleId" key="vehicleId" />
-                <Table.Column title="정비 유형" dataIndex="maintenanceType" key="maintenanceType" />
-                <Table.Column
-                  title="예정일"
-                  dataIndex="scheduledDate"
-                  key="scheduledDate"
-                  render={(date) => date ? formatDate(date) : '-'}
-                />
-                <Table.Column
-                  title="상태"
-                  dataIndex="status"
-                  key="status"
-                  render={(status) => (
-                    <Badge status={getStatusColor(status) as any} text={status} />
-                  )}
-                />
-              </Table>
+              <Table dataSource={upcomingMaintenance} columns={upcomingMaintenanceColumns} pagination={false} size="small" rowKey="id" />
             ) : (
               <Empty description="예정된 정비가 없습니다" />
             )}
           </Card>
         </Col>
-        
+
         <Col span={12}>
           <Card title="예측 정비" extra={<a href="/predictive">더 보기</a>}>
             {predictiveMaintenance.length > 0 ? (
               <Table
                 dataSource={predictiveMaintenance}
+                columns={predictiveColumns}
                 pagination={false}
                 size="small"
                 rowKey={(record, index) => `${record.vehicleId}-${index}`}
-              >
-                <Table.Column title="차량 ID" dataIndex="vehicleId" key="vehicleId" />
-                <Table.Column title="부품" dataIndex="component" key="component" />
-                <Table.Column
-                  title="예상 정비일"
-                  dataIndex="estimatedDate"
-                  key="estimatedDate"
-                  render={(date: Date) => formatDate(date.toISOString())}
-                />
-                <Table.Column
-                  title="심각도"
-                  dataIndex="severity"
-                  key="severity"
-                  render={(severity) => (
-                    <Tag color={getSeverityColor(severity)}>
-                      {severity.toUpperCase()}
-                    </Tag>
-                  )}
-                />
-                <Table.Column
-                  title="확률"
-                  dataIndex="probability"
-                  key="probability"
-                  render={(probability) => `${Math.round(probability * 100)}%`}
-                />
-              </Table>
+              />
             ) : (
               <Empty description="예측 정비 데이터가 없습니다" />
             )}
           </Card>
         </Col>
       </Row>
-      
+
       {/* 최근 정비 기록 */}
       <Card title="최근 정비 기록" extra={<a href="/maintenance/history">전체 보기</a>}>
         {recentMaintenance.length > 0 ? (
           <Table
             dataSource={recentMaintenance}
+            columns={maintenanceColumns}
             pagination={false}
             size="small"
             rowKey="id"
-          >
-            <Table.Column title="차량 ID" dataIndex="vehicleId" key="vehicleId" />
-            <Table.Column title="정비 유형" dataIndex="maintenanceType" key="maintenanceType" />
-            <Table.Column
-              title="완료일"
-              dataIndex="completionDate"
-              key="completionDate"
-              render={(date) => date ? formatDate(date) : '-'}
-            />
-            <Table.Column title="설명" dataIndex="description" key="description" ellipsis={true} />
-            <Table.Column
-              title="비용"
-              dataIndex="cost"
-              key="cost"
-              render={(cost) => cost ? `₩${cost.toLocaleString()}` : '-'}
-            />
-            <Table.Column
-              title="상태"
-              dataIndex="status"
-              key="status"
-              render={(status) => (
-                <Badge status={getStatusColor(status) as any} text={status} />
-              )}
-            />
-          </Table>
+          />
         ) : (
           <Empty description="최근 정비 기록이 없습니다" />
         )}
@@ -399,4 +397,4 @@ export const Dashboard: React.FC = () => {
   );
 };
 
-export default Dashboard; 
+export default Dashboard;

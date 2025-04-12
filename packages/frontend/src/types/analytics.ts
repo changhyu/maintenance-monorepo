@@ -76,4 +76,4 @@ export interface MaintenanceAnalyticsOverview {
   maintenancesByPriority: AnalyticsCategory;
   averageCompletionTime: number;
   upcomingMaintenances: number;
-} 
+}

@@ -4,7 +4,7 @@ import { Card, Button, Table, Space, Typography } from 'antd';
 import moment from 'moment';
 import 'moment/locale/ko';
 
-import { 
+import {
   BarChart,
   CartesianGrid,
   XAxis,
@@ -38,25 +38,33 @@ interface LocalReport {
 const ReportDashboard: React.FC = () => {
   // 보고서 인스턴스 생성
   const reportInstance = reportService;
-  
+
   // 전체 보고서 데이터
   const [reports, setReports] = useState<LocalReport[]>([]);
-  
+
   // 요약 데이터
   const [summary, setSummary] = useState<any>(null);
-  
+
   // 로딩 상태
   const [loading, setLoading] = useState<boolean>(false);
-  
+
   // 초기 데이터 로드
   useEffect(() => {
     // 저장된 보고서 로드
     const loadReports = async () => {
       setLoading(true);
       try {
-        const loadedReports = await reportInstance.getSavedReports();
-        setReports(loadedReports);
-        
+        const loadedReports = await reportInstance.getReports();
+        // Report[] 타입을 LocalReport[] 타입으로 변환
+        const formattedReports = loadedReports.map(report => ({
+          id: report.id,
+          name: report.title, // title을 name으로 매핑
+          type: report.type,
+          createdAt: report.createdAt,
+          data: report.data
+        }));
+        setReports(formattedReports);
+
         // 요약 데이터 로드
         const summaryData = await reportInstance.getReportSummary();
         setSummary(summaryData);
@@ -66,7 +74,7 @@ const ReportDashboard: React.FC = () => {
         setLoading(false);
       }
     };
-    
+
     loadReports();
   }, []);
 
@@ -80,26 +88,41 @@ const ReportDashboard: React.FC = () => {
               <Card title="보고서 통계" loading={loading}>
                 {summary && (
                   <div>
-                    <p><strong>총 보고서:</strong> {summary.totalReports}개</p>
-                    <p><strong>최근 생성:</strong> {moment(summary.lastReportDate).fromNow()}</p>
-                    <p><strong>완료율 보고서:</strong> {summary.reportsByType.completionRate}개</p>
-                    <p><strong>비용 보고서:</strong> {summary.reportsByType.costAnalysis}개</p>
-                    <p><strong>정비 예측 보고서:</strong> {summary.reportsByType.maintenanceForecast}개</p>
+                    <p>
+                      <strong>총 보고서:</strong> {summary.totalReports}개
+                    </p>
+                    <p>
+                      <strong>최근 생성:</strong> {moment(summary.lastReportDate).fromNow()}
+                    </p>
+                    <p>
+                      <strong>완료율 보고서:</strong> {summary.reportsByType.completionRate}개
+                    </p>
+                    <p>
+                      <strong>비용 보고서:</strong> {summary.reportsByType.costAnalysis}개
+                    </p>
+                    <p>
+                      <strong>정비 예측 보고서:</strong> {summary.reportsByType.maintenanceForecast}
+                      개
+                    </p>
                   </div>
                 )}
               </Card>
             </div>
-            
+
             {/* 보고서 유형 분포 */}
             <div className="col-md-6">
               <Card title="보고서 유형 분포" loading={loading}>
                 {summary && (
-                  <BarChart width={300} height={200} data={[
-                    { name: '완료율', value: summary.reportsByType.completionRate },
-                    { name: '비용 분석', value: summary.reportsByType.costAnalysis },
-                    { name: '정비 예측', value: summary.reportsByType.maintenanceForecast },
-                    { name: '차량 이력', value: summary.reportsByType.vehicleHistory }
-                  ]}>
+                  <BarChart
+                    width={300}
+                    height={200}
+                    data={[
+                      { name: '완료율', value: summary.reportsByType.completionRate },
+                      { name: '비용 분석', value: summary.reportsByType.costAnalysis },
+                      { name: '정비 예측', value: summary.reportsByType.maintenanceForecast },
+                      { name: '차량 이력', value: summary.reportsByType.vehicleHistory }
+                    ]}
+                  >
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="name" />
                     <YAxis />
@@ -113,7 +136,7 @@ const ReportDashboard: React.FC = () => {
           </div>
         </div>
       </Card>
-      
+
       {/* 최근 보고서 */}
       <Card title="최근 보고서" className="mb-4">
         <Table
@@ -124,7 +147,7 @@ const ReportDashboard: React.FC = () => {
             {
               title: '보고서 이름',
               dataIndex: 'name',
-              key: 'name',
+              key: 'name'
             },
             {
               title: '유형',
@@ -160,17 +183,15 @@ const ReportDashboard: React.FC = () => {
                     보기
                   </Button>
                 </Space>
-              ),
-            },
+              )
+            }
           ]}
         />
       </Card>
-      
+
       {/* 차트 섹션 */}
       <Card title="보고서 차트" className="mb-4">
-        {summary && (
-          <ReportChart data={summary.chartData} type="line" />
-        )}
+        {summary && <ReportChart data={summary.chartData} type={ReportType.MAINTENANCE_SUMMARY} chartType="line" />}
       </Card>
     </div>
   );

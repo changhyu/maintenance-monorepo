@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+
 import { useNavigate } from 'react-router-dom';
 
 /**
@@ -29,7 +30,7 @@ const ProfilePage: React.FC = () => {
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
-    address: '',
+    address: ''
   });
   const [saveLoading, setSaveLoading] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -39,12 +40,12 @@ const ProfilePage: React.FC = () => {
     const fetchProfile = async () => {
       setLoading(true);
       setError(null);
-      
+
       try {
         // 실제 API 호출은 향후 구현
         // 임시 데이터 사용
         await new Promise(resolve => setTimeout(resolve, 1000));
-        
+
         const mockProfile: UserProfile = {
           id: 'user-123',
           name: '김정비',
@@ -55,14 +56,14 @@ const ProfilePage: React.FC = () => {
           address: '서울시 강남구',
           profileImage: 'https://placehold.co/300x300',
           createdAt: '2023-01-15',
-          lastLogin: '2023-04-08T09:30:00',
+          lastLogin: '2023-04-08T09:30:00'
         };
-        
+
         setProfile(mockProfile);
         setFormData({
           name: mockProfile.name,
           phone: mockProfile.phone || '',
-          address: mockProfile.address || '',
+          address: mockProfile.address || ''
         });
       } catch (err) {
         console.error('Failed to fetch profile:', err);
@@ -71,7 +72,7 @@ const ProfilePage: React.FC = () => {
         setLoading(false);
       }
     };
-    
+
     fetchProfile();
   }, []);
 
@@ -96,7 +97,7 @@ const ProfilePage: React.FC = () => {
         setFormData({
           name: profile.name,
           phone: profile.phone || '',
-          address: profile.address || '',
+          address: profile.address || ''
         });
       }
     }
@@ -109,19 +110,19 @@ const ProfilePage: React.FC = () => {
    */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!profile) return;
-    
+
     setSaveLoading(true);
     setSaveError(null);
-    
+
     try {
       // 실제 API 호출은 향후 구현
       console.log('Updating profile with:', formData);
-      
+
       // 수정 성공 시뮬레이션
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
+
       // 프로필 데이터 업데이트
       setProfile(prev => {
         if (!prev) return null;
@@ -129,10 +130,10 @@ const ProfilePage: React.FC = () => {
           ...prev,
           name: formData.name,
           phone: formData.phone,
-          address: formData.address,
+          address: formData.address
         };
       });
-      
+
       // 편집 모드 종료
       setIsEditing(false);
     } catch (err) {
@@ -197,9 +198,7 @@ const ProfilePage: React.FC = () => {
         <div className="px-4 py-5 sm:px-6 flex justify-between items-center">
           <div>
             <h3 className="text-lg leading-6 font-medium text-gray-900">사용자 프로필</h3>
-            <p className="mt-1 max-w-2xl text-sm text-gray-500">
-              개인 정보 및 계정 설정
-            </p>
+            <p className="mt-1 max-w-2xl text-sm text-gray-500">개인 정보 및 계정 설정</p>
           </div>
           <div className="flex space-x-2">
             <button
@@ -220,7 +219,7 @@ const ProfilePage: React.FC = () => {
             </button>
           </div>
         </div>
-        
+
         {isEditing ? (
           <form onSubmit={handleSubmit} className="border-t border-gray-200">
             {saveError && (
@@ -228,7 +227,7 @@ const ProfilePage: React.FC = () => {
                 <p>{saveError}</p>
               </div>
             )}
-            
+
             <div className="px-4 py-5 sm:p-6">
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                 <div>
@@ -245,7 +244,7 @@ const ProfilePage: React.FC = () => {
                     className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
                   />
                 </div>
-                
+
                 <div>
                   <label htmlFor="email" className="block text-sm font-medium text-gray-700">
                     이메일
@@ -260,7 +259,7 @@ const ProfilePage: React.FC = () => {
                   />
                   <p className="mt-1 text-xs text-gray-500">이메일 주소는 변경할 수 없습니다.</p>
                 </div>
-                
+
                 <div>
                   <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
                     전화번호
@@ -274,7 +273,7 @@ const ProfilePage: React.FC = () => {
                     className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
                   />
                 </div>
-                
+
                 <div>
                   <label htmlFor="address" className="block text-sm font-medium text-gray-700">
                     주소
@@ -288,7 +287,7 @@ const ProfilePage: React.FC = () => {
                     className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
                   />
                 </div>
-                
+
                 <div className="sm:col-span-2 mt-4">
                   <button
                     type="submit"
@@ -310,7 +309,9 @@ const ProfilePage: React.FC = () => {
               </div>
               <div className="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
                 <dt className="text-sm font-medium text-gray-500">이메일</dt>
-                <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{profile.email}</dd>
+                <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                  {profile.email}
+                </dd>
               </div>
               <div className="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
                 <dt className="text-sm font-medium text-gray-500">역할</dt>
@@ -318,14 +319,16 @@ const ProfilePage: React.FC = () => {
                   {profile.role === 'technician'
                     ? '정비사'
                     : profile.role === 'enterprise'
-                    ? '기업 사용자'
-                    : '개인 사용자'}
+                      ? '기업 사용자'
+                      : '개인 사용자'}
                 </dd>
               </div>
               {profile.company && (
                 <div className="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
                   <dt className="text-sm font-medium text-gray-500">회사</dt>
-                  <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{profile.company}</dd>
+                  <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                    {profile.company}
+                  </dd>
                 </div>
               )}
               <div className="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
@@ -355,7 +358,7 @@ const ProfilePage: React.FC = () => {
             </dl>
           </div>
         )}
-        
+
         <div className="border-t border-gray-200 px-4 py-5 sm:px-6">
           <h4 className="text-md font-medium text-gray-500 mb-4">계정 관리</h4>
           <div className="space-y-4">
@@ -365,7 +368,7 @@ const ProfilePage: React.FC = () => {
             >
               비밀번호 변경
             </button>
-            
+
             <div>
               <button
                 onClick={handleDeleteAccount}
@@ -384,4 +387,4 @@ const ProfilePage: React.FC = () => {
   );
 };
 
-export default ProfilePage; 
+export default ProfilePage;

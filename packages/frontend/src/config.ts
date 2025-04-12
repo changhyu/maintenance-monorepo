@@ -12,10 +12,11 @@ interface Config {
     defaultReminderTime: number; // 마감일 n일 전 알림 (일 단위)
     storageQuota: number; // 보관할 최대 알림 수
     overdueRemindInterval: number; // 기한 초과 알림 주기 (일 단위)
-    autoMarkReadAfter: number; // n일 후 자동 읽음 처리 (일 단위) 
+    autoMarkReadAfter: number; // n일 후 자동 읽음 처리 (일 단위)
     prioritizedTypes: readonly string[]; // 우선시되는 알림 유형들
     reminderTimes: readonly number[]; // 여러 시점에서 알림 (ex: [1, 3, 7] - 마감일 1일, 3일, 7일 전)
-    silentHours: { // 무음 시간
+    silentHours: {
+      // 무음 시간
       enabled: boolean;
       start: string; // "HH:MM" 포맷
       end: string; // "HH:MM" 포맷
@@ -50,8 +51,8 @@ const configs = {
       reminderTimes: [1, 3, 7],
       silentHours: {
         enabled: false,
-        start: "22:00",
-        end: "08:00"
+        start: '22:00',
+        end: '08:00'
       }
     },
     dateFormat: 'YYYY-MM-DD',
@@ -80,8 +81,8 @@ const configs = {
       reminderTimes: [1, 3, 7],
       silentHours: {
         enabled: false,
-        start: "22:00",
-        end: "08:00"
+        start: '22:00',
+        end: '08:00'
       }
     },
     dateFormat: 'YYYY-MM-DD',
@@ -110,8 +111,8 @@ const configs = {
       reminderTimes: [1, 3, 7],
       silentHours: {
         enabled: true,
-        start: "22:00",
-        end: "08:00"
+        start: '22:00',
+        end: '08:00'
       }
     },
     dateFormat: 'YYYY-MM-DD',
@@ -128,7 +129,7 @@ const configs = {
 } as const;
 
 // 현재 환경 설정
-const env = process.env.NODE_ENV || 'development';
+const env = import.meta.env.MODE || 'development';
 const config: Config = configs[env as keyof typeof configs] || configs.development;
 
-export default config; 
+export default config;

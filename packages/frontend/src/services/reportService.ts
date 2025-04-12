@@ -234,7 +234,7 @@ export interface RecentReport {
 /**
  * 보고서 서비스 클래스
  */
-class ReportService {
+export class ReportService {
   private apiUrl = '/api/reports';
   private readonly TEMPLATES_STORAGE_KEY = 'reportTemplates';
 
@@ -255,7 +255,10 @@ class ReportService {
   /**
    * 차량 정비 이력 보고서 생성
    */
-  async generateVehicleHistoryReport(vehicleId: string, filter?: Omit<ReportFilter, 'vehicleId'>): Promise<VehicleHistoryReport> {
+  async generateVehicleHistoryReport(
+    vehicleId: string,
+    filter?: Omit<ReportFilter, 'vehicleId'>
+  ): Promise<VehicleHistoryReport> {
     try {
       const response = await axios.post(`${this.apiUrl}/vehicle-history/${vehicleId}`, filter);
       return response.data;
@@ -297,7 +300,9 @@ class ReportService {
   /**
    * 정비 예측 보고서 생성
    */
-  async generateMaintenanceForecastReport(filter: ReportFilter): Promise<MaintenanceForecastReport> {
+  async generateMaintenanceForecastReport(
+    filter: ReportFilter
+  ): Promise<MaintenanceForecastReport> {
     try {
       const response = await axios.post(`${this.apiUrl}/maintenance-forecast`, filter);
       return response.data;
@@ -313,11 +318,9 @@ class ReportService {
    */
   async exportReport(reportId: string, options: ExportOptions): Promise<Blob> {
     try {
-      const response = await axios.post(
-        `${this.apiUrl}/export/${reportId}`,
-        options,
-        { responseType: 'blob' }
-      );
+      const response = await axios.post(`${this.apiUrl}/export/${reportId}`, options, {
+        responseType: 'blob'
+      });
       return response.data;
     } catch (error) {
       console.error('보고서 내보내기 중 오류 발생:', error);
@@ -328,7 +331,11 @@ class ReportService {
   /**
    * 보고서 목록 조회
    */
-  async getReports(filter?: { type?: ReportType; startDate?: string; endDate?: string }): Promise<Report[]> {
+  async getReports(filter?: {
+    type?: ReportType;
+    startDate?: string;
+    endDate?: string;
+  }): Promise<Report[]> {
     try {
       const response = await axios.get(this.apiUrl, { params: filter });
       return response.data;
@@ -337,6 +344,80 @@ class ReportService {
       // 임시 데이터로 대체
       return this.getMockReportList(filter);
     }
+  }
+
+  /**
+   * 보고서 요약 데이터 조회
+   */
+  async getReportSummary(): Promise<any> {
+    try {
+      const response = await axios.get(`${this.apiUrl}/summary`);
+      return response.data;
+    } catch (error) {
+      console.error('보고서 요약 데이터 조회 중 오류 발생:', error);
+      // 임시 데이터로 대체
+      return this.getMockReportSummary();
+    }
+  }
+
+  /**
+   * 임시 보고서 요약 데이터 생성
+   */
+  private getMockReportSummary(): any {
+    const reports = this.getMockReportList();
+    const totalReports = reports.length;
+    
+    // 보고서 유형별 개수 계산
+    const reportsByType = {
+      completionRate: 0,
+      costAnalysis: 0,
+      maintenanceForecast: 0,
+      vehicleHistory: 0,
+      maintenanceSummary: 0
+    };
+    
+    reports.forEach(report => {
+      switch (report.type) {
+        case ReportType.COMPLETION_RATE:
+          reportsByType.completionRate += 1;
+          break;
+        case ReportType.COST_ANALYSIS:
+          reportsByType.costAnalysis += 1;
+          break;
+        case ReportType.MAINTENANCE_FORECAST:
+          reportsByType.maintenanceForecast += 1;
+          break;
+        case ReportType.VEHICLE_HISTORY:
+          reportsByType.vehicleHistory += 1;
+          break;
+        case ReportType.MAINTENANCE_SUMMARY:
+          reportsByType.maintenanceSummary += 1;
+          break;
+      }
+    });
+    
+    // 최근 보고서 날짜 (가장 최근 생성된 보고서)
+    const lastReportDate = reports.length > 0 
+      ? reports.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0].createdAt 
+      : new Date().toISOString();
+    
+    // 차트 데이터 생성
+    const chartData = Array.from({ length: 12 }, (_, i) => {
+      const date = new Date();
+      date.setMonth(date.getMonth() - 11 + i);
+      return {
+        month: format(date, 'yyyy-MM'),
+        '정비 완료': Math.floor(Math.random() * 30) + 5,
+        '보고서 생성': Math.floor(Math.random() * 15) + 2
+      };
+    });
+    
+    return {
+      totalReports,
+      reportsByType,
+      lastReportDate,
+      chartData
+    };
   }
 
   /**
@@ -357,7 +438,12 @@ class ReportService {
   async scheduleReport(
     type: ReportType,
     filter: ReportFilter,
-    schedule: { frequency: 'daily' | 'weekly' | 'monthly'; dayOfWeek?: number; dayOfMonth?: number; time: string },
+    schedule: {
+      frequency: 'daily' | 'weekly' | 'monthly';
+      dayOfWeek?: number;
+      dayOfMonth?: number;
+      time: string;
+    },
     delivery: { email: string[]; shareLink?: boolean }
   ): Promise<{ id: string }> {
     try {
@@ -383,18 +469,18 @@ class ReportService {
       // API가 구현되어 있다면 서버에 저장
       // const response = await axios.post(`${this.apiUrl}/templates`, template);
       // return response.data;
-      
+
       // 로컬 스토리지에 저장하는 임시 구현
       const templates = this.getTemplates();
       const newTemplate: ReportTemplate = {
         ...template,
         id: `template-${Date.now()}`,
-        createdAt: new Date().toISOString(),
+        createdAt: new Date().toISOString()
       };
-      
+
       templates.push(newTemplate);
       localStorage.setItem(this.TEMPLATES_STORAGE_KEY, JSON.stringify(templates));
-      
+
       return newTemplate;
     } catch (error) {
       console.error('템플릿 저장 중 오류 발생:', error);
@@ -426,23 +512,26 @@ class ReportService {
   /**
    * 템플릿 업데이트
    */
-  updateTemplate(templateId: string, updates: Partial<Omit<ReportTemplate, 'id' | 'createdAt'>>): ReportTemplate | null {
+  updateTemplate(
+    templateId: string,
+    updates: Partial<Omit<ReportTemplate, 'id' | 'createdAt'>>
+  ): ReportTemplate | null {
     try {
       const templates = this.getTemplates();
       const templateIndex = templates.findIndex(template => template.id === templateId);
-      
+
       if (templateIndex === -1) {
         return null;
       }
-      
+
       const updatedTemplate = {
         ...templates[templateIndex],
-        ...updates,
+        ...updates
       };
-      
+
       templates[templateIndex] = updatedTemplate;
       localStorage.setItem(this.TEMPLATES_STORAGE_KEY, JSON.stringify(templates));
-      
+
       return updatedTemplate;
     } catch (error) {
       console.error('템플릿 업데이트 중 오류 발생:', error);
@@ -457,11 +546,11 @@ class ReportService {
     try {
       const templates = this.getTemplates();
       const filteredTemplates = templates.filter(template => template.id !== templateId);
-      
+
       if (filteredTemplates.length === templates.length) {
         return false; // 삭제할 템플릿이 없음
       }
-      
+
       localStorage.setItem(this.TEMPLATES_STORAGE_KEY, JSON.stringify(filteredTemplates));
       return true;
     } catch (error) {
@@ -483,26 +572,28 @@ class ReportService {
   async generateReportFromTemplate(templateId: string): Promise<Report | null> {
     try {
       const template = this.getTemplateById(templateId);
-      
+
       if (!template) {
         throw new Error('템플릿을 찾을 수 없습니다');
       }
-      
+
       // 템플릿 사용 기록 업데이트
       this.updateTemplateUsage(templateId);
-      
-      // 템플릿 유형에 따라 적절한 보고서 생성 함수 호출
+
+      // 보고서 유형에 따라 적절한 생성 메서드 호출
       let report: Report;
-      
+
       switch (template.type) {
         case ReportType.COMPLETION_RATE:
           report = await this.generateCompletionRateReport(template.filter);
           break;
         case ReportType.VEHICLE_HISTORY:
           if (template.filter.vehicleId) {
+            // vehicleId를 추출하고 나머지 속성만 두 번째 인자로 전달
+            const { vehicleId, ...restFilter } = template.filter;
             report = await this.generateVehicleHistoryReport(
-              template.filter.vehicleId,
-              { ...template.filter, vehicleId: undefined } // vehicleId 속성 제거된 필터
+              vehicleId,
+              restFilter
             );
           } else {
             throw new Error('차량 정비 이력 보고서에는 차량 ID가 필요합니다');
@@ -520,7 +611,7 @@ class ReportService {
         default:
           throw new Error('지원되지 않는 보고서 유형입니다');
       }
-      
+
       return report;
     } catch (error) {
       console.error('템플릿에서 보고서 생성 중 오류 발생:', error);
@@ -568,32 +659,34 @@ class ReportService {
    */
   private getMockCompletionRateReport(filter: ReportFilter): CompletionRateReport {
     const today = new Date();
-    const startDate = filter.dateRange.startDate ? new Date(filter.dateRange.startDate) : new Date(today.setMonth(today.getMonth() - 1));
+    const startDate = filter.dateRange.startDate
+      ? new Date(filter.dateRange.startDate)
+      : new Date(today.setMonth(today.getMonth() - 1));
     const endDate = filter.dateRange.endDate ? new Date(filter.dateRange.endDate) : new Date();
-    
+
     // 날짜 간격 계산
     const dayDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-    
+
     // 임의의 트렌드 데이터 생성
     const trend = [];
-    let currentDate = new Date(startDate);
+    const currentDate = new Date(startDate);
     let rate = 0.65; // 초기 완료율
-    
+
     while (currentDate <= endDate) {
       // 랜덤한 완료율 변동 (-5% ~ +5%)
       rate += (Math.random() - 0.5) * 0.1;
       // 완료율 범위 제한 (0.4 ~ 0.95)
       rate = Math.max(0.4, Math.min(0.95, rate));
-      
+
       trend.push({
         date: format(currentDate, 'yyyy-MM-dd'),
         completionRate: rate
       });
-      
+
       // 다음 날짜로 이동
       currentDate.setDate(currentDate.getDate() + 1);
     }
-    
+
     return {
       id: `cr-${Date.now()}`,
       title: `완료율 보고서 (${format(startDate, 'yyyy-MM-dd')} ~ ${format(endDate, 'yyyy-MM-dd')})`,
@@ -616,26 +709,36 @@ class ReportService {
   /**
    * 임시 차량 정비 이력 보고서 생성
    */
-  private getMockVehicleHistoryReport(vehicleId: string, filter?: Omit<ReportFilter, 'vehicleId'>): VehicleHistoryReport {
+  private getMockVehicleHistoryReport(
+    vehicleId: string,
+    filter?: Omit<ReportFilter, 'vehicleId'>
+  ): VehicleHistoryReport {
     // 임의의 정비 이력 데이터 생성
     const maintenanceHistory = [];
     const today = new Date();
     let totalCost = 0;
-    
+
     // 과거 12개월간 임의의 정비 기록 생성
     for (let i = 0; i < 8; i++) {
       const date = new Date(today);
       date.setMonth(date.getMonth() - Math.floor(Math.random() * 12));
-      
+
       const cost = Math.floor(Math.random() * 50 + 1) * 10000;
       totalCost += cost;
-      
-      const types = ['정기 점검', '엔진 정비', '오일 교체', '타이어 교체', '브레이크 점검', '냉각 시스템 점검'];
+
+      const types = [
+        '정기 점검',
+        '엔진 정비',
+        '오일 교체',
+        '타이어 교체',
+        '브레이크 점검',
+        '냉각 시스템 점검'
+      ];
       const type = types[Math.floor(Math.random() * types.length)];
-      
+
       const statuses = ['완료', '진행중', '예정됨'];
       const status = statuses[Math.floor(Math.random() * statuses.length)];
-      
+
       maintenanceHistory.push({
         id: `maint-${i}-${Date.now()}`,
         date: format(date, 'yyyy-MM-dd'),
@@ -646,10 +749,10 @@ class ReportService {
         status
       });
     }
-    
+
     // 날짜 순으로 정렬
     maintenanceHistory.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    
+
     // 일반적인 이슈 빈도 생성
     const commonIssues = [
       { issue: '엔진 오일 부족', frequency: 3 },
@@ -657,7 +760,7 @@ class ReportService {
       { issue: '브레이크 패드 교체 필요', frequency: 2 },
       { issue: '냉각수 부족', frequency: 1 }
     ];
-    
+
     return {
       id: `vh-${vehicleId}-${Date.now()}`,
       title: `차량 정비 이력 (${vehicleId})`,
@@ -684,13 +787,28 @@ class ReportService {
    */
   private getMockCostAnalysisReport(filter: ReportFilter): CostAnalysisReport {
     const today = new Date();
-    const startDate = filter.dateRange.startDate ? new Date(filter.dateRange.startDate) : new Date(today.setMonth(today.getMonth() - 6));
-    
+    const startDate = filter.dateRange.startDate
+      ? new Date(filter.dateRange.startDate)
+      : new Date(today.setMonth(today.getMonth() - 6));
+
     // 월별 비용 트렌드 생성
     const costTrend = [];
-    const months = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
-    let startMonth = startDate.getMonth();
-    
+    const months = [
+      '1월',
+      '2월',
+      '3월',
+      '4월',
+      '5월',
+      '6월',
+      '7월',
+      '8월',
+      '9월',
+      '10월',
+      '11월',
+      '12월'
+    ];
+    const startMonth = startDate.getMonth();
+
     for (let i = 0; i < 6; i++) {
       const monthIndex = (startMonth + i) % 12;
       costTrend.push({
@@ -698,7 +816,7 @@ class ReportService {
         cost: Math.floor(Math.random() * 100 + 50) * 10000
       });
     }
-    
+
     // 차량별 비용 비교 생성
     const vehicleCostComparison = [];
     for (let i = 1; i <= 5; i++) {
@@ -708,11 +826,11 @@ class ReportService {
         totalCost: Math.floor(Math.random() * 200 + 100) * 10000
       });
     }
-    
+
     // 비용 예측 생성
     const costProjection = [];
     let nextMonth = (today.getMonth() + 1) % 12;
-    
+
     for (let i = 0; i < 3; i++) {
       costProjection.push({
         month: months[nextMonth],
@@ -720,13 +838,13 @@ class ReportService {
       });
       nextMonth = (nextMonth + 1) % 12;
     }
-    
+
     // 총 비용 및 세부 내역
     const parts = Math.floor(Math.random() * 300 + 200) * 10000;
     const labor = Math.floor(Math.random() * 200 + 100) * 10000;
     const etc = Math.floor(Math.random() * 50 + 20) * 10000;
     const totalCost = parts + labor + etc;
-    
+
     return {
       id: `ca-${Date.now()}`,
       title: '비용 분석 보고서',
@@ -752,9 +870,13 @@ class ReportService {
    */
   private getMockMaintenanceSummaryReport(filter: ReportFilter): MaintenanceSummaryReport {
     const today = new Date();
-    const startDate = filter.dateRange.startDate ? filter.dateRange.startDate : format(new Date(today.setMonth(today.getMonth() - 3)), 'yyyy-MM-dd');
-    const endDate = filter.dateRange.endDate ? filter.dateRange.endDate : format(new Date(), 'yyyy-MM-dd');
-    
+    const startDate = filter.dateRange.startDate
+      ? filter.dateRange.startDate
+      : format(new Date(today.setMonth(today.getMonth() - 3)), 'yyyy-MM-dd');
+    const endDate = filter.dateRange.endDate
+      ? filter.dateRange.endDate
+      : format(new Date(), 'yyyy-MM-dd');
+
     // 유형별 정비 데이터
     const maintenanceTypes = [
       { type: '정기 점검', count: 35, percentage: 38.5 },
@@ -764,7 +886,7 @@ class ReportService {
       { type: '전기 시스템', count: 10, percentage: 11.0 },
       { type: '기타', count: 8, percentage: 8.8 }
     ];
-    
+
     // 상태별 정비 데이터
     const byStatus = {
       completed: 65,
@@ -772,7 +894,7 @@ class ReportService {
       scheduled: 8,
       overdue: 3
     };
-    
+
     // 기술자별 완료 작업
     const topTechnicians = [
       { name: '김기술', completedTasks: 28, averageRating: 4.8 },
@@ -780,7 +902,7 @@ class ReportService {
       { name: '이엔진', completedTasks: 18, averageRating: 4.7 },
       { name: '최기계', completedTasks: 15, averageRating: 4.5 }
     ];
-    
+
     return {
       id: `ms-${Date.now()}`,
       title: `정비 요약 보고서 (${startDate} ~ ${endDate})`,
@@ -808,17 +930,23 @@ class ReportService {
    */
   private getMockMaintenanceForecastReport(filter: ReportFilter): MaintenanceForecastReport {
     const today = new Date();
-    
+
     // 예정된 정비 작업
     const upcoming = [];
     for (let i = 1; i <= 5; i++) {
       const daysToAdd = Math.floor(Math.random() * 30) + 1;
       const date = new Date(today);
       date.setDate(date.getDate() + daysToAdd);
-      
-      const maintenanceTypes = ['정기 점검', '엔진 오일 교체', '타이어 교체', '브레이크 패드 교체', '에어필터 교체'];
+
+      const maintenanceTypes = [
+        '정기 점검',
+        '엔진 오일 교체',
+        '타이어 교체',
+        '브레이크 패드 교체',
+        '에어필터 교체'
+      ];
       const type = maintenanceTypes[Math.floor(Math.random() * maintenanceTypes.length)];
-      
+
       upcoming.push({
         vehicleId: `V00${i}`,
         vehicleName: `테스트 차량 ${i}`,
@@ -828,7 +956,7 @@ class ReportService {
         basedOn: '과거 정비 주기 및 주행 거리'
       });
     }
-    
+
     // 잠재적 이슈
     const potentialIssues = [
       {
@@ -853,11 +981,11 @@ class ReportService {
         suggestedAction: '연료 인젝터 청소 및 필터 교체'
       }
     ];
-    
+
     // 계절별 권장사항
     const currentMonth = today.getMonth() + 1;
     let season;
-    
+
     if (currentMonth >= 3 && currentMonth <= 5) {
       season = '봄';
     } else if (currentMonth >= 6 && currentMonth <= 8) {
@@ -867,9 +995,9 @@ class ReportService {
     } else {
       season = '겨울';
     }
-    
+
     const seasonalRecommendations = [];
-    
+
     if (season === '봄') {
       seasonalRecommendations.push({
         season: '봄',
@@ -911,46 +1039,46 @@ class ReportService {
         ]
       });
     }
-    
+
     // 다음 시즌 추가
     let nextSeason;
     if (season === '봄') nextSeason = '여름';
     else if (season === '여름') nextSeason = '가을';
     else if (season === '가을') nextSeason = '겨울';
     else nextSeason = '봄';
-    
+
     const nextSeasonRecommendations = {
-      '봄': [
+      봄: [
         '겨울철 도로 염분으로 인한 하체 세차 및 점검',
         '냉방 시스템 점검 및 에어컨 가스 충전',
         '와이퍼 블레이드 교체',
         '타이어 공기압 및 마모도 점검'
       ],
-      '여름': [
+      여름: [
         '냉각 시스템 점검 및 냉각수 교체',
         '배터리 상태 점검',
         '에어컨 필터 교체',
         '브레이크 성능 점검'
       ],
-      '가을': [
+      가을: [
         '히터 시스템 점검',
         '타이어 마모도 확인 및 필요시 교체',
         '브레이크 패드 및 디스크 점검',
         '와이퍼 블레이드 및 워셔액 보충'
       ],
-      '겨울': [
+      겨울: [
         '부동액 농도 확인 및 보충',
         '배터리 상태 점검',
         '타이어 공기압 조정 및 동절기 타이어 교체 고려',
         '도어 및 트렁크 잠금장치 윤활'
       ]
     };
-    
+
     seasonalRecommendations.push({
       season: `다가오는 ${nextSeason}`,
       recommendations: nextSeasonRecommendations[nextSeason]
     });
-    
+
     return {
       id: `mf-${Date.now()}`,
       title: '정비 예측 보고서',
@@ -967,7 +1095,11 @@ class ReportService {
   /**
    * 임시 보고서 목록 생성
    */
-  private getMockReportList(filter?: { type?: ReportType; startDate?: string; endDate?: string }): Report[] {
+  private getMockReportList(filter?: {
+    type?: ReportType;
+    startDate?: string;
+    endDate?: string;
+  }): Report[] {
     const reports = [];
     const reportTypes = [
       ReportType.COMPLETION_RATE,
@@ -976,21 +1108,21 @@ class ReportService {
       ReportType.MAINTENANCE_SUMMARY,
       ReportType.MAINTENANCE_FORECAST
     ];
-    
+
     // 임의의 보고서 10개 생성
     for (let i = 0; i < 10; i++) {
       const createdDate = new Date();
       createdDate.setDate(createdDate.getDate() - Math.floor(Math.random() * 30));
-      
+
       const type = filter?.type || reportTypes[Math.floor(Math.random() * reportTypes.length)];
-      
+
       let title;
       switch (type) {
         case ReportType.COMPLETION_RATE:
           title = '완료율 보고서';
           break;
         case ReportType.VEHICLE_HISTORY:
-          title = `차량 정비 이력 (V00${i % 5 + 1})`;
+          title = `차량 정비 이력 (V00${(i % 5) + 1})`;
           break;
         case ReportType.COST_ANALYSIS:
           title = '비용 분석 보고서';
@@ -1002,7 +1134,7 @@ class ReportService {
           title = '정비 예측 보고서';
           break;
       }
-      
+
       reports.push({
         id: `report-${i}-${Date.now()}`,
         title,
@@ -1011,10 +1143,13 @@ class ReportService {
         data: {} // 실제 데이터 없이 목록만 반환
       });
     }
-    
+
     return reports;
   }
 }
 
-const reportService = new ReportService();
-export default reportService; 
+// 인스턴스 생성
+export const reportService = new ReportService();
+
+// default export 유지
+export default reportService;

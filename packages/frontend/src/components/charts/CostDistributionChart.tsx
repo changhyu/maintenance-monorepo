@@ -1,5 +1,7 @@
 import React from 'react';
+
 import { Column } from '@ant-design/plots';
+
 import { ChartDataItem } from './VehicleTypeChart';
 
 interface CostDistributionChartProps {
@@ -14,12 +16,8 @@ const CostDistributionChart: React.FC<CostDistributionChartProps> = ({ data }) =
     data,
     xField: 'label',
     yField: 'value',
-    label: {
-      position: 'middle',
-      style: {
-        fill: '#FFFFFF',
-        opacity: 0.6,
-      },
+    columnStyle: {
+      fill: '#1890ff'
     },
     color: ({ label }: { label: string }) => {
       if (label.includes('양호')) return '#52c41a';
@@ -30,22 +28,25 @@ const CostDistributionChart: React.FC<CostDistributionChartProps> = ({ data }) =
     xAxis: {
       label: {
         autoHide: true,
-        autoRotate: false,
-      },
+        autoRotate: false
+      }
     },
     meta: {
       value: {
-        alias: '차량 수',
-      },
+        alias: '차량 수'
+      }
     },
     tooltip: {
       formatter: (datum: any) => {
-        return { name: datum.label, value: `${datum.value}대 (${((datum.value / data.reduce((acc, item) => acc + item.value, 0)) * 100).toFixed(1)}%)` };
-      },
-    },
+        return {
+          name: datum.label,
+          value: `${datum.value}대 (${((datum.value / data.reduce((acc, item) => acc + item.value, 0)) * 100).toFixed(1)}%)`
+        };
+      }
+    }
   };
 
   return <Column {...config} />;
 };
 
-export default CostDistributionChart; 
+export default CostDistributionChart;

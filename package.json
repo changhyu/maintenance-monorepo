@@ -2,29 +2,50 @@
   "name": "maintenance-monorepo",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "npm@9.6.0",
   "workspaces": [
     "packages/*"
   ],
   "scripts": {
     "dev": "turbo run dev",
+    "dev:frontend": "cd packages/frontend && npm run dev",
+    "dev:api": "cd packages/api && ./run.sh",
+    "dev:all": "concurrently \"npm run dev:api\" \"npm run dev:frontend\"",
     "build": "turbo run build",
+    "build:frontend": "cd packages/frontend && npm run build",
+    "build:api": "cd packages/api && npm run build",
     "test": "turbo run test",
-    "lint": "turbo run lint",
+    "lint": "npx turbo run lint --continue",
     "clean": "turbo run clean"
   },
   "devDependencies": {
     "@types/file-saver": "^2.0.7",
-    "@types/socket.io-client": "^1.4.36",
-    "eslint": "^8.49.0",
-    "prettier": "^3.0.3",
-    "turbo": "^1.10.16",
+    "@types/google.maps": "^3.58.1",
+    "@types/node": "^22.14.0",
+    "@types/react": "^19.1.0",
+    "@types/react-beautiful-dnd": "^13.1.8",
+    "@types/react-dom": "^19.1.2",
+    "@types/recharts": "^1.8.29",
+    "@types/socket.io-client": "^3.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.18.1",
+    "@typescript-eslint/parser": "^6.18.1",
+    "concurrently": "^8.2.2",
+    "eslint": "^8.56.0",
+    "eslint-plugin-import": "^2.31.0",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "prettier": "^3.5.3",
+    "turbo": "^2.5.0",
     "typescript": "^5.3.3"
   },
   "engines": {
     "node": ">=16.0.0"
   },
   "dependencies": {
-    "ajv": "^8.12.0",
+    "@mui/icons-material": "^7.0.2",
+    "@mui/material": "^7.0.2",
+    "@prisma/client": "^6.6.0",
+    "ajv": "^8.17.1",
     "ajv-keywords": "^5.1.0",
     "date-fns": "^4.1.0",
     "dayjs": "^1.11.13",
@@ -34,8 +55,10 @@
     "jspdf-autotable": "^5.0.2",
     "jwt-decode": "^4.0.0",
     "python-shell": "^5.0.0",
+    "react-beautiful-dnd": "^13.1.1",
     "recharts": "^2.15.2",
     "socket.io-client": "^4.8.1",
+    "styled-components": "^6.1.17",
     "xlsx": "^0.18.5"
   }
 }

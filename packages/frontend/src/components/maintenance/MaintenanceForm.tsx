@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
+
 import { useNavigate } from 'react-router-dom';
-import { vehicleService } from '../../services/vehicle';
+
 import { maintenanceService } from '../../services/maintenance';
-import { Vehicle } from '../../types/vehicle';
-import { 
-  MaintenanceRecord, 
-  MaintenanceType, 
+import { vehicleService, Vehicle as VehicleType } from '../../services/vehicle';
+import {
+  MaintenanceRecord,
+  MaintenanceType,
   MaintenanceStatus,
   MaintenancePriority,
   MaintenancePart,
@@ -26,7 +27,7 @@ const MaintenanceForm: React.FC<MaintenanceFormProps> = ({
   vehicleId,
   onSubmit,
   onCancel,
-  isEdit = false,
+  isEdit = false
 }) => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState<Partial<MaintenanceRecord>>({
@@ -43,10 +44,10 @@ const MaintenanceForm: React.FC<MaintenanceFormProps> = ({
     notes: '',
     parts: [],
     documents: [],
-    ...initialData,
+    ...initialData
   });
-  
-  const [vehicle, setVehicle] = useState<Vehicle | null>(null);
+
+  const [vehicle, setVehicle] = useState<VehicleType | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [newPart, setNewPart] = useState<Partial<MaintenancePart>>({
@@ -54,7 +55,7 @@ const MaintenanceForm: React.FC<MaintenanceFormProps> = ({
     partNumber: '',
     quantity: 1,
     unitCost: 0,
-    totalCost: 0,
+    totalCost: 0
   });
   const [fileToUpload, setFileToUpload] = useState<File | null>(null);
 
@@ -64,7 +65,7 @@ const MaintenanceForm: React.FC<MaintenanceFormProps> = ({
         setIsLoading(true);
         try {
           const data = await vehicleService.getVehicleById(
-            vehicleId ?? initialData?.vehicleId as string
+            vehicleId ?? (initialData?.vehicleId as string)
           );
           if (data) {
             setVehicle(data);
@@ -84,7 +85,9 @@ const MaintenanceForm: React.FC<MaintenanceFormProps> = ({
     fetchVehicle();
   }, [vehicleId, initialData?.vehicleId]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
@@ -92,15 +95,18 @@ const MaintenanceForm: React.FC<MaintenanceFormProps> = ({
   const handlePartChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setNewPart(prev => {
-      const updated = { ...prev, [name]: name === 'quantity' || name === 'unitCost' ? Number(value) : value };
-      
+      const updated = {
+        ...prev,
+        [name]: name === 'quantity' || name === 'unitCost' ? Number(value) : value
+      };
+
       // 수량이나 단가가 변경되면 총 비용 자동 계산
       if (name === 'quantity' || name === 'unitCost') {
         const quantity = name === 'quantity' ? Number(value) : (prev.quantity ?? 0);
         const unitCost = name === 'unitCost' ? Number(value) : (prev.unitCost ?? 0);
         updated.totalCost = quantity * unitCost;
       }
-      
+
       return updated;
     });
   };
@@ -130,13 +136,15 @@ const MaintenanceForm: React.FC<MaintenanceFormProps> = ({
       partNumber: '',
       quantity: 1,
       unitCost: 0,
-      totalCost: 0,
+      totalCost: 0
     });
   };
 
   const removePart = (id: string) => {
     const partToRemove = formData.parts?.find(part => part.id === id);
-    if (!partToRemove) return;
+    if (!partToRemove) {
+      return;
+    }
 
     setFormData(prev => ({
       ...prev,
@@ -167,7 +175,7 @@ const MaintenanceForm: React.FC<MaintenanceFormProps> = ({
         if (result) {
           setFormData(prev => ({
             ...prev,
-            documents: [...(prev.documents || []), result]
+            documents: [...(prev.documents ?? []), result]
           }));
         }
       } else {
@@ -180,18 +188,19 @@ const MaintenanceForm: React.FC<MaintenanceFormProps> = ({
           size: fileToUpload.size,
           type: fileToUpload.type
         };
-        
+
         setFormData(prev => ({
           ...prev,
-          documents: [...(prev.documents || []), tempDoc]
+          documents: [...(prev.documents ?? []), tempDoc]
         }));
       }
-      
+
       setFileToUpload(null);
       // 파일 입력 필드 초기화
       const fileInput = document.getElementById('file-upload') as HTMLInputElement;
-      if (fileInput) fileInput.value = '';
-      
+      if (fileInput) {
+        fileInput.value = '';
+      }
     } catch (err) {
       setError('문서 업로드에 실패했습니다.');
       console.error(err);
@@ -223,30 +232,35 @@ const MaintenanceForm: React.FC<MaintenanceFormProps> = ({
     }
   };
 
+  // isEdit에 따라 적절한 서비스 함수를 호출하는 함수
+  const saveMaintenanceRecord = async () => {
+    let result;
+    if (isEdit && formData.id) {
+      // 기존 정비 기록 업데이트
+      const { id, vehicle, createdAt, updatedAt, ...updateData } = formData as MaintenanceRecord;
+      result = await maintenanceService.updateMaintenanceRecord(id, updateData);
+    } else {
+      // 새 정비 기록 생성
+      const { id, vehicle, createdAt, updatedAt, ...createData } = formData as MaintenanceRecord;
+      result = await maintenanceService.createMaintenanceRecord(createData);
+    }
+    return result;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.vehicleId || !formData.title || !formData.description || !formData.startDate) {
       setError('필수 항목을 모두 입력해주세요.');
       return;
     }
-    
+
     setIsLoading(true);
     setError(null);
-    
+
     try {
-      let result;
-      
-      if (isEdit && formData.id) {
-        // 기존 정비 기록 업데이트
-        const { id, vehicle, createdAt, updatedAt, ...updateData } = formData as MaintenanceRecord;
-        result = await maintenanceService.updateMaintenanceRecord(id, updateData);
-      } else {
-        // 새 정비 기록 생성
-        const { id, vehicle, createdAt, updatedAt, ...createData } = formData as MaintenanceRecord;
-        result = await maintenanceService.createMaintenanceRecord(createData);
-      }
-      
+      const result = await saveMaintenanceRecord();
+
       if (onSubmit && result) {
         onSubmit(result);
       } else if (result) {
@@ -261,69 +275,76 @@ const MaintenanceForm: React.FC<MaintenanceFormProps> = ({
   };
 
   const calculateTotalCost = (): number => {
-    const partsCost = formData.parts?.reduce((sum, part) => sum + part.totalCost, 0) || 0;
-    const laborCost = formData.cost || 0;
+    const partsCost = formData.parts?.reduce((sum, part) => sum + part.totalCost, 0) ?? 0;
+    const laborCost = formData.cost ?? 0;
     return partsCost + laborCost;
+  };
+
+  // 라벨과 입력 필드를 연결하기 위한 고유 ID 생성
+  const getLabelId = (fieldName: string): string => {
+    return `maintenance-${fieldName}`;
+  };
+
+  // 버튼 텍스트를 결정하는 함수
+  const getSubmitButtonText = (): string => {
+    if (isLoading) {
+      return '처리 중...';
+    }
+    return isEdit ? '수정' : '저장';
   };
 
   return (
     <div className="p-4 bg-white rounded-lg shadow">
       <h2 className="text-xl font-bold mb-4">{isEdit ? '정비 기록 수정' : '새 정비 기록'}</h2>
-      
-      {error && (
-        <div className="mb-4 p-3 bg-red-50 text-red-700 rounded">
-          {error}
-        </div>
-      )}
-      
+
+      {error && <div className="mb-4 p-3 bg-red-50 text-red-700 rounded">{error}</div>}
+
       {isLoading && !vehicle && (
         <div className="flex justify-center mb-4">
           <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
         </div>
       )}
-      
+
       {vehicle && (
         <div className="mb-4 p-3 bg-gray-50 rounded">
           <h3 className="font-semibold">차량 정보</h3>
           <p>
-            {vehicle.year} {vehicle.manufacturer} {vehicle.model} ({vehicle.licensePlate})
+            {vehicle.year} {vehicle.make} {vehicle.model} ({vehicle.licensePlate})
           </p>
         </div>
       )}
-      
+
       <form onSubmit={handleSubmit}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              정비 유형*
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor={getLabelId('type')}>정비 유형*</label>
             <select
+              id={getLabelId('type')}
               name="type"
               value={formData.type}
               onChange={handleChange}
               className="w-full p-2 border rounded"
               required
             >
-              {Object.values(MaintenanceType).map((type) => (
+              {Object.values(MaintenanceType).map(type => (
                 <option key={type} value={type}>
                   {type}
                 </option>
               ))}
             </select>
           </div>
-          
+
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              상태*
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor={getLabelId('status')}>상태*</label>
             <select
+              id={getLabelId('status')}
               name="status"
               value={formData.status}
               onChange={handleChange}
               className="w-full p-2 border rounded"
               required
             >
-              {Object.values(MaintenanceStatus).map((status) => (
+              {Object.values(MaintenanceStatus).map(status => (
                 <option key={status} value={status}>
                   {status}
                 </option>
@@ -331,12 +352,11 @@ const MaintenanceForm: React.FC<MaintenanceFormProps> = ({
             </select>
           </div>
         </div>
-        
+
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            제목*
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor={getLabelId('title')}>제목*</label>
           <input
+            id={getLabelId('title')}
             type="text"
             name="title"
             value={formData.title}
@@ -345,12 +365,11 @@ const MaintenanceForm: React.FC<MaintenanceFormProps> = ({
             required
           />
         </div>
-        
+
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            설명*
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor={getLabelId('description')}>설명*</label>
           <textarea
+            id={getLabelId('description')}
             name="description"
             value={formData.description}
             onChange={handleChange}
@@ -359,13 +378,12 @@ const MaintenanceForm: React.FC<MaintenanceFormProps> = ({
             required
           />
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              시작일*
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor={getLabelId('startDate')}>시작일*</label>
             <input
+              id={getLabelId('startDate')}
               type="date"
               name="startDate"
               value={formData.startDate}
@@ -374,25 +392,23 @@ const MaintenanceForm: React.FC<MaintenanceFormProps> = ({
               required
             />
           </div>
-          
+
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              종료일
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor={getLabelId('endDate')}>종료일</label>
             <input
+              id={getLabelId('endDate')}
               type="date"
               name="endDate"
-              value={formData.endDate || ''}
+              value={formData.endDate ?? ''}
               onChange={handleChange}
               className="w-full p-2 border rounded"
             />
           </div>
-          
+
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              주행거리 (km)*
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor={getLabelId('mileage')}>주행거리 (km)*</label>
             <input
+              id={getLabelId('mileage')}
               type="number"
               name="mileage"
               value={formData.mileage}
@@ -402,45 +418,42 @@ const MaintenanceForm: React.FC<MaintenanceFormProps> = ({
             />
           </div>
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              담당 기술자
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor={getLabelId('technicianName')}>담당 기술자</label>
             <input
+              id={getLabelId('technicianName')}
               type="text"
               name="technicianName"
-              value={formData.technicianName || ''}
+              value={formData.technicianName ?? ''}
               onChange={handleChange}
               className="w-full p-2 border rounded"
             />
           </div>
-          
+
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              정비소
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor={getLabelId('shopName')}>정비소</label>
             <input
+              id={getLabelId('shopName')}
               type="text"
               name="shopName"
-              value={formData.shopName || ''}
+              value={formData.shopName ?? ''}
               onChange={handleChange}
               className="w-full p-2 border rounded"
             />
           </div>
-          
+
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              우선순위
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor={getLabelId('priority')}>우선순위</label>
             <select
+              id={getLabelId('priority')}
               name="priority"
               value={formData.priority}
               onChange={handleChange}
               className="w-full p-2 border rounded"
             >
-              {Object.values(MaintenancePriority).map((priority) => (
+              {Object.values(MaintenancePriority).map(priority => (
                 <option key={priority} value={priority}>
                   {priority}
                 </option>
@@ -448,12 +461,11 @@ const MaintenanceForm: React.FC<MaintenanceFormProps> = ({
             </select>
           </div>
         </div>
-        
+
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            인건비 (원)
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor={getLabelId('cost')}>인건비 (원)</label>
           <input
+            id={getLabelId('cost')}
             type="number"
             name="cost"
             value={formData.cost}
@@ -461,24 +473,23 @@ const MaintenanceForm: React.FC<MaintenanceFormProps> = ({
             className="w-full p-2 border rounded"
           />
         </div>
-        
+
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            메모
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor={getLabelId('notes')}>메모</label>
           <textarea
+            id={getLabelId('notes')}
             name="notes"
-            value={formData.notes || ''}
+            value={formData.notes ?? ''}
             onChange={handleChange}
             rows={3}
             className="w-full p-2 border rounded"
           />
         </div>
-        
+
         {/* 부품 관리 섹션 */}
         <div className="mb-6 p-4 border rounded bg-gray-50">
           <h3 className="font-semibold mb-2">부품</h3>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-5 gap-2 mb-2">
             <div className="md:col-span-2">
               <input
@@ -521,7 +532,7 @@ const MaintenanceForm: React.FC<MaintenanceFormProps> = ({
               />
             </div>
           </div>
-          
+
           <div className="flex justify-end mb-3">
             <button
               type="button"
@@ -531,7 +542,7 @@ const MaintenanceForm: React.FC<MaintenanceFormProps> = ({
               부품 추가
             </button>
           </div>
-          
+
           {formData.parts && formData.parts.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="min-w-full table-auto border-collapse">
@@ -546,10 +557,10 @@ const MaintenanceForm: React.FC<MaintenanceFormProps> = ({
                   </tr>
                 </thead>
                 <tbody>
-                  {formData.parts.map((part) => (
+                  {formData.parts.map(part => (
                     <tr key={part.id} className="border-t">
                       <td className="p-2">{part.name}</td>
-                      <td className="p-2">{part.partNumber || '-'}</td>
+                      <td className="p-2">{part.partNumber ?? '-'}</td>
                       <td className="p-2 text-right">{part.quantity}</td>
                       <td className="p-2 text-right">{part.unitCost.toLocaleString()}원</td>
                       <td className="p-2 text-right">{part.totalCost.toLocaleString()}원</td>
@@ -565,11 +576,14 @@ const MaintenanceForm: React.FC<MaintenanceFormProps> = ({
                     </tr>
                   ))}
                   <tr className="border-t font-semibold">
-                    <td colSpan={4} className="p-2 text-right">총 부품비:</td>
+                    <td colSpan={4} className="p-2 text-right">
+                      총 부품비:
+                    </td>
                     <td className="p-2 text-right">
                       {formData.parts
                         .reduce((sum, part) => sum + part.totalCost, 0)
-                        .toLocaleString()}원
+                        .toLocaleString()}
+                      원
                     </td>
                     <td></td>
                   </tr>
@@ -580,11 +594,11 @@ const MaintenanceForm: React.FC<MaintenanceFormProps> = ({
             <p className="text-center text-gray-500 my-4">등록된 부품이 없습니다.</p>
           )}
         </div>
-        
+
         {/* 문서 업로드 섹션 */}
         <div className="mb-6 p-4 border rounded bg-gray-50">
           <h3 className="font-semibold mb-2">문서</h3>
-          
+
           <div className="flex flex-col md:flex-row gap-2 mb-3">
             <input
               type="file"
@@ -601,10 +615,10 @@ const MaintenanceForm: React.FC<MaintenanceFormProps> = ({
               업로드
             </button>
           </div>
-          
+
           {formData.documents && formData.documents.length > 0 ? (
             <ul className="divide-y">
-              {formData.documents.map((doc) => (
+              {formData.documents.map(doc => (
                 <li key={doc.id} className="py-2 flex justify-between items-center">
                   <div>
                     <span className="font-medium">{doc.name}</span>
@@ -636,16 +650,16 @@ const MaintenanceForm: React.FC<MaintenanceFormProps> = ({
             <p className="text-center text-gray-500 my-4">등록된 문서가 없습니다.</p>
           )}
         </div>
-        
+
         <div className="flex justify-between items-center mt-6">
           <div className="font-semibold text-lg">
             총 비용: {calculateTotalCost().toLocaleString()}원
           </div>
-          
+
           <div className="flex space-x-3">
             <button
               type="button"
-              onClick={onCancel || (() => navigate(-1))}
+              onClick={onCancel ?? (() => navigate(-1))}
               className="px-4 py-2 border rounded hover:bg-gray-100"
             >
               취소
@@ -655,7 +669,7 @@ const MaintenanceForm: React.FC<MaintenanceFormProps> = ({
               className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
               disabled={isLoading}
             >
-              {isLoading ? '처리 중...' : isEdit ? '수정' : '저장'}
+              {getSubmitButtonText()}
             </button>
           </div>
         </div>
@@ -664,4 +678,4 @@ const MaintenanceForm: React.FC<MaintenanceFormProps> = ({
   );
 };
 
-export default MaintenanceForm; 
+export default MaintenanceForm;

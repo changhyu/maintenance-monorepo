@@ -205,19 +205,19 @@ export function convertApiVehicleToFrontend(apiVehicle: any): Vehicle {
     fuelType: apiVehicle.fuelType as FuelType,
     fuelLevel: apiVehicle.fuelLevel,
     mileage: apiVehicle.currentMileage || apiVehicle.mileage,
-    lastMaintenanceDate: apiVehicle.lastServiceDate 
-      ? new Date(apiVehicle.lastServiceDate) 
+    lastMaintenanceDate: apiVehicle.lastServiceDate
+      ? new Date(apiVehicle.lastServiceDate)
       : undefined,
-    nextMaintenanceDate: apiVehicle.nextServiceDate 
-      ? new Date(apiVehicle.nextServiceDate) 
+    nextMaintenanceDate: apiVehicle.nextServiceDate
+      ? new Date(apiVehicle.nextServiceDate)
       : undefined,
     assignedDriverId: apiVehicle.assignedDriverId,
-    location: apiVehicle.location 
+    location: apiVehicle.location
       ? {
           latitude: apiVehicle.location.latitude,
           longitude: apiVehicle.location.longitude,
           lastUpdated: new Date(apiVehicle.location.lastUpdated || new Date())
-        } 
+        }
       : undefined
   };
 }
@@ -237,8 +237,12 @@ export function convertFrontendVehicleToApi(vehicle: Vehicle): any {
     fuelType: vehicle.fuelType,
     fuelLevel: vehicle.fuelLevel,
     currentMileage: vehicle.mileage,
-    lastServiceDate: vehicle.lastMaintenanceDate ? vehicle.lastMaintenanceDate.toISOString() : undefined,
-    nextServiceDate: vehicle.nextMaintenanceDate ? vehicle.nextMaintenanceDate.toISOString() : undefined,
+    lastServiceDate: vehicle.lastMaintenanceDate
+      ? vehicle.lastMaintenanceDate.toISOString()
+      : undefined,
+    nextServiceDate: vehicle.nextMaintenanceDate
+      ? vehicle.nextMaintenanceDate.toISOString()
+      : undefined,
     assignedDriverId: vehicle.assignedDriverId
   };
 }
@@ -248,7 +252,7 @@ export function convertFrontendVehicleToApi(vehicle: Vehicle): any {
  */
 export function convertServiceVehicleToFrontend(serviceVehicle: any): Vehicle | null {
   if (!serviceVehicle) return null;
-  
+
   return {
     id: serviceVehicle.id || '',
     name: serviceVehicle.name || serviceVehicle.model || '미확인 차량',
@@ -263,30 +267,28 @@ export function convertServiceVehicleToFrontend(serviceVehicle: any): Vehicle | 
     fuelType: serviceVehicle.fuelType,
     fuelLevel: serviceVehicle.fuelLevel,
     mileage: serviceVehicle.mileage || serviceVehicle.totalMileage,
-    lastMaintenanceDate: serviceVehicle.lastMaintenanceDate 
-      ? new Date(serviceVehicle.lastMaintenanceDate) 
+    lastMaintenanceDate: serviceVehicle.lastMaintenanceDate
+      ? new Date(serviceVehicle.lastMaintenanceDate)
       : undefined,
-    nextMaintenanceDate: serviceVehicle.nextMaintenanceDate 
-      ? new Date(serviceVehicle.nextMaintenanceDate) 
+    nextMaintenanceDate: serviceVehicle.nextMaintenanceDate
+      ? new Date(serviceVehicle.nextMaintenanceDate)
       : undefined,
-    purchaseDate: serviceVehicle.purchaseDate
-      ? new Date(serviceVehicle.purchaseDate)
-      : undefined,
+    purchaseDate: serviceVehicle.purchaseDate ? new Date(serviceVehicle.purchaseDate) : undefined,
     assignedDriverId: serviceVehicle.assignedDriverId || serviceVehicle.driverId,
     departmentId: serviceVehicle.departmentId,
     fleetId: serviceVehicle.fleetId,
     insuranceExpiration: serviceVehicle.insuranceExpiration
       ? new Date(serviceVehicle.insuranceExpiration)
       : undefined,
-    location: serviceVehicle.location 
+    location: serviceVehicle.location
       ? {
           latitude: serviceVehicle.location.latitude,
           longitude: serviceVehicle.location.longitude,
           lastUpdated: new Date(serviceVehicle.location.lastUpdated || new Date())
-        } 
+        }
       : undefined,
     telemetryEnabled: serviceVehicle.telemetryEnabled || false,
-    maintenanceHistory: Array.isArray(serviceVehicle.maintenanceHistory) 
+    maintenanceHistory: Array.isArray(serviceVehicle.maintenanceHistory)
       ? serviceVehicle.maintenanceHistory.map((item: any) => ({
           id: item.id || '',
           date: new Date(item.date || new Date()),
@@ -297,4 +299,4 @@ export function convertServiceVehicleToFrontend(serviceVehicle: any): Vehicle | 
         }))
       : undefined
   };
-} 
+}

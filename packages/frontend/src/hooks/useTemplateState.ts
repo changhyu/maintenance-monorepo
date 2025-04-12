@@ -8,7 +8,7 @@ export interface TodoTemplate {
   category: string;
   items: {
     title: string;
-    description?: string; 
+    description?: string;
     priority?: 'low' | 'medium' | 'high';
     dueDate?: string;
     assignedTo?: string;
@@ -16,14 +16,22 @@ export interface TodoTemplate {
 }
 
 // 템플릿 관리 리듀서 타입
-export type TemplateAction = 
+export type TemplateAction =
   | { type: 'LOAD_TEMPLATES'; payload: TodoTemplate[] }
   | { type: 'ADD_TEMPLATE'; payload: TodoTemplate }
   | { type: 'UPDATE_TEMPLATE'; payload: TodoTemplate }
   | { type: 'DELETE_TEMPLATE'; payload: string }
   | { type: 'SET_SELECTED_TEMPLATE'; payload: TodoTemplate | null }
   | { type: 'SET_EDITING_TEMPLATE'; payload: TodoTemplate | null }
-  | { type: 'SET_TEMPLATE_FORM'; payload: { name: string; description: string; category: string; items: TodoTemplate['items'] } }
+  | {
+      type: 'SET_TEMPLATE_FORM';
+      payload: {
+        name: string;
+        description: string;
+        category: string;
+        items: TodoTemplate['items'];
+      };
+    }
   | { type: 'SET_TEMPLATE_VISIBLE'; payload: boolean }
   | { type: 'SET_TEMPLATE_MANAGE_VISIBLE'; payload: boolean }
   | { type: 'RESET_TEMPLATE_FORM' };
@@ -59,7 +67,7 @@ const templateReducer = (state: TemplateState, action: TemplateAction): Template
     case 'UPDATE_TEMPLATE':
       return {
         ...state,
-        templates: state.templates.map(template => 
+        templates: state.templates.map(template =>
           template.id === action.payload.id ? action.payload : template
         )
       };
@@ -78,12 +86,14 @@ const templateReducer = (state: TemplateState, action: TemplateAction): Template
         ...state,
         editingTemplate: action.payload,
         // 편집 시작할 때 폼 데이터 설정
-        templateForm: action.payload ? {
-          name: action.payload.name,
-          description: action.payload.description,
-          category: action.payload.category,
-          items: [...action.payload.items]
-        } : state.templateForm
+        templateForm: action.payload
+          ? {
+              name: action.payload.name,
+              description: action.payload.description,
+              category: action.payload.category,
+              items: [...action.payload.items]
+            }
+          : state.templateForm
       };
     case 'SET_TEMPLATE_FORM':
       return {
@@ -134,8 +144,8 @@ const initialState: TemplateState = {
 // 템플릿 상태 훅
 export const useTemplateState = () => {
   const [templateState, templateDispatch] = useReducer(templateReducer, initialState);
-  
+
   return [templateState, templateDispatch] as const;
 };
 
-export default useTemplateState; 
+export default useTemplateState;

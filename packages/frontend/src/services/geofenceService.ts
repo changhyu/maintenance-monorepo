@@ -116,7 +116,10 @@ export const geofenceService = {
   },
 
   // 지오펜스 업데이트
-  async updateGeofence(geofenceId: string, updateData: UpdateGeofenceRequest): Promise<Geofence | null> {
+  async updateGeofence(
+    geofenceId: string,
+    updateData: UpdateGeofenceRequest
+  ): Promise<Geofence | null> {
     try {
       const response = await api.put(`/geofences/${geofenceId}`, updateData);
       return response.data;
@@ -138,7 +141,10 @@ export const geofenceService = {
   },
 
   // 지오펜스에 차량 할당
-  async assignVehiclesToGeofence(geofenceId: string, vehicleIds: string[]): Promise<Geofence | null> {
+  async assignVehiclesToGeofence(
+    geofenceId: string,
+    vehicleIds: string[]
+  ): Promise<Geofence | null> {
     try {
       const response = await api.post(`/geofences/${geofenceId}/assign-vehicles`, { vehicleIds });
       return response.data;
@@ -149,7 +155,10 @@ export const geofenceService = {
   },
 
   // 지오펜스에서 차량 제거
-  async removeVehiclesFromGeofence(geofenceId: string, vehicleIds: string[]): Promise<Geofence | null> {
+  async removeVehiclesFromGeofence(
+    geofenceId: string,
+    vehicleIds: string[]
+  ): Promise<Geofence | null> {
     try {
       const response = await api.post(`/geofences/${geofenceId}/remove-vehicles`, { vehicleIds });
       return response.data;
@@ -171,7 +180,10 @@ export const geofenceService = {
   },
 
   // 지오펜스 알림 설정 업데이트
-  async updateGeofenceAlertSettings(geofenceId: string, settings: GeofenceAlertSettings): Promise<GeofenceAlertSettings | null> {
+  async updateGeofenceAlertSettings(
+    geofenceId: string,
+    settings: GeofenceAlertSettings
+  ): Promise<GeofenceAlertSettings | null> {
     try {
       const response = await api.put(`/geofences/${geofenceId}/alert-settings`, settings);
       return response.data;
@@ -183,14 +195,14 @@ export const geofenceService = {
 
   // 지오펜스 이벤트 이력 가져오기
   async getGeofenceEvents(
-    geofenceId: string, 
-    options?: { 
-      startDate?: Date, 
-      endDate?: Date, 
-      vehicleId?: string,
-      eventType?: GeofenceEventType,
-      limit?: number,
-      offset?: number
+    geofenceId: string,
+    options?: {
+      startDate?: Date;
+      endDate?: Date;
+      vehicleId?: string;
+      eventType?: GeofenceEventType;
+      limit?: number;
+      offset?: number;
     }
   ): Promise<GeofenceEvent[]> {
     try {
@@ -201,17 +213,17 @@ export const geofenceService = {
       return [];
     }
   },
-  
+
   // 차량의 지오펜스 이벤트 이력 가져오기
   async getVehicleGeofenceEvents(
     vehicleId: string,
-    options?: { 
-      startDate?: Date, 
-      endDate?: Date, 
-      geofenceId?: string,
-      eventType?: GeofenceEventType,
-      limit?: number,
-      offset?: number
+    options?: {
+      startDate?: Date;
+      endDate?: Date;
+      geofenceId?: string;
+      eventType?: GeofenceEventType;
+      limit?: number;
+      offset?: number;
     }
   ): Promise<GeofenceEvent[]> {
     try {
@@ -222,7 +234,7 @@ export const geofenceService = {
       return [];
     }
   },
-  
+
   // 특정 위치가 지오펜스 안에 있는지 확인
   async checkPointInGeofence(geofenceId: string, point: GeoCoordinate): Promise<boolean> {
     try {
@@ -233,4 +245,4 @@ export const geofenceService = {
       return false;
     }
   }
-}; 
+};

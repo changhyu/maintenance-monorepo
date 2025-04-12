@@ -1,5 +1,9 @@
 import { ApiClient } from '../client';
 
+// Type alias for entity types
+export type EntityType = 'vehicle' | 'maintenance' | 'shop' | 'user' | 'report' | 'invoice' | 'other';
+export type SortOrder = 'asc' | 'desc';
+
 export enum FileCategory {
   VEHICLE_IMAGE = 'VEHICLE_IMAGE',
   MAINTENANCE_DOCUMENT = 'MAINTENANCE_DOCUMENT',
@@ -30,7 +34,7 @@ export interface FileMetadata {
   createdAt: string;
   updatedAt: string;
   createdBy: string;
-  entityType?: 'vehicle' | 'maintenance' | 'shop' | 'user' | 'report' | 'invoice' | 'other';
+  entityType?: EntityType;
   entityId?: string;
   description?: string;
   tags?: string[];
@@ -49,7 +53,7 @@ export interface FileUploadResponse {
 export interface FileUploadRequest {
   file: File | Blob;
   category: FileCategory;
-  entityType?: 'vehicle' | 'maintenance' | 'shop' | 'user' | 'report' | 'invoice' | 'other';
+  entityType?: EntityType;
   entityId?: string;
   description?: string;
   tags?: string[];
@@ -58,7 +62,7 @@ export interface FileUploadRequest {
 export interface FilesUploadRequest {
   files: File[] | Blob[];
   category: FileCategory;
-  entityType?: 'vehicle' | 'maintenance' | 'shop' | 'user' | 'report' | 'invoice' | 'other';
+  entityType?: EntityType;
   entityId?: string;
   description?: string;
   tags?: string[];
@@ -69,7 +73,7 @@ export interface FileUpdateRequest {
   category?: FileCategory;
   description?: string;
   tags?: string[];
-  entityType?: 'vehicle' | 'maintenance' | 'shop' | 'user' | 'report' | 'invoice' | 'other';
+  entityType?: EntityType;
   entityId?: string;
 }
 
@@ -86,7 +90,7 @@ export interface FileFilter {
   page?: number;
   limit?: number;
   sortBy?: string;
-  sortOrder?: 'asc' | 'desc';
+  sortOrder?: SortOrder;
 }
 
 export interface PresignedUrlResponse {
@@ -96,9 +100,16 @@ export interface PresignedUrlResponse {
   expires: number;
 }
 
+export interface FileMetadataOptions {
+  entityType?: string;
+  entityId?: string;
+  description?: string;
+  tags?: string[];
+}
+
 export class FileService {
-  private client: ApiClient;
-  private basePath = '/files';
+  private readonly client: ApiClient;
+  private readonly basePath = '/files';
 
   constructor(apiClient: ApiClient) {
     this.client = apiClient;
@@ -116,7 +127,7 @@ export class FileService {
 
   // 엔티티 관련 파일 목록 조회
   async getEntityFiles(
-    entityType: 'vehicle' | 'maintenance' | 'shop' | 'user' | 'report' | 'invoice' | 'other',
+    entityType: EntityType,
     entityId: string,
     filter?: Omit<FileFilter, 'entityType' | 'entityId'>
   ): Promise<FileMetadata[]> {
@@ -129,10 +140,18 @@ export class FileService {
     formData.append('file', request.file);
     formData.append('category', request.category);
     
-    if (request.entityType) formData.append('entityType', request.entityType);
-    if (request.entityId) formData.append('entityId', request.entityId);
-    if (request.description) formData.append('description', request.description);
-    if (request.tags) formData.append('tags', JSON.stringify(request.tags));
+    if (request.entityType) {
+      formData.append('entityType', request.entityType);
+    }
+    if (request.entityId) {
+      formData.append('entityId', request.entityId);
+    }
+    if (request.description) {
+      formData.append('description', request.description);
+    }
+    if (request.tags) {
+      formData.append('tags', JSON.stringify(request.tags));
+    }
 
     return this.client.post<FileMetadata>(`${this.basePath}/upload`, formData, {
       headers: {
@@ -151,10 +170,18 @@ export class FileService {
 
     formData.append('category', request.category);
     
-    if (request.entityType) formData.append('entityType', request.entityType);
-    if (request.entityId) formData.append('entityId', request.entityId);
-    if (request.description) formData.append('description', request.description);
-    if (request.tags) formData.append('tags', JSON.stringify(request.tags));
+    if (request.entityType) {
+      formData.append('entityType', request.entityType);
+    }
+    if (request.entityId) {
+      formData.append('entityId', request.entityId);
+    }
+    if (request.description) {
+      formData.append('description', request.description);
+    }
+    if (request.tags) {
+      formData.append('tags', JSON.stringify(request.tags));
+    }
 
     return this.client.post<FileUploadResponse>(`${this.basePath}/upload-multiple`, formData, {
       headers: {
@@ -169,12 +196,7 @@ export class FileService {
     mimeType: string,
     size: number,
     category: FileCategory,
-    metadata?: {
-      entityType?: string;
-      entityId?: string;
-      description?: string;
-      tags?: string[];
-    }
+    metadata?: FileMetadataOptions
   ): Promise<PresignedUrlResponse> {
     return this.client.post<PresignedUrlResponse>(`${this.basePath}/presigned-upload`, {
       filename,
@@ -211,7 +233,7 @@ export class FileService {
   // 파일을 특정 엔티티와 연결
   async attachFileToEntity(
     fileId: string,
-    entityType: 'vehicle' | 'maintenance' | 'shop' | 'user' | 'report' | 'invoice' | 'other',
+    entityType: EntityType,
     entityId: string
   ): Promise<FileMetadata> {
     return this.client.post<FileMetadata>(`${this.basePath}/${fileId}/attach`, { entityType, entityId });
@@ -253,7 +275,7 @@ export class FileService {
   // 파일 복사
   async copyFile(
     fileId: string, 
-    targetEntityType?: 'vehicle' | 'maintenance' | 'shop' | 'user' | 'report' | 'invoice' | 'other',
+    targetEntityType?: EntityType,
     targetEntityId?: string
   ): Promise<FileMetadata> {
     return this.client.post<FileMetadata>(`${this.basePath}/${fileId}/copy`, {

@@ -52,7 +52,10 @@ export const maintenanceService = {
    * @param filter 필터 옵션
    * @returns 정비 이력 목록
    */
-  async getVehicleMaintenanceHistory(vehicleId: string, filter?: MaintenanceFilter): Promise<MaintenanceRecord[]> {
+  async getVehicleMaintenanceHistory(
+    vehicleId: string,
+    filter?: MaintenanceFilter
+  ): Promise<MaintenanceRecord[]> {
     try {
       const params = filter ? { ...filter } : {};
       const response = await api.get(`/vehicles/${vehicleId}/maintenance`, { params });
@@ -68,7 +71,9 @@ export const maintenanceService = {
    * @param maintenanceData 정비 기록 데이터
    * @returns 생성된 정비 기록
    */
-  async createMaintenanceRecord(maintenanceData: MaintenanceRecordCreate): Promise<MaintenanceRecord | null> {
+  async createMaintenanceRecord(
+    maintenanceData: MaintenanceRecordCreate
+  ): Promise<MaintenanceRecord | null> {
     try {
       const response = await api.post('/maintenance', maintenanceData);
       return response.data;
@@ -84,7 +89,10 @@ export const maintenanceService = {
    * @param updateData 업데이트할 데이터
    * @returns 업데이트된 정비 기록
    */
-  async updateMaintenanceRecord(recordId: string, updateData: MaintenanceRecordUpdate): Promise<MaintenanceRecord | null> {
+  async updateMaintenanceRecord(
+    recordId: string,
+    updateData: MaintenanceRecordUpdate
+  ): Promise<MaintenanceRecord | null> {
     try {
       const response = await api.put(`/maintenance/${recordId}`, updateData);
       return response.data;
@@ -122,8 +130,8 @@ export const maintenanceService = {
 
       const response = await api.post(`/maintenance/${recordId}/documents`, formData, {
         headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+          'Content-Type': 'multipart/form-data'
+        }
       });
       return response.data;
     } catch (error) {
@@ -184,7 +192,10 @@ export const maintenanceService = {
    * @param endDate 종료일
    * @returns 정비 통계 정보
    */
-  async getMaintenanceStats(startDate?: string, endDate?: string): Promise<MaintenanceStats | null> {
+  async getMaintenanceStats(
+    startDate?: string,
+    endDate?: string
+  ): Promise<MaintenanceStats | null> {
     try {
       const params = { startDate, endDate };
       const response = await api.get('/maintenance/stats', { params });
@@ -194,4 +205,4 @@ export const maintenanceService = {
       return null;
     }
   }
-}; 
+};

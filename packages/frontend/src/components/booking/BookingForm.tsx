@@ -1,8 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { Form, Input, Select, DatePicker, TimePicker, Button, Row, Col, Card, Alert, Spin } from 'antd';
+
+import {
+  Form,
+  Input,
+  Select,
+  DatePicker,
+  TimePicker,
+  Button,
+  Row,
+  Col,
+  Card,
+  Alert,
+  Spin
+} from 'antd';
 import dayjs from 'dayjs';
-import { bookingService, CreateBookingRequest, ServiceType, TimeSlot } from '../../services/bookingService';
+
 import { ApiClient } from '../../../../api-client/src/client';
+import {
+  bookingService,
+  CreateBookingRequest,
+  ServiceType,
+  TimeSlot
+} from '../../services/bookingService';
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -41,13 +60,15 @@ const BookingForm: React.FC<BookingFormProps> = ({
   onCancel
 }) => {
   const [form] = Form.useForm();
-  
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedVehicle, setSelectedVehicle] = useState<string>('');
   const [selectedShop, setSelectedShop] = useState<string>('');
   const [selectedDate, setSelectedDate] = useState<string>('');
-  const [selectedServiceType, setSelectedServiceType] = useState<ServiceType>(ServiceType.REGULAR_MAINTENANCE);
+  const [selectedServiceType, setSelectedServiceType] = useState<ServiceType>(
+    ServiceType.REGULAR_MAINTENANCE
+  );
   const [availableTimeSlots, setAvailableTimeSlots] = useState<TimeSlot[]>([]);
   const [isCheckingAvailability, setIsCheckingAvailability] = useState(false);
 
@@ -94,11 +115,11 @@ const BookingForm: React.FC<BookingFormProps> = ({
       };
 
       const booking = await bookingService.createBooking(bookingData);
-      
+
       if (onSuccess) {
         onSuccess(booking);
       }
-      
+
       form.resetFields();
     } catch (err) {
       setError('예약 생성 중 오류가 발생했습니다.');
@@ -135,7 +156,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
   return (
     <Card title="차량 정비 예약" className="booking-form-card">
       {error && <Alert message={error} type="error" showIcon className="mb-4" />}
-      
+
       <Spin spinning={loading}>
         <Form
           form={form}
@@ -152,10 +173,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
                 label="차량 선택"
                 rules={[{ required: true, message: '차량을 선택해주세요' }]}
               >
-                <Select 
-                  placeholder="정비할 차량 선택"
-                  onChange={handleVehicleChange}
-                >
+                <Select placeholder="정비할 차량 선택" onChange={handleVehicleChange}>
                   {vehicles.map(vehicle => (
                     <Option key={vehicle.id} value={vehicle.id}>
                       {vehicle.year} {vehicle.make} {vehicle.model} ({vehicle.licensePlate})
@@ -164,17 +182,14 @@ const BookingForm: React.FC<BookingFormProps> = ({
                 </Select>
               </Form.Item>
             </Col>
-            
+
             <Col span={12}>
               <Form.Item
                 name="serviceType"
                 label="서비스 유형"
                 rules={[{ required: true, message: '서비스 유형을 선택해주세요' }]}
               >
-                <Select 
-                  placeholder="필요한 서비스 선택"
-                  onChange={handleServiceTypeChange}
-                >
+                <Select placeholder="필요한 서비스 선택" onChange={handleServiceTypeChange}>
                   <Option value={ServiceType.REGULAR_MAINTENANCE}>정기 유지보수</Option>
                   <Option value={ServiceType.REPAIR}>수리</Option>
                   <Option value={ServiceType.INSPECTION}>검사</Option>
@@ -188,21 +203,30 @@ const BookingForm: React.FC<BookingFormProps> = ({
 
           <Row gutter={16}>
             <Col span={24}>
-              <Form.Item
-                name="additionalServices"
-                label="추가 서비스 (선택사항)"
-              >
+              <Form.Item name="additionalServices" label="추가 서비스 (선택사항)">
                 <Select
                   mode="multiple"
                   placeholder="필요한 추가 서비스 선택"
                   optionLabelProp="label"
                 >
-                  <Option value="air_filter" label="에어필터 교체">에어필터 교체</Option>
-                  <Option value="alignment" label="휠 얼라인먼트">휠 얼라인먼트</Option>
-                  <Option value="battery" label="배터리 점검/교체">배터리 점검/교체</Option>
-                  <Option value="brake" label="브레이크 점검">브레이크 점검</Option>
-                  <Option value="cooling" label="냉각 시스템 점검">냉각 시스템 점검</Option>
-                  <Option value="diagnostic" label="진단 검사">진단 검사</Option>
+                  <Option value="air_filter" label="에어필터 교체">
+                    에어필터 교체
+                  </Option>
+                  <Option value="alignment" label="휠 얼라인먼트">
+                    휠 얼라인먼트
+                  </Option>
+                  <Option value="battery" label="배터리 점검/교체">
+                    배터리 점검/교체
+                  </Option>
+                  <Option value="brake" label="브레이크 점검">
+                    브레이크 점검
+                  </Option>
+                  <Option value="cooling" label="냉각 시스템 점검">
+                    냉각 시스템 점검
+                  </Option>
+                  <Option value="diagnostic" label="진단 검사">
+                    진단 검사
+                  </Option>
                 </Select>
               </Form.Item>
             </Col>
@@ -215,10 +239,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
                 label="정비소 선택"
                 rules={[{ required: true, message: '정비소를 선택해주세요' }]}
               >
-                <Select 
-                  placeholder="정비소 선택"
-                  onChange={handleShopChange}
-                >
+                <Select placeholder="정비소 선택" onChange={handleShopChange}>
                   {availableShops.map(shop => (
                     <Option key={shop.id} value={shop.id}>
                       {shop.name} {shop.distance ? `(${shop.distance}km)` : ''} - {shop.rating}★
@@ -227,17 +248,17 @@ const BookingForm: React.FC<BookingFormProps> = ({
                 </Select>
               </Form.Item>
             </Col>
-            
+
             <Col span={12}>
               <Form.Item
                 name="scheduledDate"
                 label="예약 날짜"
                 rules={[{ required: true, message: '예약 날짜를 선택해주세요' }]}
               >
-                <DatePicker 
-                  style={{ width: '100%' }} 
+                <DatePicker
+                  style={{ width: '100%' }}
                   format="YYYY-MM-DD"
-                  disabledDate={(current) => {
+                  disabledDate={current => {
                     // 오늘 이전 날짜는 선택 불가
                     return current && current < dayjs().startOf('day');
                   }}
@@ -254,9 +275,9 @@ const BookingForm: React.FC<BookingFormProps> = ({
                 name="scheduledTime"
                 label="예약 시간"
                 rules={[{ required: true, message: '예약 시간을 선택해주세요' }]}
-                extra={isCheckingAvailability ? "가능한 시간대 확인 중..." : ""}
+                extra={isCheckingAvailability ? '가능한 시간대 확인 중...' : ''}
               >
-                <Select 
+                <Select
                   placeholder="예약 시간 선택"
                   loading={isCheckingAvailability}
                   disabled={!selectedDate || !selectedShop || isCheckingAvailability}
@@ -267,32 +288,23 @@ const BookingForm: React.FC<BookingFormProps> = ({
                       <Option key={slot.time} value={slot.time}>
                         {slot.time}
                       </Option>
-                    ))
-                  }
+                    ))}
                 </Select>
               </Form.Item>
             </Col>
           </Row>
 
-          <Form.Item
-            name="notes"
-            label="추가 요청사항 (선택사항)"
-          >
-            <TextArea 
-              rows={4} 
+          <Form.Item name="notes" label="추가 요청사항 (선택사항)">
+            <TextArea
+              rows={4}
               placeholder="추가 요청사항이나 차량 상태에 대한 설명을 입력해주세요"
               maxLength={500}
-              showCount
             />
           </Form.Item>
 
           <Form.Item>
             <div className="flex justify-end space-x-2">
-              {onCancel && (
-                <Button onClick={onCancel}>
-                  취소
-                </Button>
-              )}
+              {onCancel && <Button onClick={onCancel}>취소</Button>}
               <Button type="primary" htmlType="submit" loading={loading}>
                 예약하기
               </Button>
@@ -304,4 +316,4 @@ const BookingForm: React.FC<BookingFormProps> = ({
   );
 };
 
-export default BookingForm; 
+export default BookingForm;

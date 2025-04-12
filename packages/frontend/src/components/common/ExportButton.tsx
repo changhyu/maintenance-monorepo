@@ -1,10 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
+
+import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
+import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import Button from '@mui/material/Button';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import Tooltip from '@mui/material/Tooltip';
-import FileDownloadIcon from '@mui/icons-material/FileDownload';
-import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
+
 import { ExportFormat, exportData } from '../../utils/exportUtils';
 
 /**
@@ -46,25 +48,25 @@ const ExportButton: React.FC<ExportButtonProps> = ({
   size = 'medium',
   tooltip = '데이터 내보내기',
   emptyDataMessage = '내보낼 데이터가 없습니다',
-  onExportComplete,
+  onExportComplete
 }) => {
   // 드롭다운 메뉴 상태 관리
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
-  
+
   // 버튼 참조 (외부 클릭 감지용)
   const buttonRef = useRef<HTMLButtonElement>(null);
-  
+
   // 내보내기 형식 표시 이름 매핑
   const formatLabels: Record<ExportFormat, string> = {
     csv: 'CSV',
     excel: 'Excel',
-    pdf: 'PDF',
+    pdf: 'PDF'
   };
-  
+
   // 데이터 유효성 확인
   const isDataEmpty = !data || (Array.isArray(data) && data.length === 0);
-  
+
   // 드롭다운 메뉴 열기
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     if (isDataEmpty) {
@@ -73,16 +75,16 @@ const ExportButton: React.FC<ExportButtonProps> = ({
     }
     setAnchorEl(event.currentTarget);
   };
-  
+
   // 드롭다운 메뉴 닫기
   const handleClose = () => {
     setAnchorEl(null);
   };
-  
+
   // 선택한 형식으로 내보내기
   const handleExport = (format: ExportFormat) => {
     try {
-      exportData(data, filename, format);
+      exportData(Array.isArray(data) ? data : Object.values(data), filename, format);
       if (onExportComplete) {
         onExportComplete(format);
       }
@@ -91,25 +93,21 @@ const ExportButton: React.FC<ExportButtonProps> = ({
     }
     handleClose();
   };
-  
+
   // 외부 클릭 시 드롭다운 메뉴 닫기
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
-      if (
-        buttonRef.current && 
-        !buttonRef.current.contains(event.target as Node) && 
-        open
-      ) {
+      if (buttonRef.current && !buttonRef.current.contains(event.target as Node) && open) {
         handleClose();
       }
     };
-    
+
     document.addEventListener('mousedown', handleOutsideClick);
     return () => {
       document.removeEventListener('mousedown', handleOutsideClick);
     };
   }, [open]);
-  
+
   return (
     <>
       <Tooltip title={tooltip}>
@@ -130,21 +128,21 @@ const ExportButton: React.FC<ExportButtonProps> = ({
           </Button>
         </span>
       </Tooltip>
-      
+
       <Menu
         anchorEl={anchorEl}
         open={open}
         onClose={handleClose}
         anchorOrigin={{
           vertical: 'bottom',
-          horizontal: 'right',
+          horizontal: 'right'
         }}
         transformOrigin={{
           vertical: 'top',
-          horizontal: 'right',
+          horizontal: 'right'
         }}
       >
-        {formats.map((format) => (
+        {formats.map(format => (
           <MenuItem key={format} onClick={() => handleExport(format)}>
             {formatLabels[format]}
           </MenuItem>
@@ -154,4 +152,4 @@ const ExportButton: React.FC<ExportButtonProps> = ({
   );
 };
 
-export default ExportButton; 
+export default ExportButton;

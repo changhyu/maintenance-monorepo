@@ -1,7 +1,9 @@
 import React from 'react';
+
+import { FileTextOutlined, HomeOutlined } from '@ant-design/icons';
 import { Typography, Breadcrumb } from 'antd';
 import { Link } from 'react-router-dom';
-import { FileTextOutlined, HomeOutlined } from '@ant-design/icons';
+
 import ReportDashboard from '../components/reports/ReportDashboard';
 import '../components/reports/styles.css';
 
@@ -24,12 +26,14 @@ const ReportPage: React.FC = () => {
           <span style={{ marginLeft: 8 }}>보고서</span>
         </Breadcrumb.Item>
       </Breadcrumb>
-      
-      <Title level={2} style={{ marginBottom: 24 }}>정비 보고서</Title>
-      
+
+      <Title level={2} style={{ marginBottom: 24 }}>
+        정비 보고서
+      </Title>
+
       <ReportDashboard />
     </div>
   );
 };
 
-export default ReportPage; 
+export default ReportPage;

@@ -27,6 +27,7 @@ import {
 } from 'antd';
 
 import { TodoTemplate } from '../context/TodoContext';
+import { TodoTemplate as TemplateStateTemplate } from '../hooks/useTemplateState';
 import TemplateManageDrawer from './todo/TemplateManageDrawer';
 import TemplateSelectionDrawer from './todo/TemplateSelectionDrawer';
 import logger from '../utils/logger';
@@ -34,6 +35,27 @@ import logger from '../utils/logger';
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
 const { Option } = Select;
+
+/**
+ * 컨텍스트 TodoTemplate을 템플릿 상태용 TodoTemplate으로 변환하는 함수
+ */
+const adaptToTemplateState = (template: TodoTemplate): TemplateStateTemplate => {
+  return {
+    ...template,
+    description: template.description || '', // description이 없으면 빈 문자열로 설정
+    items: template.items.map(item => ({
+      ...item,
+      priority: item.priority || 'medium' // priority가 없으면 medium으로 설정
+    }))
+  } as TemplateStateTemplate;
+};
+
+/**
+ * 템플릿 상태용 TodoTemplate을 컨텍스트 TodoTemplate으로 변환하는 함수
+ */
+const adaptFromTemplateState = (template: TemplateStateTemplate): TodoTemplate => {
+  return template as unknown as TodoTemplate;
+};
 
 /**
  * Todo 템플릿 관리 컴포넌트 프롭스
@@ -47,10 +69,10 @@ interface TodoTemplatesProps {
 /**
  * Todo 템플릿 관리 컴포넌트
  */
-const TodoTemplates: React.FC<TodoTemplatesProps> = ({ 
-  className = '', 
-  onTemplateSelect, 
-  initialTemplates = [] 
+const TodoTemplates: React.FC<TodoTemplatesProps> = ({
+  className = '',
+  onTemplateSelect,
+  initialTemplates = []
 }) => {
   // 상태 관리
   const [templates, setTemplates] = useState<TodoTemplate[]>(initialTemplates);
@@ -59,12 +81,12 @@ const TodoTemplates: React.FC<TodoTemplatesProps> = ({
   const [favoriteTemplates, setFavoriteTemplates] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<string>('all');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-  
+
   // 드로어 상태
   const [manageDrawerVisible, setManageDrawerVisible] = useState(false);
   const [selectionDrawerVisible, setSelectionDrawerVisible] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<TodoTemplate | null>(null);
-  
+
   // 샘플 템플릿 생성
   useEffect(() => {
     if (templates.length === 0) {
@@ -103,11 +125,11 @@ const TodoTemplates: React.FC<TodoTemplatesProps> = ({
           ]
         }
       ];
-      
+
       setTemplates(sampleTemplates);
     }
   }, [templates.length]);
-  
+
   // 즐겨찾기 템플릿 로드
   useEffect(() => {
     try {
@@ -119,108 +141,120 @@ const TodoTemplates: React.FC<TodoTemplatesProps> = ({
       logger.error('즐겨찾기 템플릿 로드 오류:', error);
     }
   }, []);
-  
+
   // 템플릿 즐겨찾기 토글
   const toggleFavorite = useCallback((templateId: string, e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    
+    if (e) {
+      e.stopPropagation();
+    }
+
     setFavoriteTemplates(prev => {
       const isCurrentlyFavorite = prev.includes(templateId);
       const newFavorites = isCurrentlyFavorite
         ? prev.filter(id => id !== templateId)
         : [...prev, templateId];
-      
+
       // 로컬 스토리지에 저장
       try {
         localStorage.setItem('favorite-templates', JSON.stringify(newFavorites));
       } catch (error) {
         logger.error('즐겨찾기 저장 오류:', error);
       }
-      
+
       return newFavorites;
     });
   }, []);
-  
+
   // 템플릿 선택 처리
-  const handleSelectTemplate = useCallback((template: TodoTemplate) => {
-    setSelectedTemplate(template);
-    
-    if (onTemplateSelect) {
-      onTemplateSelect(template);
-    }
-    
-    setSelectionDrawerVisible(false);
-  }, [onTemplateSelect]);
-  
+  const handleSelectTemplate = useCallback(
+    (template: TodoTemplate) => {
+      setSelectedTemplate(template);
+
+      if (onTemplateSelect) {
+        onTemplateSelect(template);
+      }
+
+      setSelectionDrawerVisible(false);
+    },
+    [onTemplateSelect]
+  );
+
   // 모든 카테고리 배열
   const categories = useMemo(() => {
     const categorySet = new Set(templates.map(template => template.category));
-    return Array.from(categorySet).sort();
+    return Array.from(categorySet).sort((a, b) => a.localeCompare(b));
   }, [templates]);
-  
+
   // 필터링된 템플릿 목록
   const filteredTemplates = useMemo(() => {
     let filtered = [...templates];
-    
+
     // 탭 필터링
     if (activeTab === 'favorites') {
       filtered = filtered.filter(template => favoriteTemplates.includes(template.id));
     }
-    
+
     // 검색어 필터링
     if (search) {
       const searchLower = search.toLowerCase();
-      filtered = filtered.filter(template => 
-        template.name.toLowerCase().includes(searchLower) ||
-        template.description?.toLowerCase().includes(searchLower) ||
-        template.category.toLowerCase().includes(searchLower)
+      filtered = filtered.filter(
+        template =>
+          template.name.toLowerCase().includes(searchLower) ||
+          template.description?.toLowerCase().includes(searchLower) ||
+          template.category.toLowerCase().includes(searchLower)
       );
     }
-    
+
     // 카테고리 필터링
     if (categoryFilter) {
       filtered = filtered.filter(template => template.category === categoryFilter);
     }
-    
+
     // 정렬
     filtered.sort((a, b) => {
       // 먼저 즐겨찾기 항목을 위로
       const aFavorite = favoriteTemplates.includes(a.id);
       const bFavorite = favoriteTemplates.includes(b.id);
-      
+
       if (aFavorite && !bFavorite) return -1;
       if (!aFavorite && bFavorite) return 1;
-      
+
       // 이름 기준 정렬
       const comparison = a.name.localeCompare(b.name);
       return sortOrder === 'asc' ? comparison : -comparison;
     });
-    
+
     return filtered;
   }, [templates, search, categoryFilter, activeTab, favoriteTemplates, sortOrder]);
-  
+
+  // 타입 변환된 템플릿 상태
+  const adaptedTemplates = useMemo(() => 
+    templates.map(adaptToTemplateState), 
+  [templates]);
+
+  // 타입 변환된 필터링된 템플릿 상태
+  const adaptedFilteredTemplates = useMemo(() => 
+    filteredTemplates.map(adaptToTemplateState), 
+  [filteredTemplates]);
+
   return (
     <div className={`todo-templates ${className}`}>
       <div className="flex justify-between items-center mb-4">
         <Title level={4}>정비 작업 템플릿</Title>
-        
+
         <div className="flex gap-2">
-          <Button 
+          <Button
             type="primary"
             icon={<PlusOutlined />}
             onClick={() => setManageDrawerVisible(true)}
           >
             템플릿 관리
           </Button>
-          
-          <Button
-            onClick={() => setSelectionDrawerVisible(true)}
-          >
-            템플릿 적용
-          </Button>
+
+          <Button onClick={() => setSelectionDrawerVisible(true)}>템플릿 적용</Button>
         </div>
       </div>
-      
+
       <div className="mb-4 flex flex-col md:flex-row gap-4">
         <Input.Search
           placeholder="템플릿 검색..."
@@ -229,7 +263,7 @@ const TodoTemplates: React.FC<TodoTemplatesProps> = ({
           style={{ maxWidth: 300 }}
           allowClear
         />
-        
+
         <div className="flex gap-2 items-center">
           <Select
             placeholder="카테고리 필터"
@@ -239,35 +273,35 @@ const TodoTemplates: React.FC<TodoTemplatesProps> = ({
             allowClear
           >
             {categories.map(category => (
-              <Option key={category} value={category}>{category}</Option>
+              <Option key={category} value={category}>
+                {category}
+              </Option>
             ))}
           </Select>
-          
+
           <Button
             icon={sortOrder === 'asc' ? <SortAscendingOutlined /> : <SortDescendingOutlined />}
-            onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+            onClick={() => setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'))}
             size="middle"
           />
         </div>
       </div>
-      
-      <Tabs 
-        activeKey={activeTab} 
-        onChange={setActiveTab}
-        className="mb-4"
-      >
+
+      <Tabs activeKey={activeTab} onChange={setActiveTab} className="mb-4">
         <TabPane tab="모든 템플릿" key="all" />
-        <TabPane 
+        <TabPane
           tab={
             <span>
-              즐겨찾기 
-              <Tag color="blue" className="ml-1">{favoriteTemplates.length}</Tag>
+              즐겨찾기
+              <Tag color="blue" className="ml-1">
+                {favoriteTemplates.length}
+              </Tag>
             </span>
-          } 
-          key="favorites" 
+          }
+          key="favorites"
         />
       </Tabs>
-      
+
       {filteredTemplates.length === 0 ? (
         <Empty description="표시할 템플릿이 없습니다" />
       ) : (
@@ -283,32 +317,36 @@ const TodoTemplates: React.FC<TodoTemplatesProps> = ({
                     <Tooltip title={template.name}>
                       <span className="truncate">{template.name}</span>
                     </Tooltip>
-                    <Tooltip title={favoriteTemplates.includes(template.id) ? "즐겨찾기 제거" : "즐겨찾기 추가"}>
+                    <Tooltip
+                      title={
+                        favoriteTemplates.includes(template.id) ? '즐겨찾기 제거' : '즐겨찾기 추가'
+                      }
+                    >
                       <Button
                         type="text"
                         size="small"
                         icon={
-                          favoriteTemplates.includes(template.id) 
-                            ? <StarFilled style={{ color: '#faad14' }} /> 
-                            : <StarOutlined />
+                          favoriteTemplates.includes(template.id) ? (
+                            <StarFilled style={{ color: '#faad14' }} />
+                          ) : (
+                            <StarOutlined />
+                          )
                         }
-                        onClick={(e) => toggleFavorite(template.id, e)}
+                        onClick={e => toggleFavorite(template.id, e)}
                       />
                     </Tooltip>
                   </div>
                 }
-                extra={
-                  <Tag color="blue">{template.items.length}</Tag>
-                }
+                extra={<Tag color="blue">{template.items.length}</Tag>}
               >
                 <div className="mb-2">
                   <Text type="secondary" ellipsis={{ tooltip: template.description }}>
-                    {template.description || '설명 없음'}
+                    {template.description ?? '설명 없음'}
                   </Text>
                 </div>
-                
+
                 <Divider className="my-2" />
-                
+
                 <div className="flex justify-between">
                   <Tag icon={<FolderOutlined />} color="cyan">
                     {template.category}
@@ -319,12 +357,12 @@ const TodoTemplates: React.FC<TodoTemplatesProps> = ({
           ))}
         </Row>
       )}
-      
+
       {/* 템플릿 관리 드로어 */}
       <TemplateManageDrawer
         visible={manageDrawerVisible}
         templateState={{
-          templates: templates,
+          templates: adaptedTemplates,
           selectedTemplate: null,
           editingTemplate: null,
           templateForm: {
@@ -349,16 +387,16 @@ const TodoTemplates: React.FC<TodoTemplatesProps> = ({
         templateSearch=""
         setTemplateSearch={() => {}}
         categories={categories}
-        filteredTemplates={templates}
+        filteredTemplates={adaptedFilteredTemplates}
       />
-      
+
       {/* 템플릿 선택 드로어 */}
       <TemplateSelectionDrawer
         visible={selectionDrawerVisible}
-        templates={templates}
-        selectedTemplate={selectedTemplate}
+        templates={adaptedTemplates}
+        selectedTemplate={selectedTemplate ? adaptToTemplateState(selectedTemplate) : null}
         onClose={() => setSelectionDrawerVisible(false)}
-        onSelect={handleSelectTemplate}
+        onSelect={(template) => handleSelectTemplate(adaptFromTemplateState(template))}
         onConfirm={async () => {}}
         loading={false}
         templateSearch={search}
@@ -366,10 +404,10 @@ const TodoTemplates: React.FC<TodoTemplatesProps> = ({
         templateCategoryFilter={categoryFilter}
         setTemplateCategoryFilter={setCategoryFilter}
         categories={categories}
-        filteredTemplates={filteredTemplates}
+        filteredTemplates={adaptedFilteredTemplates}
       />
     </div>
   );
 };
 
-export default TodoTemplates; 
+export default TodoTemplates;

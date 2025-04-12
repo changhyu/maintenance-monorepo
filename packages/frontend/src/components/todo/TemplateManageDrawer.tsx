@@ -1,24 +1,21 @@
 import React from 'react';
-import { Drawer, Input, Button, List, Space, Typography, Form, Select, Divider } from 'antd';
+
 import { PlusOutlined } from '@ant-design/icons';
+import { Drawer, Input, Button, List, Space, Typography, Form, Select, Divider } from 'antd';
+
 import { TemplateState, TodoTemplate } from '../../hooks/useTemplateState';
 
 // 템플릿 항목 폼 컴포넌트
 const TemplateItemForm: React.FC<{
-  item: TodoTemplate['items'][0],
-  index: number,
-  onChange: (index: number, field: string, value: string) => void,
-  onRemove: (index: number) => void
+  item: TodoTemplate['items'][0];
+  index: number;
+  onChange: (index: number, field: string, value: string) => void;
+  onRemove: (index: number) => void;
 }> = ({ item, index, onChange, onRemove }) => (
   <List.Item
     className="border p-2 rounded mb-2"
     actions={[
-      <Button 
-        key="delete" 
-        type="text" 
-        danger 
-        onClick={() => onRemove(index)}
-      >
+      <Button key="delete" type="text" danger onClick={() => onRemove(index)}>
         삭제
       </Button>
     ]}
@@ -61,19 +58,10 @@ const TemplateListItem: React.FC<{
   <List.Item
     className="border p-3 rounded mb-2"
     actions={[
-      <Button 
-        key="edit" 
-        type="text"
-        onClick={() => onEdit(template)}
-      >
+      <Button key="edit" type="text" onClick={() => onEdit(template)}>
         편집
       </Button>,
-      <Button 
-        key="delete" 
-        type="text" 
-        danger
-        onClick={() => onDelete(template.id)}
-      >
+      <Button key="delete" type="text" danger onClick={() => onDelete(template.id)}>
         삭제
       </Button>
     ]}
@@ -85,9 +73,7 @@ const TemplateListItem: React.FC<{
         <span className="text-xs bg-blue-100 text-blue-800 rounded px-2 py-1">
           {template.category}
         </span>
-        <span className="text-xs text-gray-500 ml-2">
-          {template.items.length}개 작업
-        </span>
+        <span className="text-xs text-gray-500 ml-2">{template.items.length}개 작업</span>
       </div>
     </div>
   </List.Item>
@@ -156,25 +142,25 @@ export const TemplateManageDrawer: React.FC<TemplateManageDrawerProps> = ({
       <Typography.Title level={4}>
         {templateState.editingTemplate ? '템플릿 수정' : '새 템플릿 추가'}
       </Typography.Title>
-      
+
       <Form layout="vertical">
         <Form.Item label="템플릿 이름" required>
-          <Input 
-            value={templateState.templateForm.name} 
-            onChange={e => onItemChange(-1, 'name', e.target.value)} 
+          <Input
+            value={templateState.templateForm.name}
+            onChange={e => onItemChange(-1, 'name', e.target.value)}
             placeholder="템플릿 이름을 입력하세요"
           />
         </Form.Item>
-        
+
         <Form.Item label="설명">
-          <Input.TextArea 
+          <Input.TextArea
             value={templateState.templateForm.description}
             onChange={e => onItemChange(-1, 'description', e.target.value)}
             placeholder="템플릿에 대한 설명을 입력하세요"
             rows={2}
           />
         </Form.Item>
-        
+
         <Form.Item label="카테고리">
           <Select
             value={templateState.templateForm.category}
@@ -188,7 +174,7 @@ export const TemplateManageDrawer: React.FC<TemplateManageDrawerProps> = ({
             ))}
           </Select>
         </Form.Item>
-        
+
         <Form.Item label="항목">
           <List
             dataSource={templateState.templateForm.items}
@@ -202,16 +188,11 @@ export const TemplateManageDrawer: React.FC<TemplateManageDrawerProps> = ({
             )}
             locale={{ emptyText: '항목이 없습니다. 항목을 추가해주세요.' }}
           />
-          <Button 
-            onClick={onAddItem} 
-            type="dashed" 
-            block
-            icon={<PlusOutlined />}
-          >
+          <Button onClick={onAddItem} type="dashed" block icon={<PlusOutlined />}>
             항목 추가
           </Button>
         </Form.Item>
-        
+
         {!templateState.editingTemplate && (
           <Form.Item>
             <Button type="primary" onClick={onAddTemplate} block>
@@ -220,12 +201,12 @@ export const TemplateManageDrawer: React.FC<TemplateManageDrawerProps> = ({
           </Form.Item>
         )}
       </Form>
-      
+
       {!templateState.editingTemplate && (
         <>
           <Divider />
           <Typography.Title level={4}>기존 템플릿</Typography.Title>
-          
+
           <div className="mb-4">
             <Input.Search
               placeholder="템플릿 검색"
@@ -233,7 +214,7 @@ export const TemplateManageDrawer: React.FC<TemplateManageDrawerProps> = ({
               value={templateSearch}
             />
           </div>
-          
+
           <List
             dataSource={filteredTemplates}
             renderItem={template => (
@@ -252,4 +233,4 @@ export const TemplateManageDrawer: React.FC<TemplateManageDrawerProps> = ({
   );
 };
 
-export default TemplateManageDrawer; 
+export default TemplateManageDrawer;

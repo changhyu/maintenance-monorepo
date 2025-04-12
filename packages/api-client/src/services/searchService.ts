@@ -123,10 +123,10 @@ export interface AutocompleteResponse {
 }
 
 export class SearchService {
-  private client: ApiClient;
-  private basePath = '/search';
-  private savedSearchPath = '/saved-searches';
-  private recentSearchPath = '/recent-searches';
+  private readonly client: ApiClient;
+  private readonly basePath = '/search';
+  private readonly savedSearchPath = '/saved-searches';
+  private readonly recentSearchPath = '/recent-searches';
 
   constructor(apiClient: ApiClient) {
     this.client = apiClient;
@@ -277,7 +277,7 @@ export class SearchService {
   }
 
   // 저장된 검색어 실행
-  async executeSavedSearch<T = any>(id: string): Promise<SearchResponse<T>> {
+  async executeSavedSearch<T = SearchEntityData>(id: string): Promise<SearchResponse<T>> {
     return this.client.get<SearchResponse<T>>(`${this.savedSearchPath}/${id}/execute`);
   }
 
@@ -295,7 +295,7 @@ export class SearchService {
   }
 
   // 페이스트 검색 (실시간 검색)
-  async instantSearch<T = any>(
+  async instantSearch<T = SearchEntityData>(
     query: string,
     limit: number = 5
   ): Promise<SearchResponse<T>> {
@@ -308,15 +308,15 @@ export class SearchService {
   }
 
   // 유사 항목 검색
-  async findSimilar<T = any>(
+  async findSimilar<T = SearchEntityData>(
     entityType: SearchEntityType,
     entityId: string,
     limit: number = 10
   ): Promise<SearchResponse<T>> {
     return this.client.get<SearchResponse<T>>(`${this.basePath}/similar`, {
       params: {
-        entityType,
-        entityId,
+        type: entityType,
+        id: entityId,
         limit
       }
     });
@@ -336,12 +336,12 @@ export class SearchService {
   }
 
   // 고급 검색 (JSON으로 정의된 복잡한 쿼리)
-  async advancedSearch<T = any>(searchConfig: {
+  async advancedSearch<T = SearchEntityData>(searchConfig: {
     query?: string;
-    filters?: any;
-    aggregations?: any;
-    boost?: any;
-    sort?: any;
+    filters?: SearchFilter;
+    aggregations?: Record<string, unknown>;
+    boost?: Record<string, number>;
+    sort?: Record<string, 'asc' | 'desc'>;
     page?: number;
     limit?: number;
   }): Promise<SearchResponse<T>> {

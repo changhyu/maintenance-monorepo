@@ -1,5 +1,5 @@
-import { DashboardFilters } from '../components/DashboardFilter';
 import { ReportType } from './reportService';
+import { DashboardFilters } from '../components/DashboardFilter';
 import { formatDate } from '../utils/date-utils';
 
 // API 인터페이스 정의
@@ -42,9 +42,9 @@ interface ApiMaintenanceAnalyticsOverview {
 
 interface ApiCostAnalyticsOverview {
   totalCost: number;
-  costTrend?: { 
+  costTrend?: {
     percentage: number;
-    data?: { data: AnalyticsDataPoint[] }
+    data?: { data: AnalyticsDataPoint[] };
   };
   costByCategory?: AnalyticsDataSeries;
   costByMonth?: { data: AnalyticsDataPoint[] };
@@ -158,7 +158,7 @@ export interface DashboardChartData {
     dataKey: string;
     name: string;
   }[];
-  
+
   // 기존 차트 라이브러리용 속성
   labels?: string[];
   datasets?: {
@@ -168,15 +168,15 @@ export interface DashboardChartData {
     borderColor?: string[] | string;
     borderWidth?: number;
   }[];
-  
+
   // 차트 타입 및 추가 속성
-  type?: string;          // 차트 타입 (line, bar, pie 등)
-  xKey?: string;          // X축 데이터 키
-  yKeys?: string[];       // Y축 데이터 키 배열
-  nameKey?: string;       // 이름 필드 키
-  valueKey?: string;      // 값 필드 키
-  colors?: string[];      // 색상 배열
-  stacked?: boolean;      // 누적 차트 여부
+  type?: string; // 차트 타입 (line, bar, pie 등)
+  xKey?: string; // X축 데이터 키
+  yKeys?: string[]; // Y축 데이터 키 배열
+  nameKey?: string; // 이름 필드 키
+  valueKey?: string; // 값 필드 키
+  colors?: string[]; // 색상 배열
+  stacked?: boolean; // 누적 차트 여부
 }
 
 export interface PredictiveMaintenanceCard {
@@ -194,7 +194,9 @@ class AnalyticsService {
     // 초기화 코드
   }
 
-  async getVehicleAnalytics(timeFrame: ApiAnalyticsTimeFrame): Promise<ApiVehicleAnalyticsOverview> {
+  async getVehicleAnalytics(
+    timeFrame: ApiAnalyticsTimeFrame
+  ): Promise<ApiVehicleAnalyticsOverview> {
     // 모의 데이터 반환
     return {
       totalVehicles: 120,
@@ -203,18 +205,20 @@ class AnalyticsService {
       averageAge: 3.5,
       averageMileage: 50000,
       vehiclesByMake: {
-        name: "Vehicle by Make",
+        name: 'Vehicle by Make',
         data: [
-          { label: "Toyota", value: 40 },
-          { label: "Hyundai", value: 30 },
-          { label: "KIA", value: 25 },
-          { label: "Others", value: 25 }
+          { label: 'Toyota', value: 40 },
+          { label: 'Hyundai', value: 30 },
+          { label: 'KIA', value: 25 },
+          { label: 'Others', value: 25 }
         ]
       }
     };
   }
 
-  async getMaintenanceAnalytics(timeFrame: ApiAnalyticsTimeFrame): Promise<ApiMaintenanceAnalyticsOverview> {
+  async getMaintenanceAnalytics(
+    timeFrame: ApiAnalyticsTimeFrame
+  ): Promise<ApiMaintenanceAnalyticsOverview> {
     // 모의 데이터 반환
     return {
       totalMaintenanceRecords: 250,
@@ -222,11 +226,11 @@ class AnalyticsService {
       costTrend: { percentage: 2.5 },
       averageTimeBetweenMaintenance: 45,
       maintenanceByType: {
-        name: "Maintenance by Type",
+        name: 'Maintenance by Type',
         data: [
-          { label: "Regular", value: 150 },
-          { label: "Repair", value: 70 },
-          { label: "Inspection", value: 30 }
+          { label: 'Regular', value: 150 },
+          { label: 'Repair', value: 70 },
+          { label: 'Inspection', value: 30 }
         ]
       }
     };
@@ -236,35 +240,33 @@ class AnalyticsService {
     // 모의 데이터 반환
     return {
       totalCost: 2500000,
-      costTrend: { 
+      costTrend: {
         percentage: -1.5,
-        data: { 
+        data: {
           data: [
-            { label: "Jan", value: 180000, date: "2023-01-01" },
-            { label: "Feb", value: 210000, date: "2023-02-01" },
-            { label: "Mar", value: 195000, date: "2023-03-01" }
-          ] 
+            { label: 'Jan', value: 180000, date: '2023-01-01' },
+            { label: 'Feb', value: 210000, date: '2023-02-01' },
+            { label: 'Mar', value: 195000, date: '2023-03-01' }
+          ]
         }
       },
       costByCategory: {
-        name: "Cost by Category",
+        name: 'Cost by Category',
         data: [
-          { label: "Parts", value: 1200000 },
-          { label: "Labor", value: 800000 },
-          { label: "Misc", value: 500000 }
+          { label: 'Parts', value: 1200000 },
+          { label: 'Labor', value: 800000 },
+          { label: 'Misc', value: 500000 }
         ]
       },
-      costByMonth: { 
+      costByMonth: {
         data: [
-          { label: "Jan", value: 180000, date: "2023-01-01" },
-          { label: "Feb", value: 210000, date: "2023-02-01" },
-          { label: "Mar", value: 195000, date: "2023-03-01" }
-        ] 
+          { label: 'Jan', value: 180000, date: '2023-01-01' },
+          { label: 'Feb', value: 210000, date: '2023-02-01' },
+          { label: 'Mar', value: 195000, date: '2023-03-01' }
+        ]
       },
-      costPerVehicle: { 
-        data: [
-          { label: "Average", value: 20833 }
-        ] 
+      costPerVehicle: {
+        data: [{ label: 'Average', value: 20833 }]
       }
     };
   }
@@ -301,7 +303,9 @@ export class DashboardDataService {
     };
   }
 
-  public transformMaintenanceAnalytics(apiData: ApiMaintenanceAnalyticsOverview): MaintenanceAnalyticsOverview {
+  public transformMaintenanceAnalytics(
+    apiData: ApiMaintenanceAnalyticsOverview
+  ): MaintenanceAnalyticsOverview {
     const maintenancesByType: AnalyticsCategory = {
       data: this.transformDataSeriesToCategoryItems(apiData.maintenanceByType),
       total: apiData.totalMaintenanceRecords
@@ -316,7 +320,9 @@ export class DashboardDataService {
       total: apiData.totalMaintenanceRecords
     };
 
-    const completedMaintenances = Math.round(apiData.totalMaintenanceRecords * (apiData.maintenanceCompletionRate ?? 0));
+    const completedMaintenances = Math.round(
+      apiData.totalMaintenanceRecords * (apiData.maintenanceCompletionRate ?? 0)
+    );
 
     return {
       totalMaintenances: apiData.totalMaintenanceRecords,
@@ -378,11 +384,13 @@ export class DashboardDataService {
   }
 
   // 유틸리티 메서드: AnalyticsDataSeries를 AnalyticsCategoryItem[]으로 변환
-  private transformDataSeriesToCategoryItems(series: AnalyticsDataSeries | undefined): AnalyticsCategoryItem[] {
+  private transformDataSeriesToCategoryItems(
+    series: AnalyticsDataSeries | undefined
+  ): AnalyticsCategoryItem[] {
     if (!series || !series.data) {
       return [];
     }
-    
+
     return series.data.map(point => ({
       label: point.label,
       value: point.value
@@ -398,7 +406,7 @@ export class DashboardDataService {
       { label: '주의', value: Math.round(total * 0.3) },
       { label: '위험', value: Math.round(total * 0.1) }
     ];
-    
+
     return {
       data: healthData,
       total
@@ -408,15 +416,19 @@ export class DashboardDataService {
   // 대시보드 개요 데이터 가져오기
   async getOverviewData(): Promise<DashboardCardData[]> {
     try {
-      const apiVehicleData = await this.analyticsService.getVehicleAnalytics(ApiAnalyticsTimeFrame.MONTH);
-      const apiMaintenanceData = await this.analyticsService.getMaintenanceAnalytics(ApiAnalyticsTimeFrame.MONTH);
+      const apiVehicleData = await this.analyticsService.getVehicleAnalytics(
+        ApiAnalyticsTimeFrame.MONTH
+      );
+      const apiMaintenanceData = await this.analyticsService.getMaintenanceAnalytics(
+        ApiAnalyticsTimeFrame.MONTH
+      );
       const apiCostData = await this.analyticsService.getCostAnalytics(ApiAnalyticsTimeFrame.MONTH);
-      
+
       // API 응답 데이터를 프론트엔드 타입으로 변환
       const vehicleData = this.transformVehicleAnalytics(apiVehicleData);
       const maintenanceData = this.transformMaintenanceAnalytics(apiMaintenanceData);
       const costData = this.transformCostAnalytics(apiCostData);
-      
+
       return this.transformOverviewData(vehicleData, maintenanceData, costData);
     } catch (error) {
       console.error('대시보드 데이터 조회 중 오류 발생:', error);
@@ -426,7 +438,7 @@ export class DashboardDataService {
 
   // 대시보드 개요 데이터 변환
   private transformOverviewData(
-    vehicleData: VehicleAnalyticsOverview, 
+    vehicleData: VehicleAnalyticsOverview,
     maintenanceData: MaintenanceAnalyticsOverview,
     costData: CostAnalyticsOverview
   ): DashboardCardData[] {
@@ -435,7 +447,8 @@ export class DashboardDataService {
         title: '전체 차량',
         value: vehicleData.totalVehicles,
         change: vehicleData.vehicleChange,
-        trend: vehicleData.vehicleChange > 0 ? 'up' : vehicleData.vehicleChange < 0 ? 'down' : 'neutral',
+        trend:
+          vehicleData.vehicleChange > 0 ? 'up' : vehicleData.vehicleChange < 0 ? 'down' : 'neutral',
         icon: 'car',
         color: 'blue'
       },
@@ -443,7 +456,7 @@ export class DashboardDataService {
         title: '정비 중인 차량',
         value: maintenanceData.pendingMaintenances,
         change: this.calculatePercentChange(
-          maintenanceData.pendingMaintenances, 
+          maintenanceData.pendingMaintenances,
           maintenanceData.totalMaintenances - maintenanceData.pendingMaintenances
         ),
         trend: 'neutral',
@@ -471,13 +484,15 @@ export class DashboardDataService {
 
   // 차량 데이터 가져오기
   async getVehicleData(): Promise<{
-    cards: DashboardCardData[],
-    charts: { [key: string]: DashboardChartData }
+    cards: DashboardCardData[];
+    charts: { [key: string]: DashboardChartData };
   }> {
     try {
-      const apiVehicleData = await this.analyticsService.getVehicleAnalytics(ApiAnalyticsTimeFrame.MONTH);
+      const apiVehicleData = await this.analyticsService.getVehicleAnalytics(
+        ApiAnalyticsTimeFrame.MONTH
+      );
       const vehicleData = this.transformVehicleAnalytics(apiVehicleData);
-      
+
       return {
         cards: this.transformVehicleCards(vehicleData),
         charts: {
@@ -497,10 +512,7 @@ export class DashboardDataService {
       {
         title: '활성 차량',
         value: vehicleData.activeVehicles,
-        change: this.calculatePercentChange(
-          vehicleData.activeVehicles,
-          vehicleData.totalVehicles
-        ),
+        change: this.calculatePercentChange(vehicleData.activeVehicles, vehicleData.totalVehicles),
         trend: 'up',
         icon: 'check-circle',
         color: 'green'
@@ -535,9 +547,11 @@ export class DashboardDataService {
     ];
   }
 
-  private getVehicleTypeDistributionChart(vehicleData: VehicleAnalyticsOverview): DashboardChartData {
+  private getVehicleTypeDistributionChart(
+    vehicleData: VehicleAnalyticsOverview
+  ): DashboardChartData {
     const category = vehicleData.vehiclesByCategory;
-    
+
     return {
       labels: category.data.map(item => item.label),
       datasets: [
@@ -564,9 +578,11 @@ export class DashboardDataService {
     };
   }
 
-  private getVehicleHealthDistributionChart(vehicleData: VehicleAnalyticsOverview): DashboardChartData {
+  private getVehicleHealthDistributionChart(
+    vehicleData: VehicleAnalyticsOverview
+  ): DashboardChartData {
     const category = vehicleData.vehicleHealthDistribution;
-    
+
     return {
       labels: category.data.map(item => item.label),
       datasets: [
@@ -575,14 +591,10 @@ export class DashboardDataService {
           data: category.data.map(item => item.value),
           backgroundColor: [
             'rgba(75, 192, 192, 0.6)',
-            'rgba(255, 206, 86, 0.6)', 
+            'rgba(255, 206, 86, 0.6)',
             'rgba(255, 99, 132, 0.6)'
           ],
-          borderColor: [
-            'rgba(75, 192, 192, 1)',
-            'rgba(255, 206, 86, 1)',
-            'rgba(255, 99, 132, 1)'
-          ],
+          borderColor: ['rgba(75, 192, 192, 1)', 'rgba(255, 206, 86, 1)', 'rgba(255, 99, 132, 1)'],
           borderWidth: 1
         }
       ]
@@ -608,18 +620,21 @@ export class DashboardDataService {
 
   // 정비 데이터 가져오기
   async getMaintenanceData(): Promise<{
-    cards: DashboardCardData[],
-    charts: { [key: string]: DashboardChartData }
+    cards: DashboardCardData[];
+    charts: { [key: string]: DashboardChartData };
   }> {
     try {
-      const apiMaintenanceData = await this.analyticsService.getMaintenanceAnalytics(ApiAnalyticsTimeFrame.MONTH);
+      const apiMaintenanceData = await this.analyticsService.getMaintenanceAnalytics(
+        ApiAnalyticsTimeFrame.MONTH
+      );
       const maintenanceData = this.transformMaintenanceAnalytics(apiMaintenanceData);
-      
+
       return {
         cards: this.transformMaintenanceCards(maintenanceData),
         charts: {
           maintenanceTypeDistribution: this.getMaintenanceTypeDistributionChart(maintenanceData),
-          maintenancePriorityDistribution: this.getMaintenancePriorityDistributionChart(maintenanceData),
+          maintenancePriorityDistribution:
+            this.getMaintenancePriorityDistributionChart(maintenanceData),
           maintenanceTrend: this.getMaintenanceTrendChart()
         }
       };
@@ -629,7 +644,9 @@ export class DashboardDataService {
     }
   }
 
-  private transformMaintenanceCards(maintenanceData: MaintenanceAnalyticsOverview): DashboardCardData[] {
+  private transformMaintenanceCards(
+    maintenanceData: MaintenanceAnalyticsOverview
+  ): DashboardCardData[] {
     return [
       {
         title: '완료된 정비',
@@ -672,9 +689,11 @@ export class DashboardDataService {
     ];
   }
 
-  private getMaintenanceTypeDistributionChart(maintenanceData: MaintenanceAnalyticsOverview): DashboardChartData {
+  private getMaintenanceTypeDistributionChart(
+    maintenanceData: MaintenanceAnalyticsOverview
+  ): DashboardChartData {
     const category = maintenanceData.maintenancesByType;
-    
+
     return {
       labels: category.data.map(item => item.label),
       datasets: [
@@ -701,9 +720,11 @@ export class DashboardDataService {
     };
   }
 
-  private getMaintenancePriorityDistributionChart(maintenanceData: MaintenanceAnalyticsOverview): DashboardChartData {
+  private getMaintenancePriorityDistributionChart(
+    maintenanceData: MaintenanceAnalyticsOverview
+  ): DashboardChartData {
     const category = maintenanceData.maintenancesByPriority;
-    
+
     return {
       labels: category.data.map(item => item.label),
       datasets: [
@@ -715,11 +736,7 @@ export class DashboardDataService {
             'rgba(255, 206, 86, 0.6)',
             'rgba(75, 192, 192, 0.6)'
           ],
-          borderColor: [
-            'rgba(255, 99, 132, 1)',
-            'rgba(255, 206, 86, 1)',
-            'rgba(75, 192, 192, 1)'
-          ],
+          borderColor: ['rgba(255, 99, 132, 1)', 'rgba(255, 206, 86, 1)', 'rgba(75, 192, 192, 1)'],
           borderWidth: 1
         }
       ]
@@ -752,16 +769,18 @@ export class DashboardDataService {
 
   // 차량 관리 데이터 가져오기
   async getFleetData(): Promise<{
-    cards: DashboardCardData[],
-    charts: { [key: string]: DashboardChartData }
+    cards: DashboardCardData[];
+    charts: { [key: string]: DashboardChartData };
   }> {
     try {
-      const apiVehicleData = await this.analyticsService.getVehicleAnalytics(ApiAnalyticsTimeFrame.MONTH);
+      const apiVehicleData = await this.analyticsService.getVehicleAnalytics(
+        ApiAnalyticsTimeFrame.MONTH
+      );
       const apiCostData = await this.analyticsService.getCostAnalytics(ApiAnalyticsTimeFrame.MONTH);
-      
+
       const vehicleData = this.transformVehicleAnalytics(apiVehicleData);
       const costData = this.transformCostAnalytics(apiCostData);
-      
+
       return {
         cards: this.transformFleetCards(vehicleData, costData),
         charts: {
@@ -777,7 +796,7 @@ export class DashboardDataService {
   }
 
   private transformFleetCards(
-    vehicleData: VehicleAnalyticsOverview, 
+    vehicleData: VehicleAnalyticsOverview,
     costData: CostAnalyticsOverview
   ): DashboardCardData[] {
     return [
@@ -785,7 +804,8 @@ export class DashboardDataService {
         title: '총 차량 수',
         value: vehicleData.totalVehicles,
         change: vehicleData.vehicleChange,
-        trend: vehicleData.vehicleChange > 0 ? 'up' : vehicleData.vehicleChange < 0 ? 'down' : 'neutral',
+        trend:
+          vehicleData.vehicleChange > 0 ? 'up' : vehicleData.vehicleChange < 0 ? 'down' : 'neutral',
         icon: 'car',
         color: 'blue'
       },
@@ -818,7 +838,7 @@ export class DashboardDataService {
 
   private getCostTrendChart(costData: CostAnalyticsOverview): DashboardChartData {
     const data = costData.monthlyCosts;
-    
+
     return {
       labels: data.map(item => item.date),
       datasets: [
@@ -835,7 +855,7 @@ export class DashboardDataService {
 
   private getCostByCategoryChart(costData: CostAnalyticsOverview): DashboardChartData {
     const category = costData.costByCategory;
-    
+
     return {
       labels: category.data.map(item => item.label),
       datasets: [
@@ -881,7 +901,7 @@ export class DashboardDataService {
 
   // 예측 정비 데이터 가져오기
   async getPredictiveMaintenanceData(): Promise<{
-    cards: PredictiveMaintenanceCard[]
+    cards: PredictiveMaintenanceCard[];
   }> {
     try {
       // 이 부분은 실제 API가 구현되면 그 데이터를 활용해야 합니다
@@ -941,7 +961,7 @@ export class DashboardDataService {
   private calculateAverageHealthScore(healthDistribution: AnalyticsCategory): string {
     const totalVehicles = healthDistribution.total;
     if (totalVehicles === 0) return '0%';
-    
+
     let weightedSum = 0;
     healthDistribution.data.forEach(item => {
       let weight = 0;
@@ -955,16 +975,16 @@ export class DashboardDataService {
       } else if (label === '위험') {
         weight = 10;
       }
-      weightedSum += (item.value * weight);
+      weightedSum += item.value * weight;
     });
-    
+
     return `${Math.round(weightedSum / totalVehicles)}%`;
   }
 
   private formatNumber(num: number): string {
     return num.toLocaleString();
   }
-  
+
   private formatCurrency(num: number): string {
     return `₩${num.toLocaleString()}`;
   }
@@ -973,109 +993,189 @@ export class DashboardDataService {
   private getFallbackOverviewData(): DashboardCardData[] {
     return [
       { title: '전체 차량', value: 55, change: 10, trend: 'up', icon: 'car', color: 'blue' },
-      { title: '정비 중인 차량', value: 8, change: -5, trend: 'down', icon: 'tools', color: 'orange' },
-      { title: '평균 차량 상태', value: '85%', change: 2, trend: 'up', icon: 'heartbeat', color: 'green' },
-      { title: '이번 달 비용', value: '₩32,450,000', change: 8, trend: 'up', icon: 'money-bill', color: 'red' }
+      {
+        title: '정비 중인 차량',
+        value: 8,
+        change: -5,
+        trend: 'down',
+        icon: 'tools',
+        color: 'orange'
+      },
+      {
+        title: '평균 차량 상태',
+        value: '85%',
+        change: 2,
+        trend: 'up',
+        icon: 'heartbeat',
+        color: 'green'
+      },
+      {
+        title: '이번 달 비용',
+        value: '₩32,450,000',
+        change: 8,
+        trend: 'up',
+        icon: 'money-bill',
+        color: 'red'
+      }
     ];
   }
 
   private getFallbackVehicleData(): {
-    cards: DashboardCardData[],
-    charts: { [key: string]: DashboardChartData }
+    cards: DashboardCardData[];
+    charts: { [key: string]: DashboardChartData };
   } {
     return {
       cards: [
-        { title: '활성 차량', value: 48, change: 5, trend: 'up', icon: 'check-circle', color: 'green' },
-        { title: '비활성 차량', value: 7, change: -2, trend: 'down', icon: 'times-circle', color: 'red' },
-        { title: '평균 차량 연령', value: '3.5년', change: 0, trend: 'neutral', icon: 'calendar', color: 'blue' },
-        { title: '평균 주행거리', value: '45,000km', change: 0, trend: 'neutral', icon: 'road', color: 'purple' }
+        {
+          title: '활성 차량',
+          value: 48,
+          change: 5,
+          trend: 'up',
+          icon: 'check-circle',
+          color: 'green'
+        },
+        {
+          title: '비활성 차량',
+          value: 7,
+          change: -2,
+          trend: 'down',
+          icon: 'times-circle',
+          color: 'red'
+        },
+        {
+          title: '평균 차량 연령',
+          value: '3.5년',
+          change: 0,
+          trend: 'neutral',
+          icon: 'calendar',
+          color: 'blue'
+        },
+        {
+          title: '평균 주행거리',
+          value: '45,000km',
+          change: 0,
+          trend: 'neutral',
+          icon: 'road',
+          color: 'purple'
+        }
       ],
       charts: {
         vehicleTypeDistribution: {
           labels: ['승용차', 'SUV', '밴', '트럭', '기타'],
-          datasets: [{
-            label: '차량 유형 분포',
-            data: [20, 15, 10, 8, 2],
-            backgroundColor: [
-              'rgba(54, 162, 235, 0.6)',
-              'rgba(255, 99, 132, 0.6)',
-              'rgba(255, 206, 86, 0.6)',
-              'rgba(75, 192, 192, 0.6)',
-              'rgba(153, 102, 255, 0.6)'
-            ],
-            borderWidth: 1
-          }]
+          datasets: [
+            {
+              label: '차량 유형 분포',
+              data: [20, 15, 10, 8, 2],
+              backgroundColor: [
+                'rgba(54, 162, 235, 0.6)',
+                'rgba(255, 99, 132, 0.6)',
+                'rgba(255, 206, 86, 0.6)',
+                'rgba(75, 192, 192, 0.6)',
+                'rgba(153, 102, 255, 0.6)'
+              ],
+              borderWidth: 1
+            }
+          ]
         },
         vehicleHealthDistribution: {
           labels: ['좋음', '보통', '주의'],
-          datasets: [{
-            label: '차량 상태 분포',
-            data: [35, 15, 5],
-            backgroundColor: [
-              'rgba(75, 192, 192, 0.6)',
-              'rgba(255, 206, 86, 0.6)',
-              'rgba(255, 99, 132, 0.6)'
-            ],
-            borderWidth: 1
-          }]
+          datasets: [
+            {
+              label: '차량 상태 분포',
+              data: [35, 15, 5],
+              backgroundColor: [
+                'rgba(75, 192, 192, 0.6)',
+                'rgba(255, 206, 86, 0.6)',
+                'rgba(255, 99, 132, 0.6)'
+              ],
+              borderWidth: 1
+            }
+          ]
         },
         vehicleAgeDistribution: {
           labels: ['0-2년', '3-5년', '6-8년', '9년 이상'],
-          datasets: [{
-            label: '차량 연령 분포',
-            data: [15, 25, 10, 5],
-            backgroundColor: 'rgba(54, 162, 235, 0.6)',
-            borderWidth: 1
-          }]
+          datasets: [
+            {
+              label: '차량 연령 분포',
+              data: [15, 25, 10, 5],
+              backgroundColor: 'rgba(54, 162, 235, 0.6)',
+              borderWidth: 1
+            }
+          ]
         }
       }
     };
   }
 
   private getFallbackMaintenanceData(): {
-    cards: DashboardCardData[],
-    charts: { [key: string]: DashboardChartData }
+    cards: DashboardCardData[];
+    charts: { [key: string]: DashboardChartData };
   } {
     return {
       cards: [
         { title: '완료된 정비', value: 120, change: 8, trend: 'up', icon: 'check', color: 'green' },
-        { title: '대기 중인 정비', value: 15, change: -10, trend: 'down', icon: 'clock', color: 'orange' },
-        { title: '평균 완료 시간', value: '3.2일', change: -5, trend: 'down', icon: 'hourglass', color: 'blue' },
-        { title: '예정된 정비', value: 22, change: 10, trend: 'up', icon: 'calendar-check', color: 'purple' }
+        {
+          title: '대기 중인 정비',
+          value: 15,
+          change: -10,
+          trend: 'down',
+          icon: 'clock',
+          color: 'orange'
+        },
+        {
+          title: '평균 완료 시간',
+          value: '3.2일',
+          change: -5,
+          trend: 'down',
+          icon: 'hourglass',
+          color: 'blue'
+        },
+        {
+          title: '예정된 정비',
+          value: 22,
+          change: 10,
+          trend: 'up',
+          icon: 'calendar-check',
+          color: 'purple'
+        }
       ],
       charts: {
         maintenanceTypeDistribution: {
           labels: ['정기 점검', '부품 교체', '고장 수리', '타이어', '기타'],
-          datasets: [{
-            label: '정비 유형 분포',
-            data: [45, 30, 15, 20, 10],
-            backgroundColor: [
-              'rgba(54, 162, 235, 0.6)',
-              'rgba(255, 99, 132, 0.6)',
-              'rgba(255, 206, 86, 0.6)',
-              'rgba(75, 192, 192, 0.6)',
-              'rgba(153, 102, 255, 0.6)'
-            ],
-            borderWidth: 1
-          }]
+          datasets: [
+            {
+              label: '정비 유형 분포',
+              data: [45, 30, 15, 20, 10],
+              backgroundColor: [
+                'rgba(54, 162, 235, 0.6)',
+                'rgba(255, 99, 132, 0.6)',
+                'rgba(255, 206, 86, 0.6)',
+                'rgba(75, 192, 192, 0.6)',
+                'rgba(153, 102, 255, 0.6)'
+              ],
+              borderWidth: 1
+            }
+          ]
         },
         maintenancePriorityDistribution: {
           labels: ['높음', '중간', '낮음'],
-          datasets: [{
-            label: '정비 우선순위 분포',
-            data: [25, 40, 55],
-            backgroundColor: [
-              'rgba(255, 99, 132, 0.6)',
-              'rgba(255, 206, 86, 0.6)',
-              'rgba(75, 192, 192, 0.6)'
-            ],
-            borderColor: [
-              'rgba(255, 99, 132, 1)',
-              'rgba(255, 206, 86, 1)',
-              'rgba(75, 192, 192, 1)'
-            ],
-            borderWidth: 1
-          }]
+          datasets: [
+            {
+              label: '정비 우선순위 분포',
+              data: [25, 40, 55],
+              backgroundColor: [
+                'rgba(255, 99, 132, 0.6)',
+                'rgba(255, 206, 86, 0.6)',
+                'rgba(75, 192, 192, 0.6)'
+              ],
+              borderColor: [
+                'rgba(255, 99, 132, 1)',
+                'rgba(255, 206, 86, 1)',
+                'rgba(75, 192, 192, 1)'
+              ],
+              borderWidth: 1
+            }
+          ]
         },
         maintenanceTrend: {
           labels: ['1월', '2월', '3월', '4월', '5월', '6월'],
@@ -1099,49 +1199,76 @@ export class DashboardDataService {
   }
 
   private getFallbackFleetData(): {
-    cards: DashboardCardData[],
-    charts: { [key: string]: DashboardChartData }
+    cards: DashboardCardData[];
+    charts: { [key: string]: DashboardChartData };
   } {
     return {
       cards: [
         { title: '총 차량 수', value: 55, change: 10, trend: 'up', icon: 'car', color: 'blue' },
-        { title: '총 운영 비용', value: '₩152,350,000', change: 5, trend: 'up', icon: 'money-bill', color: 'red' },
-        { title: '차량당 평균 비용', value: '₩2,770,000', change: -2, trend: 'down', icon: 'chart-line', color: 'purple' },
-        { title: '평균 차량 상태', value: '85%', change: 2, trend: 'up', icon: 'heartbeat', color: 'green' }
+        {
+          title: '총 운영 비용',
+          value: '₩152,350,000',
+          change: 5,
+          trend: 'up',
+          icon: 'money-bill',
+          color: 'red'
+        },
+        {
+          title: '차량당 평균 비용',
+          value: '₩2,770,000',
+          change: -2,
+          trend: 'down',
+          icon: 'chart-line',
+          color: 'purple'
+        },
+        {
+          title: '평균 차량 상태',
+          value: '85%',
+          change: 2,
+          trend: 'up',
+          icon: 'heartbeat',
+          color: 'green'
+        }
       ],
       charts: {
         costTrend: {
           labels: ['1월', '2월', '3월', '4월', '5월', '6월'],
-          datasets: [{
-            label: '월별 비용 추이',
-            data: [25000000, 22000000, 28000000, 24000000, 30000000, 32000000],
-            backgroundColor: 'rgba(255, 99, 132, 0.6)',
-            borderWidth: 1
-          }]
+          datasets: [
+            {
+              label: '월별 비용 추이',
+              data: [25000000, 22000000, 28000000, 24000000, 30000000, 32000000],
+              backgroundColor: 'rgba(255, 99, 132, 0.6)',
+              borderWidth: 1
+            }
+          ]
         },
         costByCategory: {
           labels: ['연료', '정비', '보험', '감가상각', '기타'],
-          datasets: [{
-            label: '비용 카테고리별 분포',
-            data: [45000000, 35000000, 30000000, 25000000, 15000000],
-            backgroundColor: [
-              'rgba(255, 99, 132, 0.6)',
-              'rgba(54, 162, 235, 0.6)',
-              'rgba(255, 206, 86, 0.6)',
-              'rgba(75, 192, 192, 0.6)',
-              'rgba(153, 102, 255, 0.6)'
-            ],
-            borderWidth: 1
-          }]
+          datasets: [
+            {
+              label: '비용 카테고리별 분포',
+              data: [45000000, 35000000, 30000000, 25000000, 15000000],
+              backgroundColor: [
+                'rgba(255, 99, 132, 0.6)',
+                'rgba(54, 162, 235, 0.6)',
+                'rgba(255, 206, 86, 0.6)',
+                'rgba(75, 192, 192, 0.6)',
+                'rgba(153, 102, 255, 0.6)'
+              ],
+              borderWidth: 1
+            }
+          ]
         },
         fleetUtilization: {
           labels: ['1월', '2월', '3월', '4월', '5월', '6월'],
-          datasets: [{
-            label: '차량 활용률 (%)',
-            data: [75, 68, 82, 79, 85, 87],
-            backgroundColor: 'rgba(54, 162, 235, 0.6)',
-            borderWidth: 1
-          }]
+          datasets: [
+            {
+              label: '차량 활용률 (%)',
+              data: [75, 68, 82, 79, 85, 87],
+              backgroundColor: 'rgba(54, 162, 235, 0.6)',
+              borderWidth: 1
+            }
+          ]
         }
       }
     };
@@ -1204,23 +1331,24 @@ export class DashboardDataService {
       // 날짜 범위가 있는 경우만 처리
       let startDateStr = '';
       let endDateStr = '';
-      
+
       if (filters.dateRange) {
         if (filters.dateRange.startDate) {
-          startDateStr = typeof filters.dateRange.startDate === 'string' 
-            ? filters.dateRange.startDate 
-            : (filters.dateRange.startDate as Date).toISOString();
+          startDateStr =
+            typeof filters.dateRange.startDate === 'string'
+              ? filters.dateRange.startDate
+              : (filters.dateRange.startDate as Date).toISOString();
         }
-        
+
         if (filters.dateRange.endDate) {
-          endDateStr = typeof filters.dateRange.endDate === 'string'
-            ? filters.dateRange.endDate
-            : (filters.dateRange.endDate as Date).toISOString();
+          endDateStr =
+            typeof filters.dateRange.endDate === 'string'
+              ? filters.dateRange.endDate
+              : (filters.dateRange.endDate as Date).toISOString();
         }
       }
-      
+
       // 나머지 필터링 로직...
-      
     } catch (error) {
       console.error('필터링된 대시보드 데이터 가져오기 오류:', error);
     }
@@ -1234,7 +1362,7 @@ export class DashboardDataService {
       // API 연동 시 실제 호출로 변경
       // const response = await this.analyticsService.getReportOverviewData();
       // return this.transformReportOverviewData(response);
-      
+
       // 임시 데이터
       return this.generateRandomReportOverviewData();
     } catch (error) {
@@ -1246,17 +1374,20 @@ export class DashboardDataService {
   /**
    * 보고서 차트 데이터 조회
    */
-  public async getReportChartData(reportType: string, filters?: ReportFilter): Promise<DashboardChartData> {
+  public async getReportChartData(
+    reportType: string,
+    filters?: ReportFilter
+  ): Promise<DashboardChartData> {
     try {
       // API 호출 시뮬레이션
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
+
       // 필터에서 날짜 범위 추출
       const { startDate, endDate } = filters?.dateRange || { startDate: null, endDate: null };
-      
+
       let startDateObj: Date | null = null;
       let endDateObj: Date | null = null;
-      
+
       try {
         // 날짜 문자열을 Date 객체로 변환 (오류 방지)
         if (startDate) startDateObj = new Date(startDate);
@@ -1264,7 +1395,7 @@ export class DashboardDataService {
       } catch (error) {
         console.error('날짜 변환 오류:', error);
       }
-      
+
       // 보고서 유형에 따라 차트 데이터 반환
       switch (reportType) {
         case 'completion-rate':
@@ -1275,7 +1406,8 @@ export class DashboardDataService {
           return this.getMaintenanceSummaryChartData(startDateObj, endDateObj);
         case 'vehicle-history':
           // 차량 ID 확인 (배열의 첫 번째 항목 사용)
-          const vehicleId = filters?.vehicleIds && filters.vehicleIds.length > 0 ? filters.vehicleIds[0] : '';
+          const vehicleId =
+            filters?.vehicleIds && filters.vehicleIds.length > 0 ? filters.vehicleIds[0] : '';
           return this.getVehicleHistoryChartData(vehicleId, startDateObj, endDateObj);
         case 'maintenance-forecast':
           return this.getMaintenanceForecastChartData(startDateObj, endDateObj);
@@ -1291,26 +1423,29 @@ export class DashboardDataService {
   /**
    * 완료율 차트 데이터 생성
    */
-  private getCompletionRateChartData(startDate: Date | null, endDate: Date | null): DashboardChartData {
+  private getCompletionRateChartData(
+    startDate: Date | null,
+    endDate: Date | null
+  ): DashboardChartData {
     // 데이터 생성 로직...
     const now = new Date();
     const monthsData = [];
-     
+
     // 시작일과 종료일이 있는 경우만 계산
     if (startDate && endDate) {
       const months = Math.floor(
         (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 30)
       );
-      
+
       for (let i = 0; i <= months; i++) {
         const date = new Date(startDate);
         date.setMonth(date.getMonth() + i);
-         
+
         // 각 월별 임의 데이터 생성
         monthsData.push({
           month: formatDate(date, 'yyyy-MM'),
           완료율: Math.floor(Math.random() * 30) + 70,
-          계획: Math.floor(Math.random() * 20) + 80,
+          계획: Math.floor(Math.random() * 20) + 80
         });
       }
     } else {
@@ -1318,21 +1453,21 @@ export class DashboardDataService {
       for (let i = 5; i >= 0; i--) {
         const date = new Date();
         date.setMonth(date.getMonth() - i);
-         
+
         monthsData.push({
           month: formatDate(date, 'yyyy-MM'),
           완료율: Math.floor(Math.random() * 30) + 70,
-          계획: Math.floor(Math.random() * 20) + 80,
+          계획: Math.floor(Math.random() * 20) + 80
         });
       }
     }
-  
+
     return {
       type: 'line',
       data: monthsData,
       xAxisKey: 'month',
-      yAxisFormat: (value) => `${value}%`,
-      tooltipFormat: (value) => `${value}%`,
+      yAxisFormat: value => `${value}%`,
+      tooltipFormat: value => `${value}%`,
       colors: ['#52c41a', '#1890ff'],
       series: [
         { dataKey: '완료율', name: '완료율' },
@@ -1344,25 +1479,28 @@ export class DashboardDataService {
   /**
    * 비용 분석 차트 데이터 생성
    */
-  private getCostAnalysisChartData(startDate: Date | null, endDate: Date | null): DashboardChartData {
+  private getCostAnalysisChartData(
+    startDate: Date | null,
+    endDate: Date | null
+  ): DashboardChartData {
     // 비용 분석 차트 데이터
     const costData = [];
-     
+
     // 시작일과 종료일이 있는 경우만 계산
     if (startDate && endDate) {
       const months = Math.floor(
         (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 30)
       );
-      
+
       for (let i = 0; i <= months; i++) {
         const date = new Date(startDate);
         date.setMonth(date.getMonth() + i);
-         
+
         costData.push({
           month: formatDate(date, 'yyyy-MM'),
           부품비: Math.floor(Math.random() * 500000) + 100000,
           인건비: Math.floor(Math.random() * 300000) + 200000,
-          기타: Math.floor(Math.random() * 200000) + 50000,
+          기타: Math.floor(Math.random() * 200000) + 50000
         });
       }
     } else {
@@ -1370,22 +1508,22 @@ export class DashboardDataService {
       for (let i = 5; i >= 0; i--) {
         const date = new Date();
         date.setMonth(date.getMonth() - i);
-         
+
         costData.push({
           month: formatDate(date, 'yyyy-MM'),
           부품비: Math.floor(Math.random() * 500000) + 100000,
           인건비: Math.floor(Math.random() * 300000) + 200000,
-          기타: Math.floor(Math.random() * 200000) + 50000,
+          기타: Math.floor(Math.random() * 200000) + 50000
         });
       }
     }
-  
+
     return {
       data: costData,
       type: 'bar',
       xAxisKey: 'month',
-      yAxisFormat: (value) => `${value.toLocaleString()}원`,
-      tooltipFormat: (value) => `${value.toLocaleString()}원`,
+      yAxisFormat: value => `${value.toLocaleString()}원`,
+      tooltipFormat: value => `${value.toLocaleString()}원`,
       colors: ['#1890ff', '#13c2c2', '#faad14'],
       stacked: true,
       series: [
@@ -1399,15 +1537,18 @@ export class DashboardDataService {
   /**
    * 정비 요약 차트 데이터 생성
    */
-  private getMaintenanceSummaryChartData(startDate: Date | null, endDate: Date | null): DashboardChartData {
+  private getMaintenanceSummaryChartData(
+    startDate: Date | null,
+    endDate: Date | null
+  ): DashboardChartData {
     // 정비 유형별 데이터
     const pieData = [
       { type: '정기 점검', value: Math.floor(Math.random() * 30) + 40 },
       { type: '고장 수리', value: Math.floor(Math.random() * 20) + 20 },
       { type: '부품 교체', value: Math.floor(Math.random() * 15) + 15 },
-      { type: '기타', value: Math.floor(Math.random() * 10) + 5 },
+      { type: '기타', value: Math.floor(Math.random() * 10) + 5 }
     ];
-     
+
     return {
       type: 'pie',
       data: pieData,
@@ -1421,26 +1562,41 @@ export class DashboardDataService {
   /**
    * 차량 정비 이력 차트 데이터 생성
    */
-  private getVehicleHistoryChartData(vehicleId: string, startDate: Date | null, endDate: Date | null): DashboardChartData {
+  private getVehicleHistoryChartData(
+    vehicleId: string,
+    startDate: Date | null,
+    endDate: Date | null
+  ): DashboardChartData {
     // 차량 ID가 없으면 빈 데이터 반환
     if (!vehicleId) {
       return {
         data: [],
         type: 'bar',
         xAxisKey: 'date',
-        labelFormat: (value) => `${value}`,
+        labelFormat: value => `${value}`,
         colors: ['#8884d8', '#82ca9d', '#ffc658'],
-        series: [
-          { dataKey: 'cost', name: '비용' }
-        ]
+        series: [{ dataKey: 'cost', name: '비용' }]
       };
     }
 
     // 임의의 차트 데이터 생성
     const data = [];
     const now = new Date();
-    const monthNames = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
-    
+    const monthNames = [
+      '1월',
+      '2월',
+      '3월',
+      '4월',
+      '5월',
+      '6월',
+      '7월',
+      '8월',
+      '9월',
+      '10월',
+      '11월',
+      '12월'
+    ];
+
     for (let i = 0; i < 12; i++) {
       const date = new Date(now.getFullYear(), now.getMonth() - 11 + i, 1);
       data.push({
@@ -1454,8 +1610,8 @@ export class DashboardDataService {
       data,
       type: 'bar',
       xAxisKey: 'date',
-      yAxisFormat: (value) => `${value.toLocaleString()}원`,
-      tooltipFormat: (value) => `${value.toLocaleString()}원`,
+      yAxisFormat: value => `${value.toLocaleString()}원`,
+      tooltipFormat: value => `${value.toLocaleString()}원`,
       colors: ['#8884d8', '#82ca9d'],
       series: [
         { dataKey: 'cost', name: '비용' },
@@ -1467,10 +1623,13 @@ export class DashboardDataService {
   /**
    * 정비 예측 차트 데이터 생성
    */
-  private getMaintenanceForecastChartData(startDate: Date | null, endDate: Date | null): DashboardChartData {
+  private getMaintenanceForecastChartData(
+    startDate: Date | null,
+    endDate: Date | null
+  ): DashboardChartData {
     const data = [];
     const components = ['엔진', '브레이크', '타이어', '배터리', '변속기', '에어컨'];
-    
+
     for (const component of components) {
       data.push({
         name: component,
@@ -1493,9 +1652,7 @@ export class DashboardDataService {
         return typeof value === 'number' ? `${value.toFixed(1)}%` : `${value}%`;
       },
       colors: ['#ff7300', '#0088FE'],
-      series: [
-        { dataKey: 'probability', name: '고장 확률' }
-      ]
+      series: [{ dataKey: 'probability', name: '고장 확률' }]
     };
   }
 
@@ -1515,10 +1672,10 @@ export class DashboardDataService {
     const completedMaintenance = Math.floor(totalMaintenance * 0.7);
     const pendingMaintenance = totalMaintenance - completedMaintenance;
     const totalCost = Math.floor(Math.random() * 10000000) + 1000000;
-    const vehicleUtilization = (Math.random() * 30) + 60;
-    const fuelEfficiency = (Math.random() * 5) + 10;
-    const healthScore = (Math.random() * 30) + 65;
-    
+    const vehicleUtilization = Math.random() * 30 + 60;
+    const fuelEfficiency = Math.random() * 5 + 10;
+    const healthScore = Math.random() * 30 + 65;
+
     return [
       {
         title: '차량 활용도',
@@ -1551,11 +1708,11 @@ export class DashboardDataService {
         { month: '2023-08', 값: 12 },
         { month: '2023-09', 값: 18 },
         { month: '2023-10', 값: 20 },
-        { month: '2023-11', 값: 22 },
+        { month: '2023-11', 값: 22 }
       ],
       xKey: 'month',
       yKeys: ['값'],
-      colors: ['#1890ff'],
+      colors: ['#1890ff']
     };
   }
 
@@ -1598,4 +1755,4 @@ export class DashboardDataService {
       }
     ];
   }
-} 
+}

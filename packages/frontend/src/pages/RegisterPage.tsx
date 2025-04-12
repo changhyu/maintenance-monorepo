@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+
 import { useNavigate, Link } from 'react-router-dom';
 
 /**
@@ -25,12 +26,12 @@ const RegisterPage: React.FC = () => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
     const checked = (e.target as HTMLInputElement).checked;
-    
+
     setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }));
-    
+
     // 필드 변경 시 관련 오류 지우기
     if (errors[name]) {
       setErrors(prev => {
@@ -46,41 +47,41 @@ const RegisterPage: React.FC = () => {
    */
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
-    
+
     // 이름 검사
     if (!formData.name.trim()) {
       newErrors.name = '이름을 입력해주세요.';
     }
-    
+
     // 이메일 검사
     if (!formData.email) {
       newErrors.email = '이메일을 입력해주세요.';
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
       newErrors.email = '유효한 이메일 주소를 입력해주세요.';
     }
-    
+
     // 비밀번호 검사
     if (!formData.password) {
       newErrors.password = '비밀번호를 입력해주세요.';
     } else if (formData.password.length < 8) {
       newErrors.password = '비밀번호는 8자 이상이어야 합니다.';
     }
-    
+
     // 비밀번호 확인 검사
     if (formData.password !== formData.confirmPassword) {
       newErrors.confirmPassword = '비밀번호가 일치하지 않습니다.';
     }
-    
+
     // 기업용 사용자인 경우 회사명 필수
     if (formData.role === 'enterprise' && !formData.company) {
       newErrors.company = '회사명을 입력해주세요.';
     }
-    
+
     // 이용약관 동의 검사
     if (!formData.agreeTerms) {
       newErrors.agreeTerms = '이용약관에 동의해주세요.';
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -90,21 +91,21 @@ const RegisterPage: React.FC = () => {
    */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
-    
+
     setLoading(true);
     setError(null);
-    
+
     try {
       // 실제 API 호출은 향후 구현
       console.log('Registration attempt with:', formData);
-      
+
       // 회원가입 성공 시 (임시 구현)
       await new Promise(resolve => setTimeout(resolve, 1500));
-      
+
       // 로그인 페이지로 이동
       navigate('/login', { state: { message: '회원가입이 완료되었습니다. 로그인해주세요.' } });
     } catch (err) {
@@ -119,21 +120,17 @@ const RegisterPage: React.FC = () => {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
-          <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
-            회원가입
-          </h2>
-          <p className="mt-2 text-sm text-gray-600">
-            차량 정비 관리 시스템에 가입하세요
-          </p>
+          <h2 className="mt-6 text-3xl font-extrabold text-gray-900">회원가입</h2>
+          <p className="mt-2 text-sm text-gray-600">차량 정비 관리 시스템에 가입하세요</p>
         </div>
-        
+
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           {error && (
             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
               {error}
             </div>
           )}
-          
+
           <div className="rounded-md shadow-sm space-y-4">
             {/* 이름 입력 필드 */}
             <div>
@@ -155,7 +152,7 @@ const RegisterPage: React.FC = () => {
               />
               {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
             </div>
-            
+
             {/* 이메일 입력 필드 */}
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700">
@@ -176,7 +173,7 @@ const RegisterPage: React.FC = () => {
               />
               {errors.email && <p className="mt-1 text-sm text-red-600">{errors.email}</p>}
             </div>
-            
+
             {/* 비밀번호 입력 필드 */}
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700">
@@ -197,7 +194,7 @@ const RegisterPage: React.FC = () => {
               />
               {errors.password && <p className="mt-1 text-sm text-red-600">{errors.password}</p>}
             </div>
-            
+
             {/* 비밀번호 확인 입력 필드 */}
             <div>
               <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
@@ -216,9 +213,11 @@ const RegisterPage: React.FC = () => {
                 } rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm`}
                 placeholder="비밀번호 재입력"
               />
-              {errors.confirmPassword && <p className="mt-1 text-sm text-red-600">{errors.confirmPassword}</p>}
+              {errors.confirmPassword && (
+                <p className="mt-1 text-sm text-red-600">{errors.confirmPassword}</p>
+              )}
             </div>
-            
+
             {/* 역할 선택 필드 */}
             <div>
               <label htmlFor="role" className="block text-sm font-medium text-gray-700">
@@ -236,7 +235,7 @@ const RegisterPage: React.FC = () => {
                 <option value="enterprise">기업 사용자</option>
               </select>
             </div>
-            
+
             {/* 회사명 입력 필드 (기업 사용자인 경우에만 표시) */}
             {formData.role === 'enterprise' && (
               <div>
@@ -257,7 +256,7 @@ const RegisterPage: React.FC = () => {
                 {errors.company && <p className="mt-1 text-sm text-red-600">{errors.company}</p>}
               </div>
             )}
-            
+
             {/* 이용약관 동의 체크박스 */}
             <div className="flex items-start">
               <div className="flex items-center h-5">
@@ -274,9 +273,14 @@ const RegisterPage: React.FC = () => {
               </div>
               <div className="ml-3 text-sm">
                 <label htmlFor="agreeTerms" className="font-medium text-gray-700">
-                  <Link to="/terms" className="text-blue-600 hover:text-blue-500">이용약관</Link>에 동의합니다
+                  <Link to="/terms" className="text-blue-600 hover:text-blue-500">
+                    이용약관
+                  </Link>
+                  에 동의합니다
                 </label>
-                {errors.agreeTerms && <p className="mt-1 text-sm text-red-600">{errors.agreeTerms}</p>}
+                {errors.agreeTerms && (
+                  <p className="mt-1 text-sm text-red-600">{errors.agreeTerms}</p>
+                )}
               </div>
             </div>
           </div>
@@ -290,7 +294,7 @@ const RegisterPage: React.FC = () => {
               {loading ? '가입 중...' : '회원가입'}
             </button>
           </div>
-          
+
           <div className="text-center">
             <p className="text-sm text-gray-600">
               이미 계정이 있으신가요?{' '}
@@ -305,4 +309,4 @@ const RegisterPage: React.FC = () => {
   );
 };
 
-export default RegisterPage; 
+export default RegisterPage;

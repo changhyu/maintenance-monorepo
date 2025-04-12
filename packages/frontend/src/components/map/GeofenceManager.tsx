@@ -1,4 +1,13 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+
+import {
+  PlusOutlined,
+  DeleteOutlined,
+  EditOutlined,
+  InfoCircleOutlined,
+  EnvironmentOutlined,
+  CarOutlined
+} from '@ant-design/icons';
 import {
   Card,
   Table,
@@ -19,29 +28,37 @@ import {
   ColorPicker,
   Tooltip
 } from 'antd';
-import {
-  PlusOutlined,
-  DeleteOutlined,
-  EditOutlined,
-  InfoCircleOutlined,
-  EnvironmentOutlined,
-  CarOutlined,
-} from '@ant-design/icons';
-import { 
-  MapService, 
-  Geofence, 
-  GeofenceCreate, 
-  GeofenceType, 
-  GeofenceAlertType, 
-  Coordinates,
-  GeofenceEvent
-} from '../../services/mapService';
+
 import { ApiClient } from '../../../../api-client/src/client';
+import {
+  MapService,
+  Geofence,
+  GeofenceCreate,
+  GeofenceType,
+  GeofenceAlertType,
+  Coordinates,
+  GeofenceEvent,
+  GeofenceEventDetails
+} from '../../services/mapService';
 import { Vehicle } from '../../types/vehicle';
 
 const { TabPane } = Tabs;
 const { Title, Text } = Typography;
 const { Option } = Select;
+
+// 폼 값 인터페이스 정의
+interface GeofenceFormValues {
+  name: string;
+  description: string;
+  type: GeofenceType;
+  latitude?: number;
+  longitude?: number;
+  radius?: number;
+  coordinates?: Coordinates[];
+  alerts: GeofenceAlertType[];
+  color: string;
+  vehicleIds: string[];
+}
 
 interface GeofenceManagerProps {
   apiClient: ApiClient;
@@ -61,10 +78,10 @@ const GeofenceManager: React.FC<GeofenceManagerProps> = ({
   onGeofenceSelect,
   onGeofenceCreate,
   onGeofenceUpdate,
-  onGeofenceDelete,
+  onGeofenceDelete
 }) => {
-  // 서비스 초기화
-  const mapService = new MapService(apiClient);
+  // 서비스 초기화 - useMemo를 사용하여 메모이제이션
+  const mapService = useMemo(() => new MapService(apiClient), [apiClient]);
 
   // 상태 변수들
   const [geofences, setGeofences] = useState<Geofence[]>([]);
@@ -94,23 +111,26 @@ const GeofenceManager: React.FC<GeofenceManagerProps> = ({
   }, [mapService]);
 
   // 이벤트 목록 로드
-  const loadGeofenceEvents = useCallback(async (geofenceId: string) => {
-    try {
-      setEventsLoading(true);
-      // 현재 날짜 기준 지난 7일간의 이벤트 로드
-      const endDate = new Date();
-      const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-      
-      const events = await mapService.getGeofenceEvents(geofenceId, startDate, endDate);
-      // 타입 호환성 문제 해결
-      setGeofenceEvents(events as unknown as GeofenceEvent[]);
-    } catch (error) {
-      console.error(`지오펜스 ID ${geofenceId} 이벤트 로드 중 오류 발생:`, error);
-      message.error('지오펜스 이벤트를 로드하는 데 실패했습니다.');
-    } finally {
-      setEventsLoading(false);
-    }
-  }, [mapService]);
+  const loadGeofenceEvents = useCallback(
+    async (geofenceId: string) => {
+      try {
+        setEventsLoading(true);
+        // 현재 날짜 기준 지난 7일간의 이벤트 로드
+        const endDate = new Date();
+        const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+        const events = await mapService.getGeofenceEvents(geofenceId, startDate, endDate);
+        // 타입 변환 문제 해결을 위해 unknown으로 먼저 변환
+        setGeofenceEvents(events as unknown as GeofenceEvent[]);
+      } catch (error) {
+        console.error(`지오펜스 ID ${geofenceId} 이벤트 로드 중 오류 발생:`, error);
+        message.error('지오펜스 이벤트를 로드하는 데 실패했습니다.');
+      } finally {
+        setEventsLoading(false);
+      }
+    },
+    [mapService]
+  );
 
   // 컴포넌트 마운트 시 지오펜스 목록 로드
   useEffect(() => {
@@ -139,11 +159,11 @@ const GeofenceManager: React.FC<GeofenceManagerProps> = ({
         ? {
             latitude: (geofence.coordinates as Coordinates).latitude,
             longitude: (geofence.coordinates as Coordinates).longitude,
-            radius: geofence.radius,
+            radius: geofence.radius
           }
-        : {}),
+        : {})
     });
-    
+
     setModalTitle('지오펜스 편집');
     setEditingGeofence(geofence);
     setModalVisible(true);
@@ -155,17 +175,17 @@ const GeofenceManager: React.FC<GeofenceManagerProps> = ({
   };
 
   // 폼 제출 처리
-  const handleSubmit = async (values: any) => {
+  const handleSubmit = async (values: GeofenceFormValues) => {
     try {
       setLoading(true);
-      
+
       let coordinates: Coordinates | Coordinates[];
-      
+
       // 지오펜스 타입에 따라 좌표 처리
       if (values.type === GeofenceType.CIRCLE) {
         coordinates = {
-          latitude: parseFloat(values.latitude),
-          longitude: parseFloat(values.longitude),
+          latitude: parseFloat(String(values.latitude)),
+          longitude: parseFloat(String(values.longitude))
         };
       } else if (values.type === GeofenceType.POLYGON || values.type === GeofenceType.RECTANGLE) {
         // 다각형이나 사각형의 경우 좌표 배열 처리 (값 형식에 따라 조정 필요)
@@ -173,7 +193,7 @@ const GeofenceManager: React.FC<GeofenceManagerProps> = ({
       } else {
         coordinates = [];
       }
-      
+
       const geofenceData: GeofenceCreate = {
         name: values.name,
         description: values.description,
@@ -182,15 +202,15 @@ const GeofenceManager: React.FC<GeofenceManagerProps> = ({
         radius: values.type === GeofenceType.CIRCLE ? values.radius : undefined,
         alerts: values.alerts,
         color: values.color,
-        vehicleIds: values.vehicleIds,
+        vehicleIds: values.vehicleIds
       };
-      
+
       if (editingGeofence) {
         // 기존 지오펜스 업데이트
         const updated = await mapService.updateGeofence(editingGeofence.id, geofenceData);
         if (updated) {
           message.success(`지오펜스 '${updated.name}'가 업데이트되었습니다.`);
-          
+
           if (onGeofenceUpdate) {
             onGeofenceUpdate(updated);
           }
@@ -200,13 +220,13 @@ const GeofenceManager: React.FC<GeofenceManagerProps> = ({
         const created = await mapService.createGeofence(geofenceData);
         if (created) {
           message.success(`지오펜스 '${created.name}'가 생성되었습니다.`);
-          
+
           if (onGeofenceCreate) {
             onGeofenceCreate(created);
           }
         }
       }
-      
+
       setModalVisible(false);
       loadGeofences();
     } catch (error) {
@@ -223,11 +243,11 @@ const GeofenceManager: React.FC<GeofenceManagerProps> = ({
       setLoading(true);
       await mapService.deleteGeofence(geofenceId);
       message.success('지오펜스가 삭제되었습니다.');
-      
+
       if (onGeofenceDelete) {
         onGeofenceDelete(geofenceId);
       }
-      
+
       loadGeofences();
     } catch (error) {
       console.error(`지오펜스 ID ${geofenceId} 삭제 중 오류 발생:`, error);
@@ -247,7 +267,7 @@ const GeofenceManager: React.FC<GeofenceManagerProps> = ({
   // 지오펜스 선택 처리
   const handleGeofenceSelect = (geofence: Geofence) => {
     setActiveGeofenceId(geofence.id);
-    
+
     if (onGeofenceSelect) {
       onGeofenceSelect(geofence);
     }
@@ -283,7 +303,7 @@ const GeofenceManager: React.FC<GeofenceManagerProps> = ({
       key: 'name',
       render: (text: string, record: Geofence) => (
         <a onClick={() => handleGeofenceSelect(record)}>{text}</a>
-      ),
+      )
     },
     {
       title: '유형',
@@ -305,7 +325,7 @@ const GeofenceManager: React.FC<GeofenceManagerProps> = ({
             label = type;
         }
         return <Tag color="blue">{label}</Tag>;
-      },
+      }
     },
     {
       title: '알림',
@@ -333,10 +353,14 @@ const GeofenceManager: React.FC<GeofenceManagerProps> = ({
                 color = 'default';
                 label = alert;
             }
-            return <Tag color={color} key={alert}>{label}</Tag>;
+            return (
+              <Tag color={color} key={alert}>
+                {label}
+              </Tag>
+            );
           })}
         </>
-      ),
+      )
     },
     {
       title: '상태',
@@ -345,45 +369,35 @@ const GeofenceManager: React.FC<GeofenceManagerProps> = ({
       render: (active: boolean, record: Geofence) => (
         <Switch
           checked={active}
-          onChange={(checked) => handleStatusChange(record.id, checked)}
+          onChange={checked => handleStatusChange(record.id, checked)}
           checkedChildren="활성"
           unCheckedChildren="비활성"
         />
-      ),
+      )
     },
     {
       title: '차량',
       dataIndex: 'vehicleIds',
       key: 'vehicleIds',
-      render: (vehicleIds: string[] | undefined) => (
-        <span>{vehicleIds?.length || 0}대</span>
-      ),
+      render: (vehicleIds: string[] | undefined) => <span>{vehicleIds?.length || 0}대</span>
     },
     {
       title: '작업',
       key: 'action',
       render: (_: any, record: Geofence) => (
         <Space size="small">
-          <Button
-            type="text"
-            icon={<EditOutlined />}
-            onClick={() => showEditModal(record)}
-          />
+          <Button type="text" icon={<EditOutlined />} onClick={() => showEditModal(record)} />
           <Popconfirm
             title="이 지오펜스를 삭제하시겠습니까?"
             onConfirm={() => handleDelete(record.id)}
             okText="예"
             cancelText="아니오"
           >
-            <Button
-              type="text"
-              danger
-              icon={<DeleteOutlined />}
-            />
+            <Button type="text" danger icon={<DeleteOutlined />} />
           </Popconfirm>
         </Space>
-      ),
-    },
+      )
+    }
   ];
 
   // 이벤트 목록 테이블 컬럼
@@ -395,7 +409,7 @@ const GeofenceManager: React.FC<GeofenceManagerProps> = ({
       render: (vehicleId: string) => {
         const vehicle = vehicleList.find(v => v.id === vehicleId);
         return vehicle ? vehicle.name : vehicleId;
-      },
+      }
     },
     {
       title: '이벤트 유형',
@@ -422,13 +436,13 @@ const GeofenceManager: React.FC<GeofenceManagerProps> = ({
             label = type;
         }
         return <Tag color={color}>{label}</Tag>;
-      },
+      }
     },
     {
       title: '시간',
       dataIndex: 'timestamp',
       key: 'timestamp',
-      render: (timestamp: string) => new Date(timestamp).toLocaleString(),
+      render: (timestamp: string) => new Date(timestamp).toLocaleString()
     },
     {
       title: '위치',
@@ -436,16 +450,12 @@ const GeofenceManager: React.FC<GeofenceManagerProps> = ({
       key: 'location',
       render: (location: Coordinates) => (
         <Tooltip title={`위도: ${location.latitude}, 경도: ${location.longitude}`}>
-          <Button
-            type="text"
-            icon={<EnvironmentOutlined />}
-            size="small"
-          >
+          <Button type="text" icon={<EnvironmentOutlined />} size="small">
             지도에서 보기
           </Button>
         </Tooltip>
-      ),
-    },
+      )
+    }
   ];
 
   return (
@@ -458,18 +468,19 @@ const GeofenceManager: React.FC<GeofenceManagerProps> = ({
           </Space>
         }
         extra={
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={showAddModal}
-          >
+          <Button type="primary" icon={<PlusOutlined />} onClick={showAddModal}>
             지오펜스 추가
           </Button>
         }
       >
         <Tabs defaultActiveKey="1" onChange={handleTabChange}>
           <TabPane
-            tab={<span><EnvironmentOutlined />지오펜스 목록</span>}
+            tab={
+              <span>
+                <EnvironmentOutlined />
+                지오펜스 목록
+              </span>
+            }
             key="1"
           >
             <Table
@@ -478,14 +489,19 @@ const GeofenceManager: React.FC<GeofenceManagerProps> = ({
               rowKey="id"
               loading={loading}
               pagination={{ pageSize: 10 }}
-              onRow={(record) => ({
-                onClick: () => handleGeofenceSelect(record),
+              onRow={record => ({
+                onClick: () => handleGeofenceSelect(record)
               })}
             />
           </TabPane>
-          
+
           <TabPane
-            tab={<span><InfoCircleOutlined />이벤트 기록</span>}
+            tab={
+              <span>
+                <InfoCircleOutlined />
+                이벤트 기록
+              </span>
+            }
             key="2"
             disabled={!activeGeofenceId}
           >
@@ -518,7 +534,7 @@ const GeofenceManager: React.FC<GeofenceManagerProps> = ({
             type: GeofenceType.CIRCLE,
             alerts: [GeofenceAlertType.ENTRY, GeofenceAlertType.EXIT],
             radius: 1000, // 1km 기본값
-            color: '#1890ff',
+            color: '#1890ff'
           }}
         >
           <Form.Item
@@ -529,10 +545,7 @@ const GeofenceManager: React.FC<GeofenceManagerProps> = ({
             <Input placeholder="예: 회사 주변" />
           </Form.Item>
 
-          <Form.Item
-            name="description"
-            label="설명"
-          >
+          <Form.Item name="description" label="설명">
             <Input.TextArea placeholder="지오펜스에 대한 추가 설명을 입력하세요" />
           </Form.Item>
 
@@ -554,24 +567,20 @@ const GeofenceManager: React.FC<GeofenceManagerProps> = ({
           >
             {({ getFieldValue }) => {
               const type = getFieldValue('type');
-              
+
               if (type === GeofenceType.CIRCLE) {
                 return (
                   <>
                     <Title level={5}>원형 지오펜스 설정</Title>
                     <Divider />
-                    
+
                     <Space>
                       <Form.Item
                         name="latitude"
                         label="위도"
                         rules={[{ required: true, message: '위도를 입력하세요' }]}
                       >
-                        <InputNumber
-                          step={0.000001}
-                          precision={6}
-                          placeholder="37.5665"
-                        />
+                        <InputNumber step={0.000001} precision={6} placeholder="37.5665" />
                       </Form.Item>
 
                       <Form.Item
@@ -579,11 +588,7 @@ const GeofenceManager: React.FC<GeofenceManagerProps> = ({
                         label="경도"
                         rules={[{ required: true, message: '경도를 입력하세요' }]}
                       >
-                        <InputNumber
-                          step={0.000001}
-                          precision={6}
-                          placeholder="126.9780"
-                        />
+                        <InputNumber step={0.000001} precision={6} placeholder="126.9780" />
                       </Form.Item>
                     </Space>
 
@@ -603,7 +608,7 @@ const GeofenceManager: React.FC<GeofenceManagerProps> = ({
                   </>
                 );
               }
-              
+
               if (type === GeofenceType.POLYGON || type === GeofenceType.RECTANGLE) {
                 return (
                   <>
@@ -611,18 +616,19 @@ const GeofenceManager: React.FC<GeofenceManagerProps> = ({
                       {type === GeofenceType.POLYGON ? '다각형' : '사각형'} 지오펜스 설정
                     </Title>
                     <Divider />
-                    
+
                     <Form.Item>
                       <Text type="secondary">
-                        지도에서 {type === GeofenceType.POLYGON ? '다각형' : '사각형'}을 그려 지오펜스를 생성하세요.
+                        지도에서 {type === GeofenceType.POLYGON ? '다각형' : '사각형'}을 그려
+                        지오펜스를 생성하세요.
                       </Text>
                     </Form.Item>
-                    
+
                     {/* 여기에 지도 컴포넌트나 좌표 입력 UI를 구현할 수 있습니다 */}
                   </>
                 );
               }
-              
+
               return null;
             }}
           </Form.Item>
@@ -642,10 +648,7 @@ const GeofenceManager: React.FC<GeofenceManagerProps> = ({
             </Select>
           </Form.Item>
 
-          <Form.Item
-            name="color"
-            label="지오펜스 색상"
-          >
+          <Form.Item name="color" label="지오펜스 색상">
             <ColorPicker />
           </Form.Item>
 
@@ -691,4 +694,4 @@ const GeofenceManager: React.FC<GeofenceManagerProps> = ({
   );
 };
 
-export default GeofenceManager; 
+export default GeofenceManager;

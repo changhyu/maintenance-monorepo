@@ -14,6 +14,12 @@ export enum TodoStatus {
   CANCELLED = 'CANCELLED'
 }
 
+// 관련 엔티티 타입 정의
+export type RelatedEntityType = 'vehicle' | 'maintenance' | 'shop' | 'other';
+
+// 정렬 순서 타입 정의
+export type SortOrder = 'asc' | 'desc';
+
 export interface Todo {
   id: string;
   title: string;
@@ -24,7 +30,7 @@ export interface Todo {
   priority: TodoPriority;
   dueDate?: string;
   completedAt?: string;
-  relatedEntityType?: 'vehicle' | 'maintenance' | 'shop' | 'other';
+  relatedEntityType?: RelatedEntityType;
   relatedEntityId?: string;
   tags?: string[];
   createdAt: string;
@@ -39,7 +45,7 @@ export interface TodoCreateRequest {
   status?: TodoStatus;
   priority?: TodoPriority;
   dueDate?: string;
-  relatedEntityType?: 'vehicle' | 'maintenance' | 'shop' | 'other';
+  relatedEntityType?: RelatedEntityType;
   relatedEntityId?: string;
   tags?: string[];
 }
@@ -51,7 +57,7 @@ export interface TodoUpdateRequest {
   status?: TodoStatus;
   priority?: TodoPriority;
   dueDate?: string;
-  relatedEntityType?: 'vehicle' | 'maintenance' | 'shop' | 'other';
+  relatedEntityType?: RelatedEntityType;
   relatedEntityId?: string;
   tags?: string[];
 }
@@ -63,19 +69,19 @@ export interface TodoFilter {
   priority?: TodoPriority | TodoPriority[];
   dueFrom?: string;
   dueTo?: string;
-  relatedEntityType?: 'vehicle' | 'maintenance' | 'shop' | 'other';
+  relatedEntityType?: RelatedEntityType;
   relatedEntityId?: string;
   tags?: string[];
   searchTerm?: string;
   page?: number;
   limit?: number;
   sortBy?: string;
-  sortOrder?: 'asc' | 'desc';
+  sortOrder?: SortOrder;
 }
 
 export class TodoService {
-  private client: ApiClient;
-  private basePath = '/todos';
+  private readonly client: ApiClient;
+  private readonly basePath = '/todos';
 
   constructor(apiClient: ApiClient) {
     this.client = apiClient;
@@ -83,53 +89,45 @@ export class TodoService {
 
   // 할일 목록 조회
   async getTodos(filter?: TodoFilter): Promise<Todo[]> {
-    const response = await this.client.get<Todo[]>(this.basePath, { params: filter });
-    return response;
+    return this.client.get<Todo[]>(this.basePath, { params: filter });
   }
 
   // 특정 할일 조회
   async getTodoById(id: string): Promise<Todo> {
-    const response = await this.client.get<Todo>(`${this.basePath}/${id}`);
-    return response;
+    return this.client.get<Todo>(`${this.basePath}/${id}`);
   }
 
   // 할일 생성
   async createTodo(todoData: TodoCreateRequest): Promise<Todo> {
-    const response = await this.client.post<Todo>(this.basePath, todoData);
-    return response;
+    return this.client.post<Todo>(this.basePath, todoData);
   }
 
   // 할일 업데이트
   async updateTodo(id: string, todoData: TodoUpdateRequest): Promise<Todo> {
-    const response = await this.client.put<Todo>(`${this.basePath}/${id}`, todoData);
-    return response;
+    return this.client.put<Todo>(`${this.basePath}/${id}`, todoData);
   }
 
   // 할일 삭제
   async deleteTodo(id: string): Promise<boolean> {
-    const response = await this.client.delete<boolean>(`${this.basePath}/${id}`);
-    return response;
+    return this.client.delete<boolean>(`${this.basePath}/${id}`);
   }
 
   // 할일 상태 변경
   async updateTodoStatus(id: string, status: TodoStatus): Promise<Todo> {
-    const response = await this.client.patch<Todo>(`${this.basePath}/${id}/status`, { status });
-    return response;
+    return this.client.patch<Todo>(`${this.basePath}/${id}/status`, { status });
   }
 
   // 할일 완료 처리
   async completeTodo(id: string): Promise<Todo> {
-    const response = await this.client.patch<Todo>(`${this.basePath}/${id}/complete`, {
+    return this.client.patch<Todo>(`${this.basePath}/${id}/complete`, {
       status: TodoStatus.COMPLETED,
       completedAt: new Date().toISOString()
     });
-    return response;
   }
 
   // 할일 완료 상태 토글
   async toggleComplete(id: string): Promise<Todo> {
-    const response = await this.client.patch<Todo>(`${this.basePath}/${id}/toggle-complete`, {});
-    return response;
+    return this.client.patch<Todo>(`${this.basePath}/${id}/toggle-complete`, {});
   }
 
   // 특정 사용자의 할일 조회
@@ -143,7 +141,7 @@ export class TodoService {
   }
 
   // 특정 엔티티와 관련된 할일 조회
-  async getRelatedTodos(entityType: 'vehicle' | 'maintenance' | 'shop', entityId: string): Promise<Todo[]> {
+  async getRelatedTodos(entityType: RelatedEntityType, entityId: string): Promise<Todo[]> {
     return this.client.get<Todo[]>(`${this.basePath}/related/${entityType}/${entityId}`);
   }
 

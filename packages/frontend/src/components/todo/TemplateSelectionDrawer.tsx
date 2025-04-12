@@ -1,6 +1,29 @@
 import React, { useState, useEffect } from 'react';
-import { Drawer, List, Button, Input, Space, Tag, Empty, Select, Card, Tooltip, Badge, Typography } from 'antd';
-import { SearchOutlined, FileTextOutlined, TagOutlined, FilterOutlined, StarOutlined, StarFilled, PlusOutlined } from '@ant-design/icons';
+
+import {
+  SearchOutlined,
+  FileTextOutlined,
+  TagOutlined,
+  FilterOutlined,
+  StarOutlined,
+  StarFilled,
+  PlusOutlined
+} from '@ant-design/icons';
+import {
+  Drawer,
+  List,
+  Button,
+  Input,
+  Space,
+  Tag,
+  Empty,
+  Select,
+  Card,
+  Tooltip,
+  Badge,
+  Typography
+} from 'antd';
+
 import { TodoTemplate } from '../../hooks/useTemplateState';
 
 const { Title, Text } = Typography;
@@ -61,13 +84,13 @@ const TemplateSelectionDrawer: React.FC<TemplateSelectionDrawerProps> = ({
     e.stopPropagation();
     const templateId = template.id;
     let newFavorites: string[];
-    
+
     if (favoriteTemplates.includes(templateId)) {
       newFavorites = favoriteTemplates.filter(id => id !== templateId);
     } else {
       newFavorites = [...favoriteTemplates, templateId];
     }
-    
+
     setFavoriteTemplates(newFavorites);
     localStorage.setItem('favorite-templates', JSON.stringify(newFavorites));
   };
@@ -83,7 +106,7 @@ const TemplateSelectionDrawer: React.FC<TemplateSelectionDrawerProps> = ({
   const sortedTemplates = [...filteredTemplates].sort((a, b) => {
     const aFavorite = favoriteTemplates.includes(a.id);
     const bFavorite = favoriteTemplates.includes(b.id);
-    
+
     if (aFavorite && !bFavorite) return -1;
     if (!aFavorite && bFavorite) return 1;
     return a.name.localeCompare(b.name);
@@ -118,10 +141,10 @@ const TemplateSelectionDrawer: React.FC<TemplateSelectionDrawerProps> = ({
             placeholder="템플릿 검색..."
             prefix={<SearchOutlined />}
             value={templateSearch}
-            onChange={(e) => setTemplateSearch(e.target.value)}
+            onChange={e => setTemplateSearch(e.target.value)}
             allowClear
           />
-          
+
           <Space>
             <Select
               placeholder="카테고리 필터"
@@ -131,20 +154,22 @@ const TemplateSelectionDrawer: React.FC<TemplateSelectionDrawerProps> = ({
               allowClear
               showSearch
               filterOption={(input, option) =>
-                (option?.children as unknown as string).toLowerCase().indexOf(input.toLowerCase()) >= 0
+                (option?.children as unknown as string)
+                  .toLowerCase()
+                  .indexOf(input.toLowerCase()) >= 0
               }
               suffixIcon={<FilterOutlined />}
             >
-              {categories.map((category) => (
+              {categories.map(category => (
                 <Option key={category} value={category}>
                   {category}
                 </Option>
               ))}
             </Select>
-            
+
             <Badge count={favoriteTemplates.length} size="small" offset={[-5, 0]}>
               <Button
-                type={favoriteTemplates.length > 0 ? "primary" : "default"}
+                type={favoriteTemplates.length > 0 ? 'primary' : 'default'}
                 icon={<StarFilled />}
                 onClick={() => setTemplateSearch('__favorite__')}
                 title="즐겨찾기 템플릿 보기"
@@ -154,16 +179,13 @@ const TemplateSelectionDrawer: React.FC<TemplateSelectionDrawerProps> = ({
             </Badge>
           </Space>
         </Space>
-        
+
         {filteredTemplates.length === 0 ? (
-          <Empty
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description="검색 결과가 없습니다"
-          />
+          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="검색 결과가 없습니다" />
         ) : (
           <List
             dataSource={sortedTemplates}
-            renderItem={(template) => (
+            renderItem={template => (
               <List.Item
                 key={template.id}
                 style={{
@@ -171,7 +193,8 @@ const TemplateSelectionDrawer: React.FC<TemplateSelectionDrawerProps> = ({
                   background: selectedTemplate?.id === template.id ? '#f0f7ff' : 'transparent',
                   borderRadius: 6,
                   marginBottom: 8,
-                  border: selectedTemplate?.id === template.id ? '1px solid #1890ff' : '1px solid #f0f0f0'
+                  border:
+                    selectedTemplate?.id === template.id ? '1px solid #1890ff' : '1px solid #f0f0f0'
                 }}
                 onClick={() => onSelect(template)}
                 actions={[
@@ -179,8 +202,14 @@ const TemplateSelectionDrawer: React.FC<TemplateSelectionDrawerProps> = ({
                     <Button
                       type="text"
                       size="small"
-                      icon={favoriteTemplates.includes(template.id) ? <StarFilled style={{ color: '#faad14' }} /> : <StarOutlined />}
-                      onClick={(e) => toggleFavorite(template, e)}
+                      icon={
+                        favoriteTemplates.includes(template.id) ? (
+                          <StarFilled style={{ color: '#faad14' }} />
+                        ) : (
+                          <StarOutlined />
+                        )
+                      }
+                      onClick={e => toggleFavorite(template, e)}
                     />
                   </Tooltip>,
                   <Tooltip title="미리보기" key="preview">
@@ -188,7 +217,7 @@ const TemplateSelectionDrawer: React.FC<TemplateSelectionDrawerProps> = ({
                       type="text"
                       size="small"
                       icon={<FileTextOutlined />}
-                      onClick={(e) => showTemplatePreview(template, e)}
+                      onClick={e => showTemplatePreview(template, e)}
                     />
                   </Tooltip>
                 ]}
@@ -211,9 +240,7 @@ const TemplateSelectionDrawer: React.FC<TemplateSelectionDrawerProps> = ({
                         <Tag icon={<TagOutlined />} color="blue">
                           {template.category}
                         </Tag>
-                        <Tag color="green">
-                          {template.items.length}개 작업
-                        </Tag>
+                        <Tag color="green">{template.items.length}개 작업</Tag>
                       </Space>
                     </Space>
                   }
@@ -223,7 +250,7 @@ const TemplateSelectionDrawer: React.FC<TemplateSelectionDrawerProps> = ({
           />
         )}
       </Drawer>
-      
+
       {/* 템플릿 미리보기 드로어 */}
       <Drawer
         title={`템플릿 미리보기: ${previewTemplate?.name || ''}`}
@@ -236,55 +263,68 @@ const TemplateSelectionDrawer: React.FC<TemplateSelectionDrawerProps> = ({
           <div>
             <Space direction="vertical" style={{ width: '100%', marginBottom: 16 }}>
               <Card title="템플릿 정보" bordered={false}>
-                <p><strong>이름:</strong> {previewTemplate.name}</p>
-                <p><strong>카테고리:</strong> {previewTemplate.category}</p>
-                <p><strong>설명:</strong> {previewTemplate.description || '설명 없음'}</p>
+                <p>
+                  <strong>이름:</strong> {previewTemplate.name}
+                </p>
+                <p>
+                  <strong>카테고리:</strong> {previewTemplate.category}
+                </p>
+                <p>
+                  <strong>설명:</strong> {previewTemplate.description || '설명 없음'}
+                </p>
               </Card>
-              
-              <Title level={5} style={{ marginTop: 16 }}>포함된 작업 ({previewTemplate.items.length}개)</Title>
-              
+
+              <Title level={5} style={{ marginTop: 16 }}>
+                포함된 작업 ({previewTemplate.items.length}개)
+              </Title>
+
               <List
                 dataSource={previewTemplate.items}
                 renderItem={(item, index) => (
                   <List.Item>
-                    <Card 
-                      size="small" 
-                      title={`${index + 1}. ${item.title}`} 
+                    <Card
+                      size="small"
+                      title={`${index + 1}. ${item.title}`}
                       style={{ width: '100%' }}
                       extra={
                         item.priority && (
-                          <Tag color={
-                            item.priority === 'high' ? 'red' : 
-                            item.priority === 'medium' ? 'orange' : 
-                            'green'
-                          }>
-                            {item.priority === 'high' ? '높음' : 
-                             item.priority === 'medium' ? '중간' : 
-                             '낮음'}
+                          <Tag
+                            color={
+                              item.priority === 'high'
+                                ? 'red'
+                                : item.priority === 'medium'
+                                  ? 'orange'
+                                  : 'green'
+                            }
+                          >
+                            {item.priority === 'high'
+                              ? '높음'
+                              : item.priority === 'medium'
+                                ? '중간'
+                                : '낮음'}
                           </Tag>
                         )
                       }
                     >
                       {item.description && <p>{item.description}</p>}
                       <Space>
-                        {item.dueDate && (
-                          <Tag color="blue">마감일: {item.dueDate}</Tag>
-                        )}
-                        {item.assignedTo && (
-                          <Tag color="purple">담당자: {item.assignedTo}</Tag>
-                        )}
+                        {item.dueDate && <Tag color="blue">마감일: {item.dueDate}</Tag>}
+                        {item.assignedTo && <Tag color="purple">담당자: {item.assignedTo}</Tag>}
                       </Space>
                     </Card>
                   </List.Item>
                 )}
               />
             </Space>
-            
+
             <div style={{ marginTop: 16, textAlign: 'right' }}>
-              <Button type="primary" onClick={() => {
-                onSelect(previewTemplate);
-                setShowPreview(false);
-              }}>
+              <Button
+                type="primary"
+                onClick={() => {
+                  onSelect(previewTemplate);
+                  setShowPreview(false);
+                }}
+              >
                 이 템플릿 선택
               </Button>
             </div>
@@ -295,4 +335,4 @@ const TemplateSelectionDrawer: React.FC<TemplateSelectionDrawerProps> = ({
   );
 };
 
-export default TemplateSelectionDrawer; 
+export default TemplateSelectionDrawer;

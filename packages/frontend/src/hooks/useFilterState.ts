@@ -1,8 +1,9 @@
 import { useCallback, useReducer } from 'react';
+
 import { TodoFilter as FilterType } from '../hooks/useTodoService';
 
 // 필터 리듀서 타입
-export type FilterAction = 
+export type FilterAction =
   | { type: 'SET_FILTER'; payload: string }
   | { type: 'SET_CURRENT_FILTER'; payload: FilterType }
   | { type: 'RESET_FILTERS' };
@@ -50,4 +51,4 @@ export const useFilterState = () => {
   return [filterState, dispatchFilter, handleFilterChange] as const;
 };
 
-export default useFilterState; 
+export default useFilterState;

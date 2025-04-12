@@ -4,11 +4,12 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
-
 from ..core.config import settings
 from ..core.security import create_access_token, get_password_hash, verify_password
+
 
 # OAuth2 인증 스키마 설정
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/token")
@@ -52,16 +53,18 @@ MOCK_USERS = {
 
 def authenticate_user(email: str, password: str) -> Optional[Dict[str, Any]]:
     """
-    사용자 인증
+    사용자 인증 (이메일, 비밀번호 검증)
     """
     if email not in MOCK_USERS:
         return None
+    
     user = MOCK_USERS[email]
     if not verify_password(password, user["password"]):
         return None
-    if not user["is_active"]:
+    elif not user["is_active"]:
         return None
-    return user
+    else:
+        return user
 
 
 @router.post("/token")
@@ -76,15 +79,15 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
             detail="이메일 또는 비밀번호가 올바르지 않습니다",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user["email"], "name": user["name"], "role": user["role"]}, 
+        data={"sub": user["email"], "name": user["name"], "role": user["role"]},
         expires_delta=access_token_expires
     )
-    
+
     return {
-        "access_token": access_token, 
+        "access_token": access_token,
         "token_type": "bearer",
         "user": {
             "id": user["id"],
@@ -102,4 +105,4 @@ async def read_users_me(token: str = Depends(oauth2_scheme)):
     """
     # 실제 구현에서는 토큰에서 추출한 사용자 ID로 DB 조회
     # 지금은 목데이터 사용
-    return {"token": token, "message": "인증 성공"} 
+    return {"token": token, "message": "인증 성공"}

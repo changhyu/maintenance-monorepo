@@ -1,4 +1,5 @@
 import React, { ReactNode } from 'react';
+
 import { Navigate } from 'react-router-dom';
 
 // 인증 상태를 확인하기 위한 임시 함수 (실제로는 AuthContext에서 제공)
@@ -9,9 +10,9 @@ const useAuth = () => {
     user: {
       id: 'user1',
       role: 'technician',
-      name: '김정비',
+      name: '김정비'
     },
-    loading: false,
+    loading: false
   };
 };
 
@@ -24,10 +25,7 @@ interface TodoAuthWrapperProps {
  * Todo 컴포넌트 인증 래퍼
  * 사용자 인증 상태와 권한을 확인하여 접근 제어
  */
-const TodoAuthWrapper: React.FC<TodoAuthWrapperProps> = ({ 
-  children, 
-  requiredRoles = [] 
-}) => {
+const TodoAuthWrapper: React.FC<TodoAuthWrapperProps> = ({ children, requiredRoles = [] }) => {
   const { isAuthenticated, user, loading } = useAuth();
 
   // 인증 정보 로딩 중
@@ -59,4 +57,4 @@ const TodoAuthWrapper: React.FC<TodoAuthWrapperProps> = ({
   return <>{children}</>;
 };
 
-export default TodoAuthWrapper; 
+export default TodoAuthWrapper;

@@ -4,7 +4,7 @@
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
-const isProduction = process.env.NODE_ENV === 'production';
+const isProduction = import.meta.env.MODE === 'production';
 
 class Logger {
   debug(message: string, ...args: any[]): void {
@@ -47,4 +47,4 @@ class Logger {
 
 const logger = new Logger();
 
-export default logger; 
+export default logger;

@@ -22,7 +22,7 @@ interface ScrDashboardProps {
 
 /**
  * 스크롤 가능한 대시보드 컴포넌트
- * 
+ *
  * 제목, 컨텐츠, 그리고 스크롤이 가능한 영역을 제공합니다.
  */
 const ScrDashboard: React.FC<ScrDashboardProps> = ({
@@ -32,7 +32,7 @@ const ScrDashboard: React.FC<ScrDashboardProps> = ({
   headerContent,
   footerContent,
   maxHeight = '500px',
-  className = '',
+  className = ''
 }) => {
   return (
     <div className={`bg-white rounded-lg shadow overflow-hidden ${className}`}>
@@ -45,10 +45,7 @@ const ScrDashboard: React.FC<ScrDashboardProps> = ({
       </div>
 
       {/* 컨텐츠 영역 */}
-      <div 
-        className="overflow-auto"
-        style={{ maxHeight }}
-      >
+      <div className="overflow-auto" style={{ maxHeight }}>
         {loading ? (
           <div className="flex justify-center items-center p-8">
             <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
@@ -60,12 +57,10 @@ const ScrDashboard: React.FC<ScrDashboardProps> = ({
 
       {/* 푸터 영역 */}
       {footerContent && (
-        <div className="p-3 bg-gray-50 border-t border-gray-200">
-          {footerContent}
-        </div>
+        <div className="p-3 bg-gray-50 border-t border-gray-200">{footerContent}</div>
       )}
     </div>
   );
 };
 
-export default ScrDashboard; 
+export default ScrDashboard;

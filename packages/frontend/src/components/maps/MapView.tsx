@@ -118,7 +118,6 @@ const MapView = ({
   // 상태 관리
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [center, setCenter] = useState<google.maps.LatLngLiteral>({
     lat: initialCenter.latitude,
     lng: initialCenter.longitude
@@ -129,12 +128,11 @@ const MapView = ({
   const [vehicles, setVehicles] = useState<VehicleLocation[]>([]);
   const [selectedShop, setSelectedShop] = useState<ShopLocation | null>(null);
   const [selectedVehicle, setSelectedVehicle] = useState<VehicleLocation | null>(null);
-  const [searchRadius, setSearchRadius] = useState<number>(5); // km
+  const [searchRadius] = useState<number>(5); // km
   const [directions, setDirections] = useState<google.maps.DirectionsResult | null>(null);
   const [route, setRoute] = useState<Route | null>(null);
 
   // 인풋 포커스 상태
-  const searchBoxRef = useRef<HTMLInputElement>(null);
   const directionsServiceRef = useRef<google.maps.DirectionsService | null>(null);
 
   // 지도 로드 완료 핸들러
@@ -170,7 +168,6 @@ const MapView = ({
       setShops(shopsData);
     } catch (error) {
       console.error('경계 내 정비소 로드 중 오류 발생:', error);
-      setError('정비소 정보를 불러오는 데 실패했습니다.');
     } finally {
       setLoading(false);
     }
@@ -178,7 +175,9 @@ const MapView = ({
 
   // 차량 위치 로드
   const loadVehicles = useCallback(async () => {
-    if (!showVehicles) return;
+    if (!showVehicles) {
+      return;
+    }
 
     try {
       setLoading(true);
@@ -197,7 +196,7 @@ const MapView = ({
             lng: vehicleData.longitude
           });
         } else {
-          setError('차량 위치 정보를 찾을 수 없습니다.');
+          console.error('차량 위치 정보를 찾을 수 없습니다.');
         }
       } else if (userId) {
         // 사용자의 모든 차량 위치 로드
@@ -214,7 +213,6 @@ const MapView = ({
       }
     } catch (error) {
       console.error('차량 위치 로드 중 오류 발생:', error);
-      setError('차량 위치 정보를 불러오는 데 실패했습니다.');
     } finally {
       setLoading(false);
     }
@@ -223,7 +221,9 @@ const MapView = ({
   // 주변 정비소 검색
   const findNearbyShops = useCallback(
     async (location: Coordinates) => {
-      if (!showShops) return;
+      if (!showShops) {
+        return;
+      }
 
       try {
         setLoading(true);
@@ -236,7 +236,6 @@ const MapView = ({
         setShops(shopsData);
       } catch (error) {
         console.error('주변 정비소 검색 중 오류 발생:', error);
-        setError('주변 정비소 정보를 검색하는 데 실패했습니다.');
       } finally {
         setLoading(false);
       }
@@ -248,7 +247,9 @@ const MapView = ({
   const handleShopSelected = useCallback(
     (shop: ShopLocation) => {
       setSelectedShop(shop);
-      if (onSelectShop) onSelectShop(shop);
+      if (onSelectShop) {
+        onSelectShop(shop);
+      }
 
       // 지도를 정비소 위치로 이동
       setCenter({
@@ -263,7 +264,9 @@ const MapView = ({
   const handleVehicleSelected = useCallback(
     (vehicle: VehicleLocation) => {
       setSelectedVehicle(vehicle);
-      if (onSelectVehicle) onSelectVehicle(vehicle);
+      if (onSelectVehicle) {
+        onSelectVehicle(vehicle);
+      }
 
       // 지도를 차량 위치로 이동
       setCenter({
@@ -277,7 +280,9 @@ const MapView = ({
   // 경로 계산 핸들러
   const calculateRoute = useCallback(
     async (origin: Coordinates, destination: Coordinates) => {
-      if (!directionsServiceRef.current) return;
+      if (!directionsServiceRef.current) {
+        return;
+      }
 
       try {
         setLoading(true);
@@ -293,7 +298,7 @@ const MapView = ({
             if (status === google.maps.DirectionsStatus.OK) {
               setDirections(result);
             } else {
-              setError('경로 계산에 실패했습니다.');
+              console.error('경로 계산에 실패했습니다.');
             }
           }
         );
@@ -303,7 +308,6 @@ const MapView = ({
         setRoute(routeData);
       } catch (error) {
         console.error('경로 계산 중 오류 발생:', error);
-        setError('경로 계산에 실패했습니다.');
       } finally {
         setLoading(false);
       }
@@ -329,7 +333,9 @@ const MapView = ({
 
   // 차량 최근 위치에서 가장 가까운 정비소 검색
   const findNearestShops = useCallback(async () => {
-    if (!vehicleId) return;
+    if (!vehicleId) {
+      return;
+    }
 
     try {
       setLoading(true);
@@ -341,40 +347,10 @@ const MapView = ({
       }
     } catch (error) {
       console.error('가장 가까운 정비소 검색 중 오류 발생:', error);
-      setError('가장 가까운 정비소를 검색하는 데 실패했습니다.');
     } finally {
       setLoading(false);
     }
   }, [vehicleId, mapService]);
-
-  // 주소 검색 핸들러
-  const handleAddressSearch = useCallback(
-    async (address: string) => {
-      try {
-        setLoading(true);
-        const locations = await mapService.searchLocation(address);
-
-        if (locations.length > 0) {
-          const location = locations[0];
-          setCenter({
-            lat: location.latitude,
-            lng: location.longitude
-          });
-
-          // 위치 주변 정비소 검색
-          findNearbyShops(location);
-        } else {
-          setError('검색 결과가 없습니다.');
-        }
-      } catch (error) {
-        console.error('주소 검색 중 오류 발생:', error);
-        setError('주소 검색에 실패했습니다.');
-      } finally {
-        setLoading(false);
-      }
-    },
-    [mapService, findNearbyShops]
-  );
 
   // 컴포넌트 마운트 시 차량 및 정비소 데이터 로드
   useEffect(() => {
@@ -420,7 +396,7 @@ const MapView = ({
                   key={vehicle.vehicleId}
                   position={{ lat: vehicle.latitude, lng: vehicle.longitude }}
                   icon={getVehicleIcon()}
-                  title={vehicle.name || `차량 ${vehicle.vehicleId}`}
+                  title={vehicle.name ?? `차량 ${vehicle.vehicleId}`}
                   onClick={() => handleVehicleSelected(vehicle)}
                 />
               ))}
@@ -434,7 +410,7 @@ const MapView = ({
               >
                 <div>
                   <Title level={5}>
-                    {selectedVehicle.name || `차량 ${selectedVehicle.vehicleId}`}
+                    {selectedVehicle.name ?? `차량 ${selectedVehicle.vehicleId}`}
                   </Title>
                   <p>
                     <strong>상태:</strong> {selectedVehicle.status}
@@ -522,7 +498,7 @@ const MapView = ({
                   strokeOpacity: 0.8,
                   strokeWeight: 2,
                   fillColor: '#0088FF',
-                  fillOpacity: 0.1,
+                  fillOpacity: 0.1
                 }}
               />
             )}
@@ -534,9 +510,9 @@ const MapView = ({
                 options={{
                   polylineOptions: {
                     strokeColor: '#0088FF',
-                    strokeWeight: 4,
+                    strokeWeight: 4
                   },
-                  suppressMarkers: true,
+                  suppressMarkers: true
                 }}
               />
             )}
@@ -562,7 +538,7 @@ const MapView = ({
               <Tabs defaultActiveKey="1">
                 <TabPane tab="단계별 안내" key="1">
                   {route.steps.map((step, index) => (
-                    <div key={index} className="route-step">
+                    <div key={`step-${route.origin.address}-${index}`} className="route-step">
                       <Badge count={index + 1} />
                       <div dangerouslySetInnerHTML={{ __html: step.instructions }} />
                       <Text type="secondary">{step.distance} km</Text>

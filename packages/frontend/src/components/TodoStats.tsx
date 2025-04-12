@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+
 import { Todo } from '../hooks/useTodoService';
 
 interface TodoStatsProps {
@@ -47,7 +48,7 @@ const TodoStats: React.FC<TodoStatsProps> = ({ todos, className = '' }) => {
     // 마감일 관련 통계
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     const upcomingDue = todos.filter(todo => {
       if (!todo.completed && todo.dueDate) {
         const dueDate = new Date(todo.dueDate);
@@ -56,7 +57,7 @@ const TodoStats: React.FC<TodoStatsProps> = ({ todos, className = '' }) => {
       }
       return false;
     }).length;
-    
+
     const overdue = todos.filter(todo => {
       if (!todo.completed && todo.dueDate) {
         const dueDate = new Date(todo.dueDate);
@@ -79,10 +80,14 @@ const TodoStats: React.FC<TodoStatsProps> = ({ todos, className = '' }) => {
   // 우선순위에 따른 색상 클래스
   const getPriorityColorClass = (priority: string) => {
     switch (priority) {
-      case 'high': return 'bg-red-500';
-      case 'medium': return 'bg-yellow-500';
-      case 'low': return 'bg-green-500';
-      default: return 'bg-gray-500';
+      case 'high':
+        return 'bg-red-500';
+      case 'medium':
+        return 'bg-yellow-500';
+      case 'low':
+        return 'bg-green-500';
+      default:
+        return 'bg-gray-500';
     }
   };
 
@@ -96,7 +101,7 @@ const TodoStats: React.FC<TodoStatsProps> = ({ todos, className = '' }) => {
   return (
     <div className={`todo-stats bg-white p-6 rounded-lg shadow-md ${className}`}>
       <h2 className="text-xl font-bold mb-6">정비 작업 통계</h2>
-      
+
       {stats.total === 0 ? (
         <p className="text-gray-500 text-center py-4">통계를 계산할 작업이 없습니다.</p>
       ) : (
@@ -108,14 +113,7 @@ const TodoStats: React.FC<TodoStatsProps> = ({ todos, className = '' }) => {
               <div className="relative w-32 h-32">
                 <svg className="w-full h-full" viewBox="0 0 36 36">
                   {/* 배경 원 */}
-                  <circle
-                    cx="18"
-                    cy="18"
-                    r="16"
-                    fill="none"
-                    stroke="#e0e0e0"
-                    strokeWidth="2"
-                  />
+                  <circle cx="18" cy="18" r="16" fill="none" stroke="#e0e0e0" strokeWidth="2" />
                   {/* 진행 원 */}
                   <circle
                     cx="18"
@@ -124,7 +122,7 @@ const TodoStats: React.FC<TodoStatsProps> = ({ todos, className = '' }) => {
                     fill="none"
                     stroke="#3b82f6"
                     strokeWidth="2"
-                    strokeDasharray={`${stats.completionRate * 100 / 100} 100`}
+                    strokeDasharray={`${(stats.completionRate * 100) / 100} 100`}
                     strokeDashoffset="25"
                     transform="rotate(-90 18 18)"
                   />
@@ -143,11 +141,13 @@ const TodoStats: React.FC<TodoStatsProps> = ({ todos, className = '' }) => {
                 </svg>
               </div>
               <div className="text-center mt-2">
-                <p className="text-sm text-gray-500">총 {stats.total}개 중 {stats.completed}개 완료</p>
+                <p className="text-sm text-gray-500">
+                  총 {stats.total}개 중 {stats.completed}개 완료
+                </p>
               </div>
             </div>
           </div>
-          
+
           {/* 우선순위 분포 카드 */}
           <div className="stat-card bg-gray-50 p-4 rounded-lg">
             <h3 className="text-lg font-semibold mb-2">우선순위 분포</h3>
@@ -170,7 +170,7 @@ const TodoStats: React.FC<TodoStatsProps> = ({ todos, className = '' }) => {
               ))}
             </div>
           </div>
-          
+
           {/* 마감일 상태 카드 */}
           <div className="stat-card bg-gray-50 p-4 rounded-lg">
             <h3 className="text-lg font-semibold mb-2">마감일 상태</h3>
@@ -185,7 +185,7 @@ const TodoStats: React.FC<TodoStatsProps> = ({ todos, className = '' }) => {
               </div>
             </div>
           </div>
-          
+
           {/* 차량별 작업 통계 카드 */}
           <div className="stat-card bg-gray-50 p-4 rounded-lg lg:col-span-3">
             <h3 className="text-lg font-semibold mb-2">차량별 작업 수</h3>
@@ -211,4 +211,4 @@ const TodoStats: React.FC<TodoStatsProps> = ({ todos, className = '' }) => {
   );
 };
 
-export default TodoStats; 
+export default TodoStats;

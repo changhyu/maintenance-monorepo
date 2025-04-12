@@ -1,5 +1,7 @@
 import React from 'react';
+
 import { Link, useLocation } from 'react-router-dom';
+
 import { useTheme } from '../../components/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 
@@ -15,7 +17,7 @@ const navItems: NavItem[] = [
   { path: '/', label: '대시보드', requiresAuth: false },
   { path: '/vehicles', label: '차량 관리', requiresAuth: true },
   { path: '/maintenance', label: '정비 기록', requiresAuth: true },
-  { path: '/settings', label: '설정', requiresAuth: true },
+  { path: '/settings', label: '설정', requiresAuth: true }
 ];
 
 const Header: React.FC = () => {
@@ -35,19 +37,22 @@ const Header: React.FC = () => {
 
         {/* 내비게이션 */}
         <nav className="hidden md:flex space-x-6">
-          {navItems.map((item) => (
-            (!item.requiresAuth || isAuthenticated) && (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 ${
-                  location.pathname === item.path ? 'font-semibold text-blue-600 dark:text-blue-400' : ''
-                }`}
-              >
-                {item.label}
-              </Link>
-            )
-          ))}
+          {navItems.map(
+            item =>
+              (!item.requiresAuth || isAuthenticated) && (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={`text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 ${
+                    location.pathname === item.path
+                      ? 'font-semibold text-blue-600 dark:text-blue-400'
+                      : ''
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              )
+          )}
         </nav>
 
         {/* 사용자 섹션 */}
@@ -64,9 +69,7 @@ const Header: React.FC = () => {
           {/* 인증 관련 버튼 */}
           {isAuthenticated ? (
             <div className="flex items-center space-x-2">
-              <span className="text-gray-700 dark:text-gray-300">
-                {user?.name || '사용자'}
-              </span>
+              <span className="text-gray-700 dark:text-gray-300">{user?.name || '사용자'}</span>
               <button
                 onClick={logout}
                 className="py-1 px-3 bg-red-600 hover:bg-red-700 text-white rounded"
@@ -96,4 +99,4 @@ const Header: React.FC = () => {
   );
 };
 
-export default Header; 
+export default Header;

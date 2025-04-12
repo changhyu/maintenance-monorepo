@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+
 import { Button } from '../common/Button';
 
 interface HeaderProps {
@@ -12,7 +13,7 @@ export const Header: React.FC<HeaderProps> = ({
   userFullName = '',
   userRole = '',
   onLogout,
-  className = '',
+  className = ''
 }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -26,11 +27,7 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="flex justify-between h-16">
           <div className="flex">
             <div className="flex-shrink-0 flex items-center">
-              <img
-                className="block h-8 w-auto"
-                src="/logo.svg"
-                alt="차량 관리 시스템"
-              />
+              <img className="block h-8 w-auto" src="/logo.svg" alt="차량 관리 시스템" />
               <span className="ml-2 text-xl font-bold text-gray-900">차량 관리 시스템</span>
             </div>
             <nav className="hidden sm:ml-6 sm:flex sm:space-x-8">
@@ -83,12 +80,7 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
             {onLogout && (
               <div className="ml-4">
-                <Button
-                  variant="ghost"
-                  colorScheme="gray"
-                  size="sm"
-                  onClick={onLogout}
-                >
+                <Button variant="ghost" colorScheme="gray" size="sm" onClick={onLogout}>
                   로그아웃
                 </Button>
               </div>
@@ -185,7 +177,7 @@ export const Header: React.FC<HeaderProps> = ({
               {onLogout && (
                 <a
                   href="#"
-                  onClick={(e) => {
+                  onClick={e => {
                     e.preventDefault();
                     onLogout();
                   }}
@@ -200,4 +192,4 @@ export const Header: React.FC<HeaderProps> = ({
       )}
     </header>
   );
-}; 
+};

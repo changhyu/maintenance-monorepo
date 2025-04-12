@@ -1,5 +1,5 @@
-import { api } from '../utils/api';
 import { Shop, ShopCreate, ShopFilter, ShopReview, ShopUpdate } from '../types/shop';
+import { api } from '../utils/api';
 
 /**
  * 정비소 관련 API 서비스

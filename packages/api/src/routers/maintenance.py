@@ -1,212 +1,240 @@
 """
-Maintenance API router.
+정비 API 라우터.
+
+차량 정비 관련 API 엔드포인트를 제공합니다.
 """
 
 from typing import List, Optional, Dict, Any
-from fastapi import APIRouter, Depends, Query, Path, HTTPException, status, File, UploadFile
+from fastapi import Path, Query, Depends, Response, APIRouter, status, HTTPException
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
+import os
 
+from .base_router import BaseRouter
 from ..core.dependencies import get_db, get_current_active_user
 from ..models.schemas import (
     Maintenance, MaintenanceCreate, MaintenanceUpdate, MaintenanceStatus
 )
 from ..modules.maintenance.service import maintenance_service
+from ..core.cache import cache, CacheKey
+from ..core.utils import get_etag, check_etag, paginate_list
+from ..controllers.maintenance_controller import MaintenanceController
 
+CAR_ID = "차량 ID"
 
-router = APIRouter(prefix="/maintenance", tags=["maintenance"])
+# 베이스 라우터 인스턴스 생성
+base_router = BaseRouter(
+    prefix="/maintenance",
+    tags=["maintenance"],
+    response_model=Maintenance,
+    create_model=MaintenanceCreate,
+    update_model=MaintenanceUpdate,
+    service=maintenance_service,
+    cache_key_prefix="maintenance"
+)
 
+# 컨트롤러 클래스 구성: MaintenanceController 인스턴스 초기화
+maintenance_controller = MaintenanceController(path=".")
 
-@router.get("/records", response_model=Dict[str, Any])
-async def list_maintenance_records(
-    skip: int = Query(0, ge=0, description="건너뛸 레코드 수"),
-    limit: int = Query(100, ge=1, le=1000, description="최대 반환 레코드 수"),
-    vehicle_id: Optional[str] = Query(None, description="차량 ID 필터"),
-    status: Optional[MaintenanceStatus] = Query(None, description="상태 필터"),
-    from_date: Optional[str] = Query(None, description="시작 날짜 (YYYY-MM-DD)"),
-    to_date: Optional[str] = Query(None, description="종료 날짜 (YYYY-MM-DD)"),
-    db: Session = Depends(get_db),
-    current_user: Dict[str, Any] = Depends(get_current_active_user)
-):
-    """
-    정비 기록 목록을 조회합니다.
-    """
-    filters = {}
+# 데이터 모델 (함수 구성): CommitRequest 데이터 모델 정의
+class CommitRequest(BaseModel):
+    message: str
+
+# 데이터 모델: ScheduleMaintenanceRequest 데이터 모델 정의
+class ScheduleMaintenanceRequest(BaseModel):
+    vehicle_id: str
+    schedule_date: str
+    maintenance_type: str
+    description: Optional[str] = None
+
+# 데이터 모델: CompletionNotesRequest 데이터 모델 정의
+class CompletionNotesRequest(BaseModel):
+    notes: Optional[str] = None
+
+# 라우터 함수 구성: GET /maintenance 엔드포인트 정의
+@base_router.get("/status", tags=["Maintenance"])
+async def get_maintenance_status():
+    """정비 시스템 상태를 조회합니다."""
+    result = maintenance_controller.get_status()
+    if "error" in result:
+        raise HTTPException(status_code=500, detail=result["error"])
+    return result
+
+# 라우터 함수 구성: POST /maintenance 엔드포인트 정의
+@base_router.post("/commit", tags=["Maintenance"])
+async def create_maintenance_commit(request: CommitRequest):
+    """정비 관련 Git 커밋을 생성합니다."""
+    result = maintenance_controller.create_maintenance_commit(request.message)
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return {"result": result}
+
+@base_router.post("/push", tags=["Maintenance"])
+async def push_repository():
+    """정비 관련 변경사항을 원격 저장소에 푸시합니다."""
+    result = maintenance_controller.push_repository()
+    if not result.get("success", False):
+        raise HTTPException(status_code=400, detail=result.get("error", "푸시 실패"))
+    return {"result": result}
+
+@base_router.post("/pull", tags=["Maintenance"])
+async def pull_repository():
+    """정비 관련 변경사항을 원격 저장소에서 가져옵니다."""
+    result = maintenance_controller.pull_repository()
+    if not result.get("success", False):
+        raise HTTPException(status_code=400, detail=result.get("error", "풀 실패"))
+    return {"result": result}
+
+# 추가 라우트 확장
+def extend_maintenance_routes(router: APIRouter):
+    """정비 라우터에 추가 라우트 등록"""
     
-    if vehicle_id:
-        filters["vehicle_id"] = vehicle_id
-    if status:
-        filters["status"] = status
-    if from_date:
-        filters["from_date"] = from_date
-    if to_date:
-        filters["to_date"] = to_date
-    
-    result = maintenance_service.get_maintenance_records(
-        skip=skip,
-        limit=limit,
-        filters=filters
-    )
-    
-    return {
-        "records": result["records"],
-        "total": result["total"],
-        "page": skip // limit + 1,
-        "pages": (result["total"] + limit - 1) // limit
-    }
+    @router.get("/vehicle/{vehicle_id}", response_model=Dict[str, Any])
+    async def get_maintenance_by_vehicle(
+        response: Response,
+        vehicle_id: str = Path(..., description=CAR_ID),
+        skip: int = Query(0, ge=0, description="건너뛸 레코드 수"),
+        limit: int = Query(100, ge=1, le=1000, description="최대 반환 레코드 수"),
+        status: Optional[MaintenanceStatus] = Query(None, description="상태 필터"),
+        db: Session = Depends(get_db),
+        current_user: Dict[str, Any] = Depends(get_current_active_user)
+    ):
+        """
+        차량별 정비 기록을 조회합니다.
+        """
+        # 캐시 키 생성
+        cache_key = CacheKey.VEHICLE_MAINTENANCE.format(
+            id=vehicle_id, skip=skip, limit=limit, status=status or 'all'
+        )
 
+        # 캐시에서 결과 조회
+        cached_result = cache.get(cache_key)
+        if cached_result:
+            etag = get_etag(cached_result)
+            if check_etag(response, etag):
+                return Response(status_code=304)  # Not Modified
+            response.headers["ETag"] = etag
+            return cached_result
 
-@router.get("/records/{record_id}", response_model=Maintenance)
-async def get_maintenance_record(
-    record_id: str = Path(..., description="정비 기록 ID"),
-    db: Session = Depends(get_db),
-    current_user: Dict[str, Any] = Depends(get_current_active_user)
-):
-    """
-    특정 정비 기록의 상세 정보를 조회합니다.
-    """
-    return maintenance_service.get_maintenance_record_by_id(record_id)
+        # 컨트롤러를 통해 정비 내역 조회
+        result = maintenance_controller.get_vehicle_maintenance(vehicle_id)
+        if "error" in result:
+            raise HTTPException(status_code=404, detail=result["error"])
 
+        # 결과 캐싱 (60초)
+        cache.set(cache_key, result, expire=60)
 
-@router.get("/vehicle/{vehicle_id}", response_model=Dict[str, Any])
-async def get_vehicle_maintenance_history(
-    vehicle_id: str = Path(..., description="차량 ID"),
-    skip: int = Query(0, ge=0, description="건너뛸 레코드 수"),
-    limit: int = Query(100, ge=1, le=1000, description="최대 반환 레코드 수"),
-    status: Optional[MaintenanceStatus] = Query(None, description="상태 필터"),
-    from_date: Optional[str] = Query(None, description="시작 날짜 (YYYY-MM-DD)"),
-    to_date: Optional[str] = Query(None, description="종료 날짜 (YYYY-MM-DD)"),
-    db: Session = Depends(get_db),
-    current_user: Dict[str, Any] = Depends(get_current_active_user)
-):
-    """
-    차량별 정비 이력을 조회합니다.
-    """
-    filters = {"vehicle_id": vehicle_id}
-    
-    if status:
-        filters["status"] = status
-    if from_date:
-        filters["from_date"] = from_date
-    if to_date:
-        filters["to_date"] = to_date
-    
-    result = maintenance_service.get_maintenance_records(
-        skip=skip,
-        limit=limit,
-        filters=filters
-    )
-    
-    return {
-        "records": result["records"],
-        "total": result["total"],
-        "page": skip // limit + 1,
-        "pages": (result["total"] + limit - 1) // limit
-    }
+        # ETag 설정
+        etag = get_etag(result)
+        response.headers["ETag"] = etag
 
+        return result
 
-@router.post("/records", response_model=Maintenance, status_code=status.HTTP_201_CREATED)
-async def create_maintenance_record(
-    maintenance_data: MaintenanceCreate,
-    db: Session = Depends(get_db),
-    current_user: Dict[str, Any] = Depends(get_current_active_user)
-):
-    """
-    새 정비 기록을 생성합니다.
-    """
-    return maintenance_service.create_maintenance_record(maintenance_data)
+    @router.post("/scheduled", response_model=Dict[str, Any])
+    async def create_scheduled_maintenance(
+            request: ScheduleMaintenanceRequest,
+            db: Session = Depends(get_db),
+            current_user: Dict[str, Any] = Depends(get_current_active_user)
+        ):
+        """
+        예약 정비를 생성합니다.
+        """
+        result = maintenance_controller.schedule_maintenance(
+            request.vehicle_id, 
+            request.schedule_date, 
+            request.maintenance_type,
+            request.description
+        )
 
+        if "error" in result:
+            raise HTTPException(status_code=400, detail=result["error"])
 
-@router.put("/records/{record_id}", response_model=Maintenance)
-async def update_maintenance_record(
-    maintenance_data: MaintenanceUpdate,
-    record_id: str = Path(..., description="정비 기록 ID"),
-    db: Session = Depends(get_db),
-    current_user: Dict[str, Any] = Depends(get_current_active_user)
-):
-    """
-    정비 기록을 업데이트합니다.
-    """
-    return maintenance_service.update_maintenance_record(record_id, maintenance_data)
+        # 관련 캐시 무효화
+        cache.invalidate_pattern("maintenance:list:*")
+        cache.invalidate_pattern(f"vehicle:maintenance:{request.vehicle_id}:*")
 
+        return result
 
-@router.delete("/records/{record_id}", response_model=bool)
-async def delete_maintenance_record(
-    record_id: str = Path(..., description="정비 기록 ID"),
-    db: Session = Depends(get_db),
-    current_user: Dict[str, Any] = Depends(get_current_active_user)
-):
-    """
-    정비 기록을 삭제합니다.
-    """
-    return maintenance_service.delete_maintenance_record(record_id)
+    @router.post("/complete/{maintenance_id}", response_model=Dict[str, Any])
+    async def complete_maintenance(
+            maintenance_id: str = Path(..., description="정비 ID"),
+            request: CompletionNotesRequest = None,
+            db: Session = Depends(get_db),
+            current_user: Dict[str, Any] = Depends(get_current_active_user)
+        ):
+        """
+        정비를 완료 상태로 변경합니다.
+        """
+        completed_maintenance = maintenance_controller.complete_maintenance(
+            maintenance_id, 
+            completion_notes=request.notes if request else None
+        )
 
+        if "error" in completed_maintenance:
+            raise HTTPException(status_code=400, detail=completed_maintenance["error"])
 
-@router.post("/records/{record_id}/documents", response_model=Dict[str, Any])
-async def upload_maintenance_document(
-    record_id: str = Path(..., description="정비 기록 ID"),
-    file: UploadFile = File(..., description="업로드할 파일"),
-    db: Session = Depends(get_db),
-    current_user: Dict[str, Any] = Depends(get_current_active_user)
-):
-    """
-    정비 기록에 문서를 업로드합니다.
-    """
-    return maintenance_service.upload_maintenance_document(record_id, file)
+        # 관련 캐시 무효화
+        cache.delete(f"maintenance:detail:{maintenance_id}")
+        cache.invalidate_pattern("maintenance:list:*")
+        vehicle_id = completed_maintenance.get("vehicle_id")
+        if vehicle_id:
+            cache.invalidate_pattern(f"vehicle:maintenance:{vehicle_id}:*")
 
+        return completed_maintenance
 
-@router.delete("/records/{record_id}/documents/{document_id}", response_model=bool)
-async def delete_maintenance_document(
-    record_id: str = Path(..., description="정비 기록 ID"),
-    document_id: str = Path(..., description="문서 ID"),
-    db: Session = Depends(get_db),
-    current_user: Dict[str, Any] = Depends(get_current_active_user)
-):
-    """
-    정비 기록에서 문서를 삭제합니다.
-    """
-    return maintenance_service.delete_maintenance_document(record_id, document_id)
+    @router.get("/recommendations/{vehicle_id}", response_model=Dict[str, Any])
+    async def get_maintenance_recommendations(
+        vehicle_id: str = Path(..., description=CAR_ID),
+        db: Session = Depends(get_db),
+        current_user: Dict[str, Any] = Depends(get_current_active_user)
+    ):
+        """
+        차량에 대한 정비 권장 사항을 조회합니다.
+        """
+        result = maintenance_controller.get_maintenance_recommendations(vehicle_id)
+        if "error" in result:
+            raise HTTPException(status_code=404, detail=result["error"])
+        return result
 
+    @router.get("/statistics/{vehicle_id}", response_model=Dict[str, Any])
+    async def get_maintenance_statistics(
+        response: Response,
+        vehicle_id: str = Path(..., description=CAR_ID),
+        time_period: Optional[str] = Query("all", description="기간 (month, year, all)"),
+        db: Session = Depends(get_db),
+        current_user: Dict[str, Any] = Depends(get_current_active_user)
+    ):
+        """
+        차량 정비 통계를 조회합니다.
+        """
+        # 캐시 키 생성
+        cache_key = f"maintenance:statistics:{vehicle_id}:{time_period}"
 
-@router.get("/upcoming", response_model=List[Dict[str, Any]])
-async def get_upcoming_maintenance(
-    days: int = Query(30, ge=1, le=365, description="앞으로의 일수"),
-    db: Session = Depends(get_db),
-    current_user: Dict[str, Any] = Depends(get_current_active_user)
-):
-    """
-    예정된 정비 일정을 조회합니다.
-    """
-    return maintenance_service.get_upcoming_maintenance(days)
+        # 캐시에서 결과 조회
+        cached_result = cache.get(cache_key)
+        if cached_result:
+            etag = get_etag(cached_result)
+            if check_etag(response, etag):
+                return Response(status_code=304)  # Not Modified
+            response.headers["ETag"] = etag
+            return cached_result
 
+        # 통계 조회
+        statistics = maintenance_controller.get_maintenance_statistics(vehicle_id)
+        if "error" in statistics:
+            raise HTTPException(status_code=404, detail=statistics["error"])
 
-@router.patch("/records/{record_id}/complete", response_model=Maintenance)
-async def complete_maintenance(
-    record_id: str = Path(..., description="정비 기록 ID"),
-    mileage: Optional[int] = Query(None, description="완료 시 주행거리"),
-    cost: Optional[float] = Query(None, description="최종 비용"),
-    notes: Optional[str] = Query(None, description="완료 메모"),
-    db: Session = Depends(get_db),
-    current_user: Dict[str, Any] = Depends(get_current_active_user)
-):
-    """
-    정비를 완료 처리합니다.
-    """
-    return maintenance_service.complete_maintenance_record(
-        record_id, 
-        mileage=mileage,
-        cost=cost,
-        notes=notes
-    )
+        # 결과 캐싱
+        cache.set(cache_key, statistics, expire=3600)  # 1시간
 
+        # ETag 설정
+        etag = get_etag(statistics)
+        response.headers["ETag"] = etag
 
-@router.patch("/records/{record_id}/cancel", response_model=Maintenance)
-async def cancel_maintenance(
-    record_id: str = Path(..., description="정비 기록 ID"),
-    reason: Optional[str] = Query(None, description="취소 사유"),
-    db: Session = Depends(get_db),
-    current_user: Dict[str, Any] = Depends(get_current_active_user)
-):
-    """
-    정비를 취소 처리합니다.
-    """
-    return maintenance_service.cancel_maintenance_record(record_id, reason) 
+        return statistics
+
+# 확장 라우트 등록
+base_router.extend_router(extend_maintenance_routes)
+
+# 최종 라우터 가져오기
+router = base_router.get_router()

@@ -1,5 +1,6 @@
 import { saveAs } from 'file-saver';
 import * as XLSX from 'xlsx';
+
 import { Report, ReportFormat, ExportOptions } from '../services/reportService';
 
 /**
@@ -15,7 +16,7 @@ export const convertToCSV = <T extends Record<string, any>>(
 
   // 헤더 행 생성
   const header = columns.map(col => `"${col.title}"`).join(',');
-  
+
   // 데이터 행 생성
   const rows = data.map(item => {
     return columns
@@ -47,7 +48,7 @@ export const convertToExcel = <T extends Record<string, any>>(
 ): Blob => {
   // 헤더 행 생성
   const headers = columns.map(col => col.title);
-  
+
   // 데이터 행 생성
   const rows = data.map(item => {
     return columns.map(col => item[col.key]);
@@ -56,20 +57,20 @@ export const convertToExcel = <T extends Record<string, any>>(
   // 워크북 생성
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-  
+
   // 워크시트 생성
   XLSX.utils.book_append_sheet(wb, ws, sheetName);
-  
+
   // 바이너리 파일 생성
   const wbout = XLSX.write(wb, { type: 'binary', bookType: 'xlsx' });
-  
+
   // 문자열 데이터를 바이너리 데이터로 변환
   const buf = new ArrayBuffer(wbout.length);
   const view = new Uint8Array(buf);
   for (let i = 0; i < wbout.length; i++) {
-    view[i] = wbout.charCodeAt(i) & 0xFF;
+    view[i] = wbout.charCodeAt(i) & 0xff;
   }
-  
+
   return new Blob([buf], { type: 'application/octet-stream' });
 };
 
@@ -78,13 +79,10 @@ export const convertToExcel = <T extends Record<string, any>>(
  * @param report 보고서 데이터
  * @param options 내보내기 옵션
  */
-export const exportReportData = (
-  report: Report,
-  options: ExportOptions
-): Blob | string => {
+export const exportReportData = (report: Report, options: ExportOptions): Blob | string => {
   // 테이블 데이터 및 열 정보 추출
   const { data, columns } = extractTableData(report);
-  
+
   // 형식에 따라 적절한 변환 함수 호출
   switch (options.format) {
     case ReportFormat.CSV:
@@ -102,9 +100,11 @@ export const exportReportData = (
  * 보고서 유형에 따라 테이블 데이터와 열 정보 추출
  * @param report 보고서 데이터
  */
-export const extractTableData = (report: Report): { 
-  data: Record<string, any>[], 
-  columns: { key: string; title: string }[] 
+export const extractTableData = (
+  report: Report
+): {
+  data: Record<string, any>[];
+  columns: { key: string; title: string }[];
 } => {
   switch (report.type) {
     case 'completion_rate':
@@ -167,14 +167,10 @@ export const extractTableData = (report: Report): {
  * @param fileName 파일 이름
  * @param format 파일 형식
  */
-export const downloadFile = (
-  data: Blob | string,
-  fileName: string,
-  format: ReportFormat
-): void => {
+export const downloadFile = (data: Blob | string, fileName: string, format: ReportFormat): void => {
   let blob: Blob;
   let fileExtension: string;
-  
+
   // 형식에 따라 MIME 타입 및 파일 확장자 설정
   switch (format) {
     case ReportFormat.PDF:
@@ -206,28 +202,25 @@ export const downloadFile = (
  * @param date 날짜 객체 또는 문자열
  * @param formatString 포맷 문자열 (기본값: yyyy-MM-dd)
  */
-export const formatDate = (
-  date: Date | string,
-  formatString = 'yyyy-MM-dd'
-): string => {
+export const formatDate = (date: Date | string, formatString = 'yyyy-MM-dd'): string => {
   const dateObj = typeof date === 'string' ? new Date(date) : date;
-  
+
   const year = dateObj.getFullYear();
   const month = String(dateObj.getMonth() + 1).padStart(2, '0');
   const day = String(dateObj.getDate()).padStart(2, '0');
-  
+
   // 간단한 포맷팅 (date-fns 없이)
   if (formatString === 'yyyy-MM-dd') {
     return `${year}-${month}-${day}`;
   }
-  
+
   const hours = String(dateObj.getHours()).padStart(2, '0');
   const minutes = String(dateObj.getMinutes()).padStart(2, '0');
-  
+
   if (formatString === 'yyyy-MM-dd HH:mm') {
     return `${year}-${month}-${day} ${hours}:${minutes}`;
   }
-  
+
   return `${year}-${month}-${day}`;
 };
 
@@ -237,11 +230,7 @@ export const formatDate = (
  * @param locale 로케일 (기본값: ko-KR)
  * @param currency 통화 유형 (기본값: KRW)
  */
-export const formatCurrency = (
-  value: number,
-  locale = 'ko-KR',
-  currency = 'KRW'
-): string => {
+export const formatCurrency = (value: number, locale = 'ko-KR', currency = 'KRW'): string => {
   return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency,
@@ -255,11 +244,8 @@ export const formatCurrency = (
  * @param value 숫자 값 (0-1 또는 0-100)
  * @param decimals 소수점 자릿수
  */
-export const formatPercent = (
-  value: number,
-  decimals = 1
-): string => {
+export const formatPercent = (value: number, decimals = 1): string => {
   // 값이 0-1 범위인 경우 100을 곱해서 퍼센트로 변환
   const percentValue = value > 1 ? value : value * 100;
   return `${percentValue.toFixed(decimals)}%`;
-}; 
+};

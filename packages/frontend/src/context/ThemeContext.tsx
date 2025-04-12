@@ -23,7 +23,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   // 초기 로드 시 저장된 테마 설정 불러오기
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') as ThemeMode | null;
-    
+
     // 사용자 저장 테마 또는 시스템 기본 설정 적용
     if (savedTheme) {
       setTheme(savedTheme);
@@ -58,11 +58,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     setTheme: setThemeMode
   };
 
-  return (
-    <ThemeContext.Provider value={contextValue}>
-      {children}
-    </ThemeContext.Provider>
-  );
+  return <ThemeContext.Provider value={contextValue}>{children}</ThemeContext.Provider>;
 };
 
 // 테마 컨텍스트를 사용하기 위한 커스텀 훅
@@ -72,4 +68,4 @@ export const useTheme = (): ThemeContextType => {
     throw new Error('useTheme must be used within a ThemeProvider');
   }
   return context;
-}; 
+};

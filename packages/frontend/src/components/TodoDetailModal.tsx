@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+
 import { Todo, TodoUpdateRequest } from '../hooks/useTodoService';
 
 interface TodoDetailModalProps {
@@ -18,7 +19,7 @@ const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
 }) => {
   const [formData, setFormData] = useState<TodoUpdateRequest>({});
   const [error, setError] = useState<string | null>(null);
-  
+
   // todo 데이터가 변경될 때마다 폼 데이터 업데이트
   useEffect(() => {
     if (todo) {
@@ -33,27 +34,29 @@ const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
       });
     }
   }, [todo]);
-  
+
   // 입력 변경 처리
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
-  
+
   // 체크박스 변경 처리
   const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, checked } = e.target;
     setFormData(prev => ({ ...prev, [name]: checked }));
   };
-  
+
   // 업데이트 제출 처리
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!todo) return;
-    
+
     setError(null);
-    
+
     try {
       await onUpdate(todo.id, formData);
       onClose();
@@ -62,31 +65,26 @@ const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
       console.error(err);
     }
   };
-  
+
   // 모달이 닫혀있으면 아무것도 렌더링하지 않음
   if (!isOpen || !todo) {
     return null;
   }
-  
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold">정비 작업 상세</h2>
-          <button
-            onClick={onClose}
-            className="text-gray-500 hover:text-gray-700"
-          >
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
             ✕
           </button>
         </div>
-        
+
         <form onSubmit={handleSubmit}>
           {/* 제목 */}
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              제목
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">제목</label>
             <input
               type="text"
               name="title"
@@ -96,12 +94,10 @@ const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
               required
             />
           </div>
-          
+
           {/* 설명 */}
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              설명
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">설명</label>
             <textarea
               name="description"
               value={formData.description || ''}
@@ -110,12 +106,10 @@ const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
               className="block w-full border border-gray-300 rounded-md shadow-sm p-2"
             />
           </div>
-          
+
           {/* 우선순위 */}
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              우선순위
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">우선순위</label>
             <select
               name="priority"
               value={formData.priority || 'medium'}
@@ -127,12 +121,10 @@ const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
               <option value="low">낮음</option>
             </select>
           </div>
-          
+
           {/* 마감일 */}
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              마감일
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">마감일</label>
             <input
               type="date"
               name="dueDate"
@@ -141,12 +133,10 @@ const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
               className="block w-full border border-gray-300 rounded-md shadow-sm p-2"
             />
           </div>
-          
+
           {/* 차량 ID */}
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              차량 ID
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">차량 ID</label>
             <input
               type="text"
               name="vehicleId"
@@ -155,12 +145,10 @@ const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
               className="block w-full border border-gray-300 rounded-md shadow-sm p-2"
             />
           </div>
-          
+
           {/* 담당자 */}
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              담당자
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">담당자</label>
             <input
               type="text"
               name="assignedTo"
@@ -169,7 +157,7 @@ const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
               className="block w-full border border-gray-300 rounded-md shadow-sm p-2"
             />
           </div>
-          
+
           {/* 완료 여부 */}
           <div className="mb-4">
             <label className="flex items-center">
@@ -183,11 +171,9 @@ const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
               <span className="ml-2 text-sm text-gray-700">완료됨</span>
             </label>
           </div>
-          
-          {error && (
-            <div className="mb-4 text-sm text-red-600">{error}</div>
-          )}
-          
+
+          {error && <div className="mb-4 text-sm text-red-600">{error}</div>}
+
           {/* 메타데이터 */}
           <div className="mb-4 pt-4 border-t border-gray-200">
             <p className="text-xs text-gray-500">
@@ -197,7 +183,7 @@ const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
               최종 수정일: {new Date(todo.updatedAt).toLocaleString()}
             </p>
           </div>
-          
+
           {/* 액션 버튼 */}
           <div className="flex justify-end gap-2">
             <button
@@ -222,4 +208,4 @@ const TodoDetailModal: React.FC<TodoDetailModalProps> = ({
   );
 };
 
-export default TodoDetailModal; 
+export default TodoDetailModal;

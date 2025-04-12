@@ -5,7 +5,7 @@ import { isValidDate, isValidTime, isFutureDateTime } from '../utils/dateUtils';
  * 예약 상태 열거형
  */
 export enum BookingStatus {
-  PENDING = 'pending',   // 대기 중
+  PENDING = 'pending', // 대기 중
   CONFIRMED = 'confirmed', // 확인됨
   COMPLETED = 'completed', // 완료됨
   CANCELLED = 'cancelled', // 취소됨
@@ -17,11 +17,11 @@ export enum BookingStatus {
  */
 export enum ServiceType {
   REGULAR_MAINTENANCE = 'regular_maintenance', // 정기 유지보수
-  REPAIR = 'repair',                           // 수리
-  INSPECTION = 'inspection',                   // 검사
-  TIRE_CHANGE = 'tire_change',                 // 타이어 교체
-  OIL_CHANGE = 'oil_change',                   // 오일 교체
-  CUSTOM = 'custom'                            // 사용자 정의
+  REPAIR = 'repair', // 수리
+  INSPECTION = 'inspection', // 검사
+  TIRE_CHANGE = 'tire_change', // 타이어 교체
+  OIL_CHANGE = 'oil_change', // 오일 교체
+  CUSTOM = 'custom' // 사용자 정의
 }
 
 /**
@@ -143,12 +143,15 @@ export const bookingService = {
    * @param filter 추가 필터
    * @returns 예약 페이지네이션 결과
    */
-  async getCustomerBookings(customerId: string, filter?: Omit<BookingFilter, 'customerId'>): Promise<BookingPaginationResult> {
+  async getCustomerBookings(
+    customerId: string,
+    filter?: Omit<BookingFilter, 'customerId'>
+  ): Promise<BookingPaginationResult> {
     if (!customerId) {
       console.error('[bookingService] 고객 ID가 제공되지 않았습니다.');
       return { ...defaultPaginationResult };
     }
-    
+
     try {
       return await this.getBookings({ ...filter, customerId });
     } catch (error) {
@@ -163,12 +166,15 @@ export const bookingService = {
    * @param filter 추가 필터
    * @returns 예약 페이지네이션 결과
    */
-  async getVehicleBookings(vehicleId: string, filter?: Omit<BookingFilter, 'vehicleId'>): Promise<BookingPaginationResult> {
+  async getVehicleBookings(
+    vehicleId: string,
+    filter?: Omit<BookingFilter, 'vehicleId'>
+  ): Promise<BookingPaginationResult> {
     if (!vehicleId) {
       console.error('[bookingService] 차량 ID가 제공되지 않았습니다.');
       return { ...defaultPaginationResult };
     }
-    
+
     try {
       return await this.getBookings({ ...filter, vehicleId });
     } catch (error) {
@@ -183,12 +189,15 @@ export const bookingService = {
    * @param filter 추가 필터
    * @returns 예약 페이지네이션 결과
    */
-  async getShopBookings(shopId: string, filter?: Omit<BookingFilter, 'shopId'>): Promise<BookingPaginationResult> {
+  async getShopBookings(
+    shopId: string,
+    filter?: Omit<BookingFilter, 'shopId'>
+  ): Promise<BookingPaginationResult> {
     if (!shopId) {
       console.error('[bookingService] 정비소 ID가 제공되지 않았습니다.');
       return { ...defaultPaginationResult };
     }
-    
+
     try {
       return await this.getBookings({ ...filter, shopId });
     } catch (error) {
@@ -207,7 +216,7 @@ export const bookingService = {
       console.error('[bookingService] 예약 ID가 제공되지 않았습니다.');
       return null;
     }
-    
+
     try {
       const response = await api.get(`/bookings/${bookingId}`);
       return response.data || null;
@@ -227,25 +236,25 @@ export const bookingService = {
       console.error('[bookingService] 필수 예약 데이터가 제공되지 않았습니다.');
       return null;
     }
-    
+
     // 날짜 형식 검증
     if (!isValidDate(bookingData.scheduledDate)) {
       console.error('[bookingService] 유효하지 않은 날짜 형식입니다.');
       return null;
     }
-    
+
     // 시간 형식 검증
     if (!isValidTime(bookingData.scheduledTime)) {
       console.error('[bookingService] 유효하지 않은 시간 형식입니다.');
       return null;
     }
-    
+
     // 미래 시간 검증 (현재로부터 30분 이후)
     if (!isFutureDateTime(bookingData.scheduledDate, bookingData.scheduledTime, 30)) {
       console.error('[bookingService] 예약은 현재 시간으로부터 최소 30분 후부터 가능합니다.');
       return null;
     }
-    
+
     try {
       const response = await api.post('/bookings', bookingData);
       return response.data || null;
@@ -265,26 +274,29 @@ export const bookingService = {
       console.error('[bookingService] 유효하지 않은 예약 업데이트 데이터입니다.');
       return null;
     }
-    
+
     // 날짜 형식 검증 (날짜가 제공된 경우에만)
     if (bookingData.scheduledDate && !isValidDate(bookingData.scheduledDate)) {
       console.error('[bookingService] 유효하지 않은 날짜 형식입니다.');
       return null;
     }
-    
+
     // 시간 형식 검증 (시간이 제공된 경우에만)
     if (bookingData.scheduledTime && !isValidTime(bookingData.scheduledTime)) {
       console.error('[bookingService] 유효하지 않은 시간 형식입니다.');
       return null;
     }
-    
+
     // 미래 시간 검증 (날짜와 시간이 모두 제공된 경우에만)
-    if (bookingData.scheduledDate && bookingData.scheduledTime && 
-        !isFutureDateTime(bookingData.scheduledDate, bookingData.scheduledTime, 30)) {
+    if (
+      bookingData.scheduledDate &&
+      bookingData.scheduledTime &&
+      !isFutureDateTime(bookingData.scheduledDate, bookingData.scheduledTime, 30)
+    ) {
       console.error('[bookingService] 예약은 현재 시간으로부터 최소 30분 후부터 가능합니다.');
       return null;
     }
-    
+
     try {
       const response = await api.put(`/bookings/${bookingData.id}`, bookingData);
       return response.data || null;
@@ -305,7 +317,7 @@ export const bookingService = {
       console.error('[bookingService] 예약 ID가 제공되지 않았습니다.');
       return null;
     }
-    
+
     try {
       const response = await api.post(`/bookings/${bookingId}/cancel`, { reason });
       return response.data || null;
@@ -322,12 +334,16 @@ export const bookingService = {
    * @param estimatedCost 예상 비용
    * @returns 확인된 예약 정보
    */
-  async confirmBooking(bookingId: string, estimatedDuration: number, estimatedCost: number): Promise<Booking | null> {
+  async confirmBooking(
+    bookingId: string,
+    estimatedDuration: number,
+    estimatedCost: number
+  ): Promise<Booking | null> {
     if (!bookingId) {
       console.error('[bookingService] 예약 ID가 제공되지 않았습니다.');
       return null;
     }
-    
+
     try {
       const response = await api.post(`/bookings/${bookingId}/confirm`, {
         estimatedDuration,
@@ -347,12 +363,16 @@ export const bookingService = {
    * @param actualCost 실제 비용
    * @returns 완료된 예약 정보
    */
-  async completeBooking(bookingId: string, actualDuration?: number, actualCost?: number): Promise<Booking | null> {
+  async completeBooking(
+    bookingId: string,
+    actualDuration?: number,
+    actualCost?: number
+  ): Promise<Booking | null> {
     if (!bookingId) {
       console.error('[bookingService] 예약 ID가 제공되지 않았습니다.');
       return null;
     }
-    
+
     try {
       const response = await api.post(`/bookings/${bookingId}/complete`, {
         actualDuration,
@@ -373,30 +393,35 @@ export const bookingService = {
    * @param reason 변경 사유 (선택)
    * @returns 일정 변경된 예약 정보
    */
-  async rescheduleBooking(bookingId: string, scheduledDate: string, scheduledTime: string, reason?: string): Promise<Booking | null> {
+  async rescheduleBooking(
+    bookingId: string,
+    scheduledDate: string,
+    scheduledTime: string,
+    reason?: string
+  ): Promise<Booking | null> {
     if (!bookingId || !scheduledDate || !scheduledTime) {
       console.error('[bookingService] 예약 ID 또는 일정 데이터가 제공되지 않았습니다.');
       return null;
     }
-    
+
     // 날짜 형식 검증
     if (!isValidDate(scheduledDate)) {
       console.error('[bookingService] 유효하지 않은 날짜 형식입니다.');
       return null;
     }
-    
+
     // 시간 형식 검증
     if (!isValidTime(scheduledTime)) {
       console.error('[bookingService] 유효하지 않은 시간 형식입니다.');
       return null;
     }
-    
+
     // 미래 시간 검증 (현재로부터 30분 이후)
     if (!isFutureDateTime(scheduledDate, scheduledTime, 30)) {
       console.error('[bookingService] 예약은 현재 시간으로부터 최소 30분 후부터 가능합니다.');
       return null;
     }
-    
+
     try {
       const response = await api.post(`/bookings/${bookingId}/reschedule`, {
         scheduledDate,
@@ -417,12 +442,16 @@ export const bookingService = {
    * @param serviceType 서비스 유형
    * @returns 가용 시간대 목록
    */
-  async getAvailableTimeSlots(shopId: string, date: string, serviceType: ServiceType): Promise<TimeSlot[]> {
+  async getAvailableTimeSlots(
+    shopId: string,
+    date: string,
+    serviceType: ServiceType
+  ): Promise<TimeSlot[]> {
     if (!shopId || !date) {
       console.error('[bookingService] 정비소 ID 또는 날짜가 제공되지 않았습니다.');
       return [];
     }
-    
+
     try {
       const response = await api.get('/bookings/available-time-slots', {
         params: {
@@ -460,12 +489,16 @@ export const bookingService = {
    * @param endDate 종료일
    * @returns 기간별 예약 정보
    */
-  async getBookingCalendar(shopId: string, startDate: string, endDate: string): Promise<Record<string, Booking[]> | null> {
+  async getBookingCalendar(
+    shopId: string,
+    startDate: string,
+    endDate: string
+  ): Promise<Record<string, Booking[]> | null> {
     if (!shopId || !startDate || !endDate) {
       console.error('[bookingService] 정비소 ID 또는 날짜 범위가 제공되지 않았습니다.');
       return null;
     }
-    
+
     try {
       const response = await api.get('/bookings/calendar', {
         params: {
@@ -491,7 +524,7 @@ export const bookingService = {
       console.error('[bookingService] 예약 ID가 제공되지 않았습니다.');
       return [];
     }
-    
+
     try {
       const response = await api.get(`/bookings/${bookingId}/history`);
       return response.data || [];
@@ -507,19 +540,25 @@ export const bookingService = {
    * @param serviceType 서비스 유형
    * @returns 가장 빠른 가용 날짜 및 시간
    */
-  async getEarliestAvailableSlot(shopId: string, serviceType: ServiceType): Promise<{ date: string, time: string } | null> {
+  async getEarliestAvailableSlot(
+    shopId: string,
+    serviceType: ServiceType
+  ): Promise<{ date: string; time: string } | null> {
     if (!shopId) {
       console.error('[bookingService] 정비소 ID가 제공되지 않았습니다.');
       return null;
     }
-    
+
     try {
       const response = await api.get(`/shops/${shopId}/earliest-slot`, {
         params: { serviceType }
       });
       return response.data && response.data.date && response.data.time ? response.data : null;
     } catch (error) {
-      console.error(`[bookingService] 정비소 ID ${shopId}의 가장 빠른 예약 가능 시간 조회 중 오류 발생:`, error);
+      console.error(
+        `[bookingService] 정비소 ID ${shopId}의 가장 빠른 예약 가능 시간 조회 중 오류 발생:`,
+        error
+      );
       return null;
     }
   },
@@ -530,12 +569,15 @@ export const bookingService = {
    * @param reminderTime 알림 시간 (예약 시간 기준 분 단위 이전 시간)
    * @returns 알림 설정 정보
    */
-  async setBookingReminder(bookingId: string, reminderTime: number): Promise<{ bookingId: string, reminderTime: number } | null> {
+  async setBookingReminder(
+    bookingId: string,
+    reminderTime: number
+  ): Promise<{ bookingId: string; reminderTime: number } | null> {
     if (!bookingId || reminderTime === undefined) {
       console.error('[bookingService] 예약 ID 또는 알림 시간이 제공되지 않았습니다.');
       return null;
     }
-    
+
     try {
       const response = await api.post(`/bookings/${bookingId}/reminder`, { reminderTime });
       return response.data || null;
@@ -544,4 +586,4 @@ export const bookingService = {
       return null;
     }
   }
-}; 
+};

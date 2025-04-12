@@ -2,11 +2,12 @@
  * 인증 및 사용자 관련 API 서비스
  */
 
+import { jwtDecode } from 'jwt-decode';
+
 import { api } from './api';
-import { jwtDecode } from "jwt-decode";
-import { 
-  User, 
-  UserCreate, 
+import {
+  User,
+  UserCreate,
   UserUpdate,
   AuthToken,
   AuthResponse,
@@ -27,14 +28,14 @@ export const authService = {
    */
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
     const response = await api.post('auth/login', credentials);
-    
+
     // 타입 안전하게 처리
     const authResponse = response.data as AuthResponse;
-    
+
     if (authResponse.accessToken) {
       this.setToken(authResponse.accessToken);
     }
-    
+
     return authResponse;
   },
 
@@ -57,14 +58,14 @@ export const authService = {
    */
   async refreshToken(refreshToken: string): Promise<AuthResponse> {
     const response = await api.post('auth/refresh', { refreshToken });
-    
+
     // 타입 안전하게 처리
     const authResponse = response.data as AuthResponse;
-    
+
     if (authResponse.accessToken) {
       this.setToken(authResponse.accessToken);
     }
-    
+
     return authResponse;
   },
 
@@ -171,9 +172,7 @@ export const userService = {
     const response = await api.delete(`users/${userId}`);
     // success나 status 필드가 있는지 확인
     return (
-      (response.data && response.data.success) ||
-      response.status === 200 ||
-      response.status === 204
+      (response.data && response.data.success) || response.status === 200 || response.status === 204
     );
   },
 
@@ -183,9 +182,7 @@ export const userService = {
   async changePassword(userId: string, passwordData: PasswordChangeRequest): Promise<boolean> {
     const response = await api.post(`users/${userId}/change-password`, passwordData);
     return (
-      (response.data && response.data.success) ||
-      response.status === 200 ||
-      response.status === 204
+      (response.data && response.data.success) || response.status === 200 || response.status === 204
     );
   },
 
@@ -195,9 +192,7 @@ export const userService = {
   async resetPassword(resetData: PasswordResetRequest): Promise<boolean> {
     const response = await api.post('auth/reset-password', resetData);
     return (
-      (response.data && response.data.success) ||
-      response.status === 200 ||
-      response.status === 204
+      (response.data && response.data.success) || response.status === 200 || response.status === 204
     );
   },
 
@@ -239,7 +234,7 @@ export const permissionUtils = {
     if (Array.isArray(requiredRole)) {
       return requiredRole.includes(currentRole);
     }
-    
+
     return currentRole === requiredRole;
   },
 
@@ -266,4 +261,4 @@ export const permissionUtils = {
       return false;
     }
   }
-}; 
+};

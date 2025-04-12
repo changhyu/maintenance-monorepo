@@ -1,30 +1,47 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Table, Card, Row, Col, Tabs, Space, Spin, 
-  Alert, Typography, Badge, Select, Button, 
-  Divider, Empty, message
-} from 'antd';
-import { 
-  CarOutlined, LineChartOutlined, 
-  FileDoneOutlined, FilterOutlined, 
-  ReloadOutlined, DownloadOutlined
+
+import {
+  CarOutlined,
+  LineChartOutlined,
+  FileDoneOutlined,
+  FilterOutlined,
+  ReloadOutlined,
+  DownloadOutlined
 } from '@ant-design/icons';
-import { DateRangePicker, FilterSelect, ReportGenerator } from '../components/common';
-import { ReportType } from '../components/common';
-import type { DateRange } from '../components/common';
-import VehicleTypeChart from '../components/charts/VehicleTypeChart';
-import MaintenanceStatusChart from '../components/charts/MaintenanceStatusChart';
-import CostDistributionChart from '../components/charts/CostDistributionChart';
-import MaintenanceTrendChart from '../components/charts/MaintenanceTrendChart';
+import {
+  Table,
+  Card,
+  Row,
+  Col,
+  Tabs,
+  Space,
+  Spin,
+  Alert,
+  Typography,
+  Badge,
+  Select,
+  Button,
+  Divider,
+  Empty,
+  message
+} from 'antd';
 import axios from 'axios';
-import apiClient from '../services/api';
+
 import { BookingButton } from '../components/booking/BookingModal';
+import CostDistributionChart from '../components/charts/CostDistributionChart';
+import MaintenanceStatusChart from '../components/charts/MaintenanceStatusChart';
+import MaintenanceTrendChart from '../components/charts/MaintenanceTrendChart';
+import VehicleTypeChart from '../components/charts/VehicleTypeChart';
+import { DateRangePicker, FilterSelect, ReportGenerator, ReportType } from '../components/common';
+import apiClient from '../services/api';
+
+import type { DateRange } from '../components/common';
 
 const { TabPane } = Tabs;
 const { Title, Text } = Typography;
 const { Option } = Select;
 
-// 차량 보고서 인터페이스
+// 보고서 차량 정보 인터페이스
 interface ReportVehicle {
   id: string;
   name: string;
@@ -35,6 +52,8 @@ interface ReportVehicle {
   healthScore: number;
   maintenanceCount?: number;
   cost?: number;
+  // 문자열 인덱스 시그니처 추가하여 DataItem과 호환되도록 함
+  [key: string]: string | number | boolean | Date | null | undefined;
 }
 
 const VehicleReportPage: React.FC = () => {
@@ -67,22 +86,22 @@ const VehicleReportPage: React.FC = () => {
       // 실제 구현에서는 API 호출
       // const response = await apiClient.get('/vehicles');
       // setVehicles(response.data);
-      
+
       // 샘플 데이터
       const mockVehicles: ReportVehicle[] = generateMockVehicles();
       setVehicles(mockVehicles);
-      
+
       // 차량 유형 목록 추출
       const types = [...new Set(mockVehicles.map(v => v.type))];
       setVehicleTypes(types);
     } catch (err) {
       console.error('차량 데이터를 불러오는 중 오류가 발생했습니다:', err);
       setError('차량 데이터를 불러오는 중 오류가 발생했습니다.');
-      
+
       // 에러 발생 시에도 샘플 데이터 사용
       const mockVehicles: ReportVehicle[] = generateMockVehicles();
       setVehicles(mockVehicles);
-      
+
       const types = [...new Set(mockVehicles.map(v => v.type))];
       setVehicleTypes(types);
     } finally {
@@ -94,14 +113,14 @@ const VehicleReportPage: React.FC = () => {
   const generateMockVehicles = (): ReportVehicle[] => {
     const vehicleTypes = ['승용차', '화물차', 'SUV', '버스', '트럭'];
     const statuses = ['운행 중', '정비 중', '대기 중', '고장', '점검 필요'];
-    
+
     return Array.from({ length: 50 }).map((_, idx) => {
       const type = vehicleTypes[Math.floor(Math.random() * vehicleTypes.length)];
       const status = statuses[Math.floor(Math.random() * statuses.length)];
       const healthScore = Math.floor(Math.random() * 100);
       const lastMaintenance = new Date();
       lastMaintenance.setDate(lastMaintenance.getDate() - Math.floor(Math.random() * 90));
-      
+
       return {
         id: `VH-${1000 + idx}`,
         name: `차량 ${1000 + idx}`,
@@ -119,23 +138,23 @@ const VehicleReportPage: React.FC = () => {
   // 필터 적용
   const applyFilters = () => {
     let filtered = [...vehicles];
-    
+
     // 차량 유형 필터
     if (selectedVehicleTypes.length > 0) {
       filtered = filtered.filter(vehicle => selectedVehicleTypes.includes(vehicle.type));
     }
-    
+
     // 날짜 범위 필터
     if (dateRange && dateRange.startDate && dateRange.endDate) {
       const startDate = new Date(dateRange.startDate).getTime();
       const endDate = new Date(dateRange.endDate).getTime();
-      
+
       filtered = filtered.filter(vehicle => {
         const maintenanceDate = new Date(vehicle.lastMaintenance).getTime();
         return maintenanceDate >= startDate && maintenanceDate <= endDate;
       });
     }
-    
+
     setFilteredVehicles(filtered);
   };
 
@@ -145,7 +164,7 @@ const VehicleReportPage: React.FC = () => {
     setDateRange(null);
   };
 
-  // 상태에 따른 배지 색상 
+  // 상태에 따른 배지 색상
   const getStatusBadge = (status: string) => {
     switch (status) {
       case '운행 중':
@@ -181,40 +200,40 @@ const VehicleReportPage: React.FC = () => {
       title: '차량 ID',
       dataIndex: 'id',
       key: 'id',
-      width: 100,
+      width: 100
     },
     {
       title: '차량명',
       dataIndex: 'name',
       key: 'name',
-      width: 150,
+      width: 150
     },
     {
       title: '유형',
       dataIndex: 'type',
       key: 'type',
-      width: 100,
+      width: 100
     },
     {
       title: '상태',
       dataIndex: 'status',
       key: 'status',
       width: 120,
-      render: (status: string) => getStatusBadge(status),
+      render: (status: string) => getStatusBadge(status)
     },
     {
       title: '최근 정비일',
       dataIndex: 'lastMaintenance',
       key: 'lastMaintenance',
       width: 120,
-      render: (date: string) => new Date(date).toLocaleDateString('ko-KR'),
+      render: (date: string) => new Date(date).toLocaleDateString('ko-KR')
     },
     {
       title: '주행거리',
       dataIndex: 'mileage',
       key: 'mileage',
       width: 120,
-      render: (mileage: number) => `${mileage.toLocaleString('ko-KR')} km`,
+      render: (mileage: number) => `${mileage.toLocaleString('ko-KR')} km`
     },
     {
       title: '상태 점수',
@@ -222,10 +241,8 @@ const VehicleReportPage: React.FC = () => {
       key: 'healthScore',
       width: 120,
       render: (score: number) => (
-        <div style={{ color: getHealthScoreColor(score), fontWeight: 'bold' }}>
-          {score}%
-        </div>
-      ),
+        <div style={{ color: getHealthScoreColor(score), fontWeight: 'bold' }}>{score}%</div>
+      )
     },
     {
       title: '정비 예약',
@@ -233,17 +250,19 @@ const VehicleReportPage: React.FC = () => {
       width: 120,
       render: (_: any, record: ReportVehicle) => (
         <Space>
-          <BookingButton 
-            vehicleId={record.id} 
-            buttonText={record.healthScore < 50 ? '긴급 정비' : '정비 예약'} 
+          <BookingButton
+            vehicleId={record.id}
+            buttonText={record.healthScore < 50 ? '긴급 정비' : '정비 예약'}
             buttonType={record.healthScore < 50 ? 'primary' : 'default'}
-            onBookingCreated={(bookingId) => {
-              message.success(`차량 ${record.name}에 대한 정비 예약이 완료되었습니다. (예약 ID: ${bookingId})`);
+            onBookingCreated={bookingId => {
+              message.success(
+                `차량 ${record.name}에 대한 정비 예약이 완료되었습니다. (예약 ID: ${bookingId})`
+              );
             }}
           />
         </Space>
-      ),
-    },
+      )
+    }
   ];
 
   return (
@@ -256,17 +275,13 @@ const VehicleReportPage: React.FC = () => {
           </Col>
           <Col>
             <Space>
-              <Button
-                icon={<ReloadOutlined />}
-                onClick={fetchVehicles}
-                loading={loading}
-              >
+              <Button icon={<ReloadOutlined />} onClick={fetchVehicles} loading={loading}>
                 새로고침
               </Button>
-              <BookingButton 
-                buttonText="신규 정비 예약" 
+              <BookingButton
+                buttonText="신규 정비 예약"
                 buttonType="primary"
-                onBookingCreated={(bookingId) => {
+                onBookingCreated={bookingId => {
                   message.success(`정비 예약이 완료되었습니다. (예약 ID: ${bookingId})`);
                   fetchVehicles();
                 }}
@@ -276,7 +291,7 @@ const VehicleReportPage: React.FC = () => {
                 availableTypes={[
                   ReportType.VEHICLE_STATUS,
                   ReportType.MAINTENANCE_HISTORY,
-                  ReportType.FLEET_SUMMARY,
+                  ReportType.FLEET_SUMMARY
                 ]}
                 filenamePrefix="vehicle-report"
                 onReportGenerated={handleReportGenerated}
@@ -292,7 +307,9 @@ const VehicleReportPage: React.FC = () => {
       <Card className="filter-section" style={{ marginBottom: '20px' }}>
         <Space align="start" size="large">
           <div>
-            <Text strong style={{ display: 'block', marginBottom: '8px' }}>차량 유형</Text>
+            <Text strong style={{ display: 'block', marginBottom: '8px' }}>
+              차량 유형
+            </Text>
             <FilterSelect
               options={vehicleTypes.map(type => ({ value: type, label: type }))}
               value={selectedVehicleTypes}
@@ -302,15 +319,14 @@ const VehicleReportPage: React.FC = () => {
               mode="multiple"
             />
           </div>
-          
+
           <div>
-            <Text strong style={{ display: 'block', marginBottom: '8px' }}>정비 기간</Text>
-            <DateRangePicker 
-              onChange={setDateRange}
-              defaultValue={dateRange}
-            />
+            <Text strong style={{ display: 'block', marginBottom: '8px' }}>
+              정비 기간
+            </Text>
+            <DateRangePicker onChange={setDateRange} defaultValue={dateRange} />
           </div>
-          
+
           <Button
             type="primary"
             icon={<FilterOutlined />}
@@ -319,11 +335,8 @@ const VehicleReportPage: React.FC = () => {
           >
             필터 적용
           </Button>
-          
-          <Button 
-            onClick={resetFilters} 
-            style={{ marginTop: '30px' }}
-          >
+
+          <Button onClick={resetFilters} style={{ marginTop: '30px' }}>
             초기화
           </Button>
         </Space>
@@ -357,14 +370,16 @@ const VehicleReportPage: React.FC = () => {
               showIcon
               style={{ marginBottom: '20px' }}
               action={
-                <Button 
-                  size="small" 
-                  type="primary" 
+                <Button
+                  size="small"
+                  type="primary"
                   danger
                   onClick={() => {
                     const lowHealthVehicles = filteredVehicles.filter(v => v.healthScore < 50);
                     if (lowHealthVehicles.length > 0) {
-                      message.info(`${lowHealthVehicles[0].name} 차량의 정비 예약을 위해 목록에서 "긴급 정비" 버튼을 클릭하세요.`);
+                      message.info(
+                        `${lowHealthVehicles[0].name} 차량의 정비 예약을 위해 목록에서 "긴급 정비" 버튼을 클릭하세요.`
+                      );
                     }
                   }}
                 >
@@ -373,12 +388,15 @@ const VehicleReportPage: React.FC = () => {
               }
             />
           )}
-          <Tabs 
-            activeKey={activeTab}
-            onChange={setActiveTab}
-            style={{ marginBottom: '20px' }}
-          >
-            <TabPane tab={<span><CarOutlined /> 차량 상태</span>} key="status">
+          <Tabs activeKey={activeTab} onChange={setActiveTab} style={{ marginBottom: '20px' }}>
+            <TabPane
+              tab={
+                <span>
+                  <CarOutlined /> 차량 상태
+                </span>
+              }
+              key="status"
+            >
               <Table
                 dataSource={filteredVehicles}
                 columns={columns}
@@ -389,23 +407,42 @@ const VehicleReportPage: React.FC = () => {
                 locale={{ emptyText: <Empty description="데이터가 없습니다" /> }}
               />
             </TabPane>
-            
-            <TabPane tab={<span><LineChartOutlined /> 요약 대시보드</span>} key="dashboard">
+
+            <TabPane
+              tab={
+                <span>
+                  <LineChartOutlined /> 요약 대시보드
+                </span>
+              }
+              key="dashboard"
+            >
               <Row gutter={[16, 16]}>
                 <Col span={8}>
                   <Card title="차량 유형 분포">
                     {filteredVehicles.length > 0 ? (
-                      <VehicleTypeChart 
-                        data={Object.entries(filteredVehicles.reduce((acc, vehicle) => {
-                          acc[vehicle.type] = (acc[vehicle.type] || 0) + 1;
-                          return acc;
-                        }, {} as Record<string, number>)).map(([label, value]) => ({
+                      <VehicleTypeChart
+                        data={Object.entries(
+                          filteredVehicles.reduce(
+                            (acc, vehicle) => {
+                              acc[vehicle.type] = (acc[vehicle.type] || 0) + 1;
+                              return acc;
+                            },
+                            {} as Record<string, number>
+                          )
+                        ).map(([label, value]) => ({
                           label,
                           value
                         }))}
                       />
                     ) : (
-                      <div style={{ height: 200, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                      <div
+                        style={{
+                          height: 200,
+                          display: 'flex',
+                          justifyContent: 'center',
+                          alignItems: 'center'
+                        }}
+                      >
                         <Text type="secondary">데이터가 없습니다</Text>
                       </div>
                     )}
@@ -414,17 +451,29 @@ const VehicleReportPage: React.FC = () => {
                 <Col span={8}>
                   <Card title="차량 상태 분포">
                     {filteredVehicles.length > 0 ? (
-                      <MaintenanceStatusChart 
-                        data={Object.entries(filteredVehicles.reduce((acc, vehicle) => {
-                          acc[vehicle.status] = (acc[vehicle.status] || 0) + 1;
-                          return acc;
-                        }, {} as Record<string, number>)).map(([label, value]) => ({
+                      <MaintenanceStatusChart
+                        data={Object.entries(
+                          filteredVehicles.reduce(
+                            (acc, vehicle) => {
+                              acc[vehicle.status] = (acc[vehicle.status] || 0) + 1;
+                              return acc;
+                            },
+                            {} as Record<string, number>
+                          )
+                        ).map(([label, value]) => ({
                           label,
                           value
                         }))}
                       />
                     ) : (
-                      <div style={{ height: 200, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                      <div
+                        style={{
+                          height: 200,
+                          display: 'flex',
+                          justifyContent: 'center',
+                          alignItems: 'center'
+                        }}
+                      >
                         <Text type="secondary">데이터가 없습니다</Text>
                       </div>
                     )}
@@ -433,15 +482,33 @@ const VehicleReportPage: React.FC = () => {
                 <Col span={8}>
                   <Card title="상태 점수 분포">
                     {filteredVehicles.length > 0 ? (
-                      <CostDistributionChart 
+                      <CostDistributionChart
                         data={[
-                          { label: '양호 (80-100)', value: filteredVehicles.filter(v => v.healthScore >= 80).length },
-                          { label: '주의 (50-79)', value: filteredVehicles.filter(v => v.healthScore >= 50 && v.healthScore < 80).length },
-                          { label: '위험 (0-49)', value: filteredVehicles.filter(v => v.healthScore < 50).length }
+                          {
+                            label: '양호 (80-100)',
+                            value: filteredVehicles.filter(v => v.healthScore >= 80).length
+                          },
+                          {
+                            label: '주의 (50-79)',
+                            value: filteredVehicles.filter(
+                              v => v.healthScore >= 50 && v.healthScore < 80
+                            ).length
+                          },
+                          {
+                            label: '위험 (0-49)',
+                            value: filteredVehicles.filter(v => v.healthScore < 50).length
+                          }
                         ]}
                       />
                     ) : (
-                      <div style={{ height: 200, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                      <div
+                        style={{
+                          height: 200,
+                          display: 'flex',
+                          justifyContent: 'center',
+                          alignItems: 'center'
+                        }}
+                      >
                         <Text type="secondary">데이터가 없습니다</Text>
                       </div>
                     )}
@@ -452,7 +519,7 @@ const VehicleReportPage: React.FC = () => {
                 <Col span={24}>
                   <Card title="차량 상태 점수 통계">
                     {filteredVehicles.length > 0 ? (
-                      <MaintenanceTrendChart 
+                      <MaintenanceTrendChart
                         data={filteredVehicles.map(vehicle => ({
                           date: vehicle.lastMaintenance,
                           completed: 1,
@@ -460,7 +527,14 @@ const VehicleReportPage: React.FC = () => {
                         }))}
                       />
                     ) : (
-                      <div style={{ height: 200, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                      <div
+                        style={{
+                          height: 200,
+                          display: 'flex',
+                          justifyContent: 'center',
+                          alignItems: 'center'
+                        }}
+                      >
                         <Text type="secondary">데이터가 없습니다</Text>
                       </div>
                     )}
@@ -468,8 +542,15 @@ const VehicleReportPage: React.FC = () => {
                 </Col>
               </Row>
             </TabPane>
-            
-            <TabPane tab={<span><FileDoneOutlined /> 상세 분석</span>} key="analysis">
+
+            <TabPane
+              tab={
+                <span>
+                  <FileDoneOutlined /> 상세 분석
+                </span>
+              }
+              key="analysis"
+            >
               <Card>
                 <Row gutter={[16, 16]}>
                   <Col span={12}>
@@ -477,16 +558,41 @@ const VehicleReportPage: React.FC = () => {
                       {filteredVehicles.length > 0 ? (
                         <div>
                           <div style={{ marginBottom: 16 }}>
-                            <Title level={4}>평균 정비 횟수: {(filteredVehicles.reduce((sum, v) => sum + (v.maintenanceCount || 0), 0) / filteredVehicles.length).toFixed(1)}회</Title>
+                            <Title level={4}>
+                              평균 정비 횟수:{' '}
+                              {(
+                                filteredVehicles.reduce(
+                                  (sum, v) => sum + (v.maintenanceCount || 0),
+                                  0
+                                ) / filteredVehicles.length
+                              ).toFixed(1)}
+                              회
+                            </Title>
                           </div>
                           <div>
-                            <Text>5회 미만: {filteredVehicles.filter(v => (v.maintenanceCount || 0) < 5).length}대</Text>
+                            <Text>
+                              5회 미만:{' '}
+                              {filteredVehicles.filter(v => (v.maintenanceCount || 0) < 5).length}대
+                            </Text>
                           </div>
                           <div>
-                            <Text>5-10회: {filteredVehicles.filter(v => (v.maintenanceCount || 0) >= 5 && (v.maintenanceCount || 0) < 10).length}대</Text>
+                            <Text>
+                              5-10회:{' '}
+                              {
+                                filteredVehicles.filter(
+                                  v =>
+                                    (v.maintenanceCount || 0) >= 5 && (v.maintenanceCount || 0) < 10
+                                ).length
+                              }
+                              대
+                            </Text>
                           </div>
                           <div>
-                            <Text>10회 이상: {filteredVehicles.filter(v => (v.maintenanceCount || 0) >= 10).length}대</Text>
+                            <Text>
+                              10회 이상:{' '}
+                              {filteredVehicles.filter(v => (v.maintenanceCount || 0) >= 10).length}
+                              대
+                            </Text>
                           </div>
                         </div>
                       ) : (
@@ -499,11 +605,35 @@ const VehicleReportPage: React.FC = () => {
                       {filteredVehicles.length > 0 ? (
                         <div>
                           <div style={{ marginBottom: 16 }}>
-                            <Title level={4}>총 정비 비용: {filteredVehicles.reduce((sum, v) => sum + (v.cost || 0), 0).toLocaleString('ko-KR')}원</Title>
-                            <Title level={5}>차량당 평균: {(filteredVehicles.reduce((sum, v) => sum + (v.cost || 0), 0) / filteredVehicles.length).toLocaleString('ko-KR')}원</Title>
+                            <Title level={4}>
+                              총 정비 비용:{' '}
+                              {filteredVehicles
+                                .reduce((sum, v) => sum + (v.cost || 0), 0)
+                                .toLocaleString('ko-KR')}
+                              원
+                            </Title>
+                            <Title level={5}>
+                              차량당 평균:{' '}
+                              {(
+                                filteredVehicles.reduce((sum, v) => sum + (v.cost || 0), 0) /
+                                filteredVehicles.length
+                              ).toLocaleString('ko-KR')}
+                              원
+                            </Title>
                           </div>
                           <div>
-                            <Text>최고 비용 차량: {filteredVehicles.sort((a, b) => (b.cost || 0) - (a.cost || 0))[0]?.name} ({filteredVehicles.sort((a, b) => (b.cost || 0) - (a.cost || 0))[0]?.cost?.toLocaleString('ko-KR')}원)</Text>
+                            <Text>
+                              최고 비용 차량:{' '}
+                              {
+                                filteredVehicles.sort((a, b) => (b.cost || 0) - (a.cost || 0))[0]
+                                  ?.name
+                              }{' '}
+                              (
+                              {filteredVehicles
+                                .sort((a, b) => (b.cost || 0) - (a.cost || 0))[0]
+                                ?.cost?.toLocaleString('ko-KR')}
+                              원)
+                            </Text>
                           </div>
                         </div>
                       ) : (
@@ -525,4 +655,4 @@ const VehicleReportPage: React.FC = () => {
   );
 };
 
-export default VehicleReportPage; 
+export default VehicleReportPage;

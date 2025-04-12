@@ -3,16 +3,20 @@ Pydantic schemas for API request and response validation.
 """
 
 from datetime import datetime
+from typing import List, Optional, Any, Dict, Generic, TypeVar, Union
 from enum import Enum
-from typing import List, Optional, Any, Dict
+from pydantic.generics import GenericModel
 
+
+
+# REMOVED: from pydantic import BaseModel, Field, EmailStr, ConfigDict
 from pydantic import BaseModel, Field, EmailStr, ConfigDict
 
 
 # 기본 스키마
 class BaseSchema(BaseModel):
     """기본 스키마 클래스."""
-    
+
     model_config = ConfigDict(
         from_attributes=True,
         populate_by_name=True
@@ -22,7 +26,7 @@ class BaseSchema(BaseModel):
 # 상태 및 타입 열거형
 class VehicleStatus(str, Enum):
     """차량 상태 열거형."""
-    
+
     ACTIVE = "active"
     MAINTENANCE = "maintenance"
     INACTIVE = "inactive"
@@ -31,7 +35,7 @@ class VehicleStatus(str, Enum):
 
 class VehicleType(str, Enum):
     """차량 유형 열거형."""
-    
+
     SEDAN = "sedan"
     SUV = "suv"
     TRUCK = "truck"
@@ -42,7 +46,7 @@ class VehicleType(str, Enum):
 
 class MaintenanceStatus(str, Enum):
     """정비 상태 열거형."""
-    
+
     SCHEDULED = "scheduled"
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
@@ -52,7 +56,7 @@ class MaintenanceStatus(str, Enum):
 
 class UserRole(str, Enum):
     """사용자 역할 열거형."""
-    
+
     ADMIN = "admin"
     MANAGER = "manager"
     TECHNICIAN = "technician"
@@ -61,7 +65,7 @@ class UserRole(str, Enum):
 
 class ShopStatus(str, Enum):
     """정비소 상태 열거형."""
-    
+
     ACTIVE = "active"
     INACTIVE = "inactive"
     PENDING = "pending"
@@ -70,7 +74,7 @@ class ShopStatus(str, Enum):
 
 class ShopType(str, Enum):
     """정비소 유형 열거형."""
-    
+
     DEALER = "dealer"
     INDEPENDENT = "independent"
     SPECIALTY = "specialty"
@@ -79,7 +83,7 @@ class ShopType(str, Enum):
 
 class ServiceType(str, Enum):
     """서비스 유형 열거형."""
-    
+
     OIL_CHANGE = "oil_change"
     TIRE_SERVICE = "tire_service"
     BRAKE_SERVICE = "brake_service"
@@ -92,10 +96,28 @@ class ServiceType(str, Enum):
     GENERAL = "general"
 
 
+class TodoPriority(str, Enum):
+    """Todo 우선순위 열거형."""
+    
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    URGENT = "urgent"
+
+
+class TodoStatus(str, Enum):
+    """Todo 상태 열거형."""
+    
+    PENDING = "pending"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+
+
 # 차량 관련 스키마
 class VehicleBase(BaseSchema):
     """차량 기본 스키마."""
-    
+
     vin: str = Field(..., description="차량 식별 번호")
     make: str = Field(..., description="제조사")
     model: str = Field(..., description="모델명")
@@ -109,13 +131,13 @@ class VehicleBase(BaseSchema):
 
 class VehicleCreate(VehicleBase):
     """차량 생성 스키마."""
-    
+
     owner_id: Optional[str] = Field(None, description="소유자 ID")
 
 
 class VehicleUpdate(BaseSchema):
     """차량 업데이트 스키마."""
-    
+
     vin: Optional[str] = None
     make: Optional[str] = None
     model: Optional[str] = None
@@ -130,7 +152,7 @@ class VehicleUpdate(BaseSchema):
 
 class Vehicle(VehicleBase):
     """차량 응답 스키마."""
-    
+
     id: str
     owner_id: Optional[str] = None
     created_at: datetime
@@ -140,40 +162,92 @@ class Vehicle(VehicleBase):
 # 정비 관련 스키마
 class MaintenanceBase(BaseSchema):
     """정비 기본 스키마."""
-    
+
     vehicle_id: str = Field(..., description="차량 ID")
+    type: str = Field(..., description="정비 유형 (routine, repair, emergency, recall, inspection, oil_change, seasonal)")
     description: str = Field(..., description="정비 설명")
-    date: datetime = Field(..., description="정비 일자")
-    status: MaintenanceStatus = Field(
-        default=MaintenanceStatus.SCHEDULED,
-        description="정비 상태"
-    )
-    cost: Optional[float] = Field(None, description="비용")
-    performed_by: Optional[str] = Field(None, description="담당자")
-    notes: Optional[str] = Field(None, description="추가 메모")
+    date: datetime = Field(..., description="정비 예정일")
+    status: MaintenanceStatus = Field(default=MaintenanceStatus.SCHEDULED, description="정비 상태")
+    cost: float = Field(default=0.0, description="비용")
+    mileage: Optional[int] = Field(None, description="주행거리")
+    performed_by: Optional[str] = Field(None, description="정비 수행자")
+    provider: Optional[str] = Field(None, description="정비소")
+    notes: Optional[str] = Field(None, description="비고")
+    completion_date: Optional[datetime] = Field(None, description="완료일")
 
 
 class MaintenanceCreate(MaintenanceBase):
     """정비 생성 스키마."""
-    
+
     pass
 
 
 class MaintenanceUpdate(BaseSchema):
     """정비 업데이트 스키마."""
-    
+
+    type: Optional[str] = None
     description: Optional[str] = None
     date: Optional[datetime] = None
     status: Optional[MaintenanceStatus] = None
     cost: Optional[float] = None
+    mileage: Optional[int] = None
     performed_by: Optional[str] = None
+    provider: Optional[str] = None
     notes: Optional[str] = None
+    completion_date: Optional[datetime] = None
+
+
+class MaintenancePartBase(BaseSchema):
+    """정비 부품 기본 스키마."""
+
+    name: str = Field(..., description="부품명")
+    part_number: Optional[str] = Field(None, description="부품 번호")
+    quantity: int = Field(default=1, description="수량")
+    unit_cost: float = Field(default=0.0, description="단가")
+    total_cost: float = Field(default=0.0, description="총액")
+    replaced: bool = Field(default=True, description="교체 여부")
+    condition: Optional[str] = Field(None, description="상태 (new, used, refurbished)")
+
+
+class MaintenanceDocumentBase(BaseSchema):
+    """정비 문서 기본 스키마."""
+
+    file_name: str = Field(..., description="파일명")
+    file_url: str = Field(..., description="파일 URL")
+    file_type: Optional[str] = Field(None, description="파일 타입")
+    file_size: Optional[int] = Field(None, description="파일 크기")
+    description: Optional[str] = Field(None, description="설명")
+
+
+class MaintenancePart(MaintenancePartBase):
+    """정비 부품 응답 스키마."""
+
+    id: str
+    maintenance_id: str
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        orm_mode = True
+
+
+class MaintenanceDocument(MaintenanceDocumentBase):
+    """정비 문서 응답 스키마."""
+
+    id: str
+    maintenance_id: str
+    uploaded_at: datetime
+
+    class Config:
+        orm_mode = True
 
 
 class Maintenance(MaintenanceBase):
     """정비 응답 스키마."""
-    
+
     id: str
+    parts: Optional[List[MaintenancePart]] = Field(default=[], description="부품 목록")
+    documents: Optional[List[MaintenanceDocument]] = Field(default=[], description="문서 목록")
     created_at: datetime
     updated_at: datetime
 
@@ -181,14 +255,14 @@ class Maintenance(MaintenanceBase):
 # 정비소 관련 스키마
 class LocationSchema(BaseSchema):
     """위치 정보 스키마."""
-    
+
     latitude: float = Field(..., description="위도")
     longitude: float = Field(..., description="경도")
 
 
 class BusinessHoursSchema(BaseSchema):
     """영업 시간 스키마."""
-    
+
     day: str = Field(..., description="요일")
     open: Optional[str] = Field(None, description="개점 시간")
     close: Optional[str] = Field(None, description="폐점 시간")
@@ -197,7 +271,7 @@ class BusinessHoursSchema(BaseSchema):
 
 class AddressSchema(BaseSchema):
     """주소 스키마."""
-    
+
     street: str = Field(..., description="도로명")
     city: str = Field(..., description="시/도")
     district: str = Field(..., description="구/군")
@@ -207,7 +281,7 @@ class AddressSchema(BaseSchema):
 
 class ContactSchema(BaseSchema):
     """연락처 스키마."""
-    
+
     phone: str = Field(..., description="전화번호")
     email: Optional[EmailStr] = Field(None, description="이메일")
     website: Optional[str] = Field(None, description="웹사이트")
@@ -215,7 +289,7 @@ class ContactSchema(BaseSchema):
 
 class ShopBase(BaseSchema):
     """정비소 기본 스키마."""
-    
+
     name: str = Field(..., description="정비소 명")
     type: ShopType = Field(..., description="정비소 유형")
     status: ShopStatus = Field(default=ShopStatus.ACTIVE, description="상태")
@@ -228,14 +302,14 @@ class ShopBase(BaseSchema):
 
 class ShopCreate(ShopBase):
     """정비소 생성 스키마."""
-    
+
     owner_id: Optional[str] = Field(None, description="소유자 ID")
     services: Optional[List[str]] = Field(default_factory=list, description="제공 서비스")
 
 
 class ShopUpdate(BaseSchema):
     """정비소 업데이트 스키마."""
-    
+
     name: Optional[str] = None
     type: Optional[ShopType] = None
     status: Optional[ShopStatus] = None
@@ -249,7 +323,7 @@ class ShopUpdate(BaseSchema):
 
 class Shop(ShopBase):
     """정비소 응답 스키마."""
-    
+
     id: str
     owner_id: Optional[str] = None
     rating: Optional[float] = None
@@ -260,7 +334,7 @@ class Shop(ShopBase):
 
 class ShopReviewBase(BaseSchema):
     """정비소 리뷰 기본 스키마."""
-    
+
     shop_id: str = Field(..., description="정비소 ID")
     user_id: str = Field(..., description="사용자 ID")
     rating: float = Field(..., ge=1, le=5, description="평점")
@@ -270,7 +344,7 @@ class ShopReviewBase(BaseSchema):
 
 class ShopReviewCreate(BaseSchema):
     """정비소 리뷰 생성 스키마."""
-    
+
     rating: float = Field(..., ge=1, le=5, description="평점")
     title: str = Field(..., description="제목")
     content: str = Field(..., description="내용")
@@ -278,7 +352,7 @@ class ShopReviewCreate(BaseSchema):
 
 class ShopReview(ShopReviewBase):
     """정비소 리뷰 응답 스키마."""
-    
+
     id: str
     created_at: datetime
     updated_at: datetime
@@ -287,7 +361,7 @@ class ShopReview(ShopReviewBase):
 # 사용자 관련 스키마
 class UserBase(BaseSchema):
     """사용자 기본 스키마."""
-    
+
     email: EmailStr = Field(..., description="이메일")
     name: str = Field(..., description="이름")
     role: UserRole = Field(default=UserRole.CUSTOMER, description="역할")
@@ -296,13 +370,13 @@ class UserBase(BaseSchema):
 
 class UserCreate(UserBase):
     """사용자 생성 스키마."""
-    
+
     password: str = Field(..., description="비밀번호")
 
 
 class UserUpdate(BaseSchema):
     """사용자 업데이트 스키마."""
-    
+
     email: Optional[EmailStr] = None
     name: Optional[str] = None
     role: Optional[UserRole] = None
@@ -312,7 +386,7 @@ class UserUpdate(BaseSchema):
 
 class User(UserBase):
     """사용자 응답 스키마."""
-    
+
     id: str
     created_at: datetime
     updated_at: datetime
@@ -321,13 +395,184 @@ class User(UserBase):
 # 인증 관련 스키마
 class Token(BaseSchema):
     """토큰 스키마."""
-    
+
     access_token: str
     token_type: str = "bearer"
 
 
 class TokenPayload(BaseSchema):
     """토큰 페이로드 스키마."""
+
+    sub: Optional[str] = None
+    exp: Optional[int] = None
+
+
+# 할 일 관련 스키마
+class TodoBase(BaseSchema):
+    """할 일 기본 스키마."""
     
-    sub: str = None
-    exp: int = None 
+    title: str = Field(..., description="제목")
+    description: Optional[str] = Field(None, description="설명")
+    due_date: Optional[datetime] = Field(None, description="마감일")
+    status: TodoStatus = Field(default=TodoStatus.PENDING, description="상태")
+    priority: TodoPriority = Field(default=TodoPriority.MEDIUM, description="우선순위")
+    vehicle_id: Optional[str] = Field(None, description="차량 ID")
+    user_id: str = Field(..., description="담당자 ID")
+    assignee_id: Optional[str] = Field(None, description="할당자 ID")
+    related_entity_type: Optional[str] = Field(None, description="관련 엔티티 타입")
+    related_entity_id: Optional[str] = Field(None, description="관련 엔티티 ID")
+
+
+class TodoCreate(TodoBase):
+    """Todo 생성 스키마."""
+    pass
+
+
+class TodoUpdate(BaseSchema):
+    """Todo 업데이트 스키마."""
+    
+    title: Optional[str] = None
+    description: Optional[str] = None
+    due_date: Optional[datetime] = None
+    status: Optional[TodoStatus] = None
+    priority: Optional[TodoPriority] = None
+    vehicle_id: Optional[str] = None
+    assignee_id: Optional[str] = None
+    related_entity_type: Optional[str] = None
+    related_entity_id: Optional[str] = None
+
+
+class Todo(TodoBase):
+    """Todo 응답 스키마."""
+    
+    id: str
+    created_at: datetime
+    updated_at: datetime
+    completed_at: Optional[datetime] = None
+    
+    # 추가 속성 - 관련 객체 정보
+    vehicle_info: Optional[Dict[str, Any]] = None
+    user_info: Optional[Dict[str, Any]] = None
+    assignee_info: Optional[Dict[str, Any]] = None
+    related_entity_info: Optional[Dict[str, Any]] = None
+
+
+# 할 일 응답 모델을 위한 집계 스키마
+class TodoStats(BaseSchema):
+    """Todo 통계 스키마."""
+    
+    total: int = Field(..., description="전체 할 일 수")
+    pending: int = Field(..., description="대기 중인 할 일 수")
+    in_progress: int = Field(..., description="진행 중인 할 일 수")
+    completed: int = Field(..., description="완료된 할 일 수")
+    cancelled: int = Field(..., description="취소된 할 일 수")
+    overdue: int = Field(..., description="기한이 지난 할 일 수")
+    upcoming: int = Field(..., description="다가오는 할 일 수")
+    
+    by_priority: Dict[str, int] = Field(..., description="우선순위별 할 일 수")
+    by_vehicle: Optional[Dict[str, int]] = Field(None, description="차량별 할 일 수")
+    by_assignee: Optional[Dict[str, int]] = Field(None, description="담당자별 할 일 수")
+
+
+class TodoFilter(BaseSchema):
+    """Todo 필터 스키마."""
+    
+    status: Optional[List[TodoStatus]] = None
+    priority: Optional[List[TodoPriority]] = None
+    vehicle_id: Optional[str] = None
+    user_id: Optional[str] = None
+    assignee_id: Optional[str] = None
+    due_date_from: Optional[datetime] = None
+    due_date_to: Optional[datetime] = None
+    related_entity_type: Optional[str] = None
+    related_entity_id: Optional[str] = None
+    search_term: Optional[str] = None
+
+
+class TodoResponse(BaseSchema):
+    """Todo 응답 스키마."""
+    
+    id: str
+    title: str
+    description: Optional[str] = None
+    due_date: Optional[datetime] = None
+    status: TodoStatus
+    priority: TodoPriority
+    vehicle_id: Optional[str] = None
+    user_id: str
+    assignee_id: Optional[str] = None
+    related_entity_type: Optional[str] = None
+    related_entity_id: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+    completed_at: Optional[datetime] = None
+    
+    # 추가 속성 - 관련 객체 정보
+    vehicle_info: Optional[Dict[str, Any]] = None
+    user_info: Optional[Dict[str, Any]] = None
+    assignee_info: Optional[Dict[str, Any]] = None
+    related_entity_info: Optional[Dict[str, Any]] = None
+
+
+class TodoListResponse(BaseSchema):
+    """Todo 목록 응답 스키마."""
+    
+    todos: List[TodoResponse]
+    total: int
+    page: int
+    limit: int
+    stats: Optional[TodoStats] = None
+
+
+class TodoDetailResponse(ApiResponse[TodoResponse]):
+    """Todo 상세 응답"""
+    pass
+
+
+# 제네릭 타입 변수 정의
+T = TypeVar('T')
+
+class ApiResponse(GenericModel, Generic[T]):
+    """표준 API 응답 형식"""
+    success: bool = True
+    data: Optional[T] = None
+    error: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    
+    @classmethod
+    def success_response(cls, data: T, metadata: Optional[Dict[str, Any]] = None) -> 'ApiResponse[T]':
+        """성공 응답 생성"""
+        return cls(
+            success=True,
+            data=data,
+            metadata=metadata
+        )
+    
+    @classmethod
+    def error_response(cls, error: str, metadata: Optional[Dict[str, Any]] = None) -> 'ApiResponse[None]':
+        """오류 응답 생성"""
+        return cls(
+            success=False,
+            error=error,
+            metadata=metadata
+        )
+
+# 페이지네이션 응답 타입 정의를 위한 제네릭 타입 변수
+T = TypeVar('T')
+
+class Pagination(BaseModel):
+    """페이지네이션 메타데이터"""
+    total: int
+    offset: int
+    limit: int
+    has_more: bool
+
+class PaginatedResponse(BaseModel, Generic[T]):
+    """페이지네이션 응답"""
+    items: List[T]
+    pagination: Pagination
+
+class VehicleListResponse(PaginatedResponse[Vehicle]):
+    """차량 목록 페이지네이션 응답"""
+    pass

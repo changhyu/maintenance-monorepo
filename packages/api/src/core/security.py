@@ -2,11 +2,12 @@
 인증 및 보안 관련 유틸리티.
 """
 
-from datetime import datetime, timedelta
-from typing import Any, Dict, Optional, Union
-
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, Optional
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
+
+# REMOVED: from jose import JWTError, jwt
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
@@ -40,14 +41,12 @@ def create_access_token(
     액세스 토큰 생성
     """
     to_encode = data.copy()
-    expire = datetime.utcnow() + (
-        expires_delta if expires_delta else timedelta(minutes=15)
-    )
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(
+    expire = datetime.now(timezone.utc) + (expires_delta or timedelta(minutes=15))
+    to_encode["exp"] = expire
+    
+    return jwt.encode(
         to_encode, settings.SECRET_KEY, algorithm="HS256"
     )
-    return encoded_jwt
 
 
 def decode_access_token(token: str) -> Dict[str, Any]:
@@ -55,16 +54,15 @@ def decode_access_token(token: str) -> Dict[str, Any]:
     액세스 토큰 디코딩
     """
     try:
-        payload = jwt.decode(
+        return jwt.decode(
             token, settings.SECRET_KEY, algorithms=["HS256"]
         )
-        return payload
-    except JWTError:
+    except JWTError as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="유효하지 않은 인증 정보",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from e
 
 
 async def get_current_user(token: str = Depends(oauth2_scheme)) -> Dict[str, Any]:
@@ -76,13 +74,13 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> Dict[str, Any
         detail="유효하지 않은 인증 정보",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    
+
     try:
         payload = decode_access_token(token)
         email: str = payload.get("sub")
         if email is None:
             raise credentials_exception
-        
+
         # 실제 구현에서는 DB에서 사용자 정보 조회
         # 지금은 간단한 정보만 반환
         return {
@@ -91,5 +89,6 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> Dict[str, Any
             "role": payload.get("role", ""),
             "token": token
         }
-    except JWTError:
-        raise credentials_exception 
+    except JWTError as e:
+        raise credentials_exception from e
+\n

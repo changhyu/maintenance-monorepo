@@ -24,7 +24,7 @@ class TodoTemplateService {
   constructor() {
     // 로컬 스토리지에서 템플릿 복원
     this.loadTemplatesFromStorage();
-    
+
     // 샘플 템플릿이 없으면 기본 템플릿 생성
     if (this.templates.length === 0) {
       this.createDefaultTemplates();
@@ -44,7 +44,7 @@ class TodoTemplateService {
           createdAt: new Date(t.createdAt),
           updatedAt: new Date(t.updatedAt)
         }));
-        
+
         // 로직 오류 수정: 유효한 ID 번호만 추출하고 NaN 처리
         const validIds = this.templates
           .map(t => {
@@ -67,7 +67,7 @@ class TodoTemplateService {
     try {
       // 직렬화 과정에서 오류 발생 가능성 차단
       const templatesJSON = JSON.stringify(this.templates);
-      
+
       // 스토리지 용량 검사 (대략적인 추정)
       if (templatesJSON.length > 4.5 * 1024 * 1024) {
         // ~4.5MB (localStorage 5MB 제한에 근접)
@@ -75,11 +75,11 @@ class TodoTemplateService {
           '템플릿 데이터가 로컬 스토리지 용량 한도에 근접했습니다. 일부 템플릿을 정리하는 것이 좋습니다.'
         );
       }
-      
+
       localStorage.setItem('todoTemplates', templatesJSON);
     } catch (error) {
       console.error('템플릿을 로컬 스토리지에 저장하는 중 오류가 발생했습니다:', error);
-      
+
       // QuotaExceededError 특별 처리
       if (
         error instanceof DOMException &&
@@ -168,7 +168,7 @@ class TodoTemplateService {
         updatedAt: now
       }
     ];
-    
+
     this.templates = defaultTemplates;
     this.saveTemplatesToStorage();
   }
@@ -178,10 +178,10 @@ class TodoTemplateService {
    */
   public subscribeToTemplates(listener: (templates: TodoTemplate[]) => void): () => void {
     this.listeners.push(listener);
-    
+
     // 현재 템플릿 목록으로 초기 콜백
     listener([...this.templates]);
-    
+
     // 구독 해제 함수 반환
     return () => {
       this.listeners = this.listeners.filter(l => l !== listener);
@@ -240,11 +240,11 @@ class TodoTemplateService {
       createdAt: now,
       updatedAt: now
     };
-    
+
     this.templates.push(newTemplate);
     this.saveTemplatesToStorage();
     this.notifyListeners();
-    
+
     return newTemplate;
   }
 
@@ -257,13 +257,13 @@ class TodoTemplateService {
       console.error('유효하지 않은 템플릿 ID:', id);
       return null;
     }
-    
+
     // ID 형식 검증 (template-숫자 형식)
     if (!id.startsWith('template-')) {
       console.warn('올바르지 않은 템플릿 ID 형식:', id);
       // 잘못된 형식이지만 시도는 해봄
     }
-    
+
     const template = this.templates.find(template => template.id === id);
     return template || null;
   }
@@ -276,21 +276,21 @@ class TodoTemplateService {
     updates: Partial<Omit<TodoTemplate, 'id' | 'createdAt' | 'updatedAt'>>
   ): TodoTemplate | undefined {
     const templateIndex = this.templates.findIndex(template => template.id === id);
-    
+
     if (templateIndex === -1) {
       return undefined;
     }
-    
+
     const updatedTemplate = {
       ...this.templates[templateIndex],
       ...updates,
       updatedAt: new Date()
     };
-    
+
     this.templates[templateIndex] = updatedTemplate;
     this.saveTemplatesToStorage();
     this.notifyListeners();
-    
+
     return updatedTemplate;
   }
 
@@ -300,13 +300,13 @@ class TodoTemplateService {
   public deleteTemplate(id: string): boolean {
     const initialLength = this.templates.length;
     this.templates = this.templates.filter(template => template.id !== id);
-    
+
     if (this.templates.length !== initialLength) {
       this.saveTemplatesToStorage();
       this.notifyListeners();
       return true;
     }
-    
+
     return false;
   }
 
@@ -319,11 +319,11 @@ class TodoTemplateService {
     dueDate?: string
   ): TodoCreateRequest | undefined {
     const template = this.getTemplateById(templateId);
-    
+
     if (!template) {
       return undefined;
     }
-    
+
     // 깊은 복사로 원본 템플릿 객체와 분리하여 참조 문제 방지
     const newTodo: TodoCreateRequest = {
       // 템플릿의 기본 속성 복사
@@ -331,12 +331,12 @@ class TodoTemplateService {
       description: template.template.description,
       priority: template.template.priority,
       completed: false, // 항상 완료되지 않은 상태로 생성
-      
+
       // 추가 파라미터
       vehicleId: vehicleId || undefined,
       dueDate: dueDate || undefined
     };
-    
+
     return newTodo;
   }
 
@@ -359,4 +359,4 @@ class TodoTemplateService {
 // 싱글톤 인스턴스 생성
 export const todoTemplateService = new TodoTemplateService();
 
-export default todoTemplateService; 
+export default todoTemplateService;

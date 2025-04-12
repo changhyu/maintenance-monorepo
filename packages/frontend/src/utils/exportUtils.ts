@@ -3,8 +3,9 @@
  */
 
 import FileSaver from 'file-saver';
-import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
+import * as XLSX from 'xlsx';
+
 import 'jspdf-autotable';
 import logger from './logger';
 
@@ -21,25 +22,27 @@ export const convertToCSV = (data: any[]): string => {
 
   // 헤더 추출
   const headers = Object.keys(data[0]);
-  
+
   // 헤더 행 생성
   const headerRow = headers.join(',');
-  
+
   // 데이터 행 생성
   const rows = data.map(obj => {
-    return headers.map(header => {
-      const value = obj[header] === null || obj[header] === undefined ? '' : obj[header];
-      // 문자열이고 쉼표나 쌍따옴표를 포함하면 쌍따옴표로 감싸고 내부 쌍따옴표는 두 번 반복
-      if (typeof value === 'string') {
-        if (value.includes(',') || value.includes('"')) {
-          return `"${value.replace(/"/g, '""')}"`;
+    return headers
+      .map(header => {
+        const value = obj[header] === null || obj[header] === undefined ? '' : obj[header];
+        // 문자열이고 쉼표나 쌍따옴표를 포함하면 쌍따옴표로 감싸고 내부 쌍따옴표는 두 번 반복
+        if (typeof value === 'string') {
+          if (value.includes(',') || value.includes('"')) {
+            return `"${value.replace(/"/g, '""')}"`;
+          }
+          return value;
         }
         return value;
-      }
-      return value;
-    }).join(',');
+      })
+      .join(',');
   });
-  
+
   // 헤더와 행 결합
   return [headerRow, ...rows].join('\n');
 };
@@ -63,19 +66,20 @@ export const convertToExcelXML = (data: any[]): string => {
 
   // 헤더 추출
   const headers = Object.keys(data[0]);
-  
+
   // XML 헤더
   let xml = '<?xml version="1.0"?><?mso-application progid="Excel.Sheet"?>';
-  xml += '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">';
+  xml +=
+    '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">';
   xml += '<Worksheet ss:Name="Sheet1"><Table>';
-  
+
   // 헤더 행 추가
   xml += '<Row>';
   headers.forEach(header => {
     xml += `<Cell><Data ss:Type="String">${header}</Data></Cell>`;
   });
   xml += '</Row>';
-  
+
   // 데이터 행 추가
   data.forEach(obj => {
     xml += '<Row>';
@@ -86,10 +90,10 @@ export const convertToExcelXML = (data: any[]): string => {
     });
     xml += '</Row>';
   });
-  
+
   // XML 닫기
   xml += '</Table></Worksheet></Workbook>';
-  
+
   return xml;
 };
 
@@ -180,7 +184,7 @@ const exportToExcel = (data: any[], filename: string): void => {
   const worksheet = XLSX.utils.json_to_sheet(data);
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
-  
+
   // Excel 파일 생성 및 다운로드
   XLSX.writeFile(workbook, `${filename}.xlsx`);
 };
@@ -192,16 +196,16 @@ const exportToExcel = (data: any[], filename: string): void => {
  */
 const exportToPdf = (data: any[], filename: string): void => {
   if (data.length === 0) return;
-  
+
   try {
     const doc = new jsPDF();
-    
+
     // 컬럼 헤더 추출
     const headers = Object.keys(data[0]);
-    
+
     // 데이터 행 생성
     const rows = data.map(item => headers.map(key => item[key]?.toString() || ''));
-    
+
     // jspdf-autotable 사용
     (doc as any).autoTable({
       head: [headers],
@@ -209,13 +213,13 @@ const exportToPdf = (data: any[], filename: string): void => {
       startY: 20,
       margin: { top: 20 },
       styles: { overflow: 'linebreak' },
-      headStyles: { fillColor: [41, 128, 185] },
+      headStyles: { fillColor: [41, 128, 185] }
     });
-    
+
     // 제목 추가
     doc.setFontSize(16);
     doc.text(filename, 14, 15);
-    
+
     // PDF 저장
     doc.save(`${filename}.pdf`);
     logger.info(`PDF 내보내기 완료: ${filename}.pdf`);
@@ -231,27 +235,27 @@ const exportToPdf = (data: any[], filename: string): void => {
  */
 const convertArrayToCsv = (data: any[]): string => {
   if (data.length === 0) return '';
-  
+
   const headers = Object.keys(data[0]);
-  
+
   // 헤더 행
-  let csvContent = headers.map(header => 
-    `"${header.replace(/"/g, '""')}"`
-  ).join(',') + '\n';
-  
+  let csvContent = headers.map(header => `"${header.replace(/"/g, '""')}"`).join(',') + '\n';
+
   // 데이터 행
   data.forEach(item => {
-    const row = headers.map(header => {
-      const cell = item[header] === null || item[header] === undefined ? '' : item[header];
-      // 문자열이면 따옴표로 감싸고 내부 따옴표는 이스케이프
-      if (typeof cell === 'string') {
-        return `"${cell.replace(/"/g, '""')}"`;
-      }
-      return cell;
-    }).join(',');
-    
+    const row = headers
+      .map(header => {
+        const cell = item[header] === null || item[header] === undefined ? '' : item[header];
+        // 문자열이면 따옴표로 감싸고 내부 따옴표는 이스케이프
+        if (typeof cell === 'string') {
+          return `"${cell.replace(/"/g, '""')}"`;
+        }
+        return cell;
+      })
+      .join(',');
+
     csvContent += row + '\n';
   });
-  
+
   return csvContent;
-}; 
+};

@@ -30,7 +30,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     const newTheme = theme === 'light' ? 'dark' : 'light';
     setTheme(newTheme);
     localStorage.setItem('theme', newTheme);
-    
+
     // HTML 요소에 테마 클래스 추가/제거
     if (newTheme === 'dark') {
       document.documentElement.classList.add('dark');
@@ -54,11 +54,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     toggleTheme
   };
 
-  return (
-    <ThemeContext.Provider value={contextValue}>
-      {children}
-    </ThemeContext.Provider>
-  );
+  return <ThemeContext.Provider value={contextValue}>{children}</ThemeContext.Provider>;
 };
 
 // 테마 컨텍스트 사용을 위한 훅
@@ -70,4 +66,4 @@ export const useTheme = (): ThemeContextType => {
   return context;
 };
 
-export default ThemeContext; 
+export default ThemeContext;

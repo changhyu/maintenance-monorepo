@@ -5,11 +5,12 @@
 
 import dayjs from 'dayjs';
 import 'dayjs/locale/ko';
-import relativeTime from 'dayjs/plugin/relativeTime';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
-import localizedFormat from 'dayjs/plugin/localizedFormat';
-import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
 import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
+import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
+import localizedFormat from 'dayjs/plugin/localizedFormat';
+import relativeTime from 'dayjs/plugin/relativeTime';
+
 import logger from './logger';
 
 // 플러그인 등록
@@ -199,19 +200,19 @@ export const getTodayString = (): string => {
  * @returns 더 최근 날짜 문자열
  */
 export const getMoreRecentDate = (
-  date1: string | Date | number, 
+  date1: string | Date | number,
   date2: string | Date | number
 ): string => {
   try {
     if (!date1) return dayjs(date2).format('YYYY-MM-DD');
     if (!date2) return dayjs(date1).format('YYYY-MM-DD');
-    
+
     const d1 = dayjs(date1);
     const d2 = dayjs(date2);
-    
+
     if (!d1.isValid()) return dayjs(date2).format('YYYY-MM-DD');
     if (!d2.isValid()) return dayjs(date1).format('YYYY-MM-DD');
-    
+
     return (d1.isAfter(d2) ? d1 : d2).format('YYYY-MM-DD');
   } catch (error) {
     logger.error('날짜 비교 오류:', error);
@@ -225,16 +226,13 @@ export const getMoreRecentDate = (
  * @param format 파싱할 포맷
  * @returns 파싱된 Date 객체
  */
-export const parseDate = (
-  dateString: string,
-  format?: string
-): Date | null => {
+export const parseDate = (dateString: string, format?: string): Date | null => {
   try {
     if (format) {
       const parsed = dayjs(dateString, format);
       return parsed.isValid() ? parsed.toDate() : null;
     }
-    
+
     const parsed = dayjs(dateString);
     return parsed.isValid() ? parsed.toDate() : null;
   } catch (error) {
@@ -250,11 +248,7 @@ export const parseDate = (
  * @param maxDate 최대 날짜 제한 (선택)
  * @returns 유효하면 true, 아니면 false
  */
-export const isValidDate = (
-  dateString: string, 
-  minDate?: string, 
-  maxDate?: string
-): boolean => {
+export const isValidDate = (dateString: string, minDate?: string, maxDate?: string): boolean => {
   try {
     // 기본 날짜 형식 검증
     const date = dayjs(dateString);
@@ -308,13 +302,13 @@ export const isValidTime = (timeString: string): boolean => {
 /**
  * 날짜와 시간이 현재 시점으로부터 지정된 시간(분) 이후인지 확인합니다.
  * @param dateString 날짜 문자열 ('YYYY-MM-DD' 형식)
- * @param timeString 시간 문자열 ('HH:MM' 형식) 
+ * @param timeString 시간 문자열 ('HH:MM' 형식)
  * @param minimumMinutesInFuture 현재로부터 최소 몇 분 이후여야 하는지 (기본값: 0)
  * @returns 유효하면 true, 아니면 false
  */
 export const isFutureDateTime = (
-  dateString: string, 
-  timeString: string, 
+  dateString: string,
+  timeString: string,
   minimumMinutesInFuture: number = 0
 ): boolean => {
   try {
@@ -325,10 +319,10 @@ export const isFutureDateTime = (
     // 날짜와 시간 문자열 결합
     const dateTimeString = `${dateString} ${timeString}`;
     const dateTime = dayjs(dateTimeString);
-    
+
     // 현재 시간에 최소 시간(분) 추가
     const minTime = dayjs().add(minimumMinutesInFuture, 'minute');
-    
+
     // 지정된 날짜/시간이 최소 요구 시간 이후인지 확인
     return dateTime.isAfter(minTime);
   } catch (error) {
@@ -353,4 +347,4 @@ export default {
   isValidDate,
   isValidTime,
   isFutureDateTime
-}; 
+};

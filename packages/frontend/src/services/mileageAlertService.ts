@@ -1,27 +1,28 @@
-import { ApiClient } from '../../../api-client/src/client';
+import { AxiosResponse } from 'axios';
+import defaultApiClient, { ApiClient } from '../api-client';
 
 /**
  * 알림 유형 열거형
  */
 export enum MileageAlertType {
-  OIL_CHANGE = 'oil_change',           // 오일 교체
-  TIRE_ROTATION = 'tire_rotation',     // 타이어 교체/로테이션
-  AIR_FILTER = 'air_filter',           // 에어필터 교체
-  BRAKE_CHECK = 'brake_check',         // 브레이크 점검
+  OIL_CHANGE = 'oil_change', // 오일 교체
+  TIRE_ROTATION = 'tire_rotation', // 타이어 교체/로테이션
+  AIR_FILTER = 'air_filter', // 에어필터 교체
+  BRAKE_CHECK = 'brake_check', // 브레이크 점검
   REGULAR_SERVICE = 'regular_service', // 정기 점검
-  TIMING_BELT = 'timing_belt',         // 타이밍 벨트
-  CUSTOM = 'custom'                    // 사용자 정의 알림
+  TIMING_BELT = 'timing_belt', // 타이밍 벨트
+  CUSTOM = 'custom' // 사용자 정의 알림
 }
 
 /**
  * 알림 빈도 열거형
  */
 export enum AlertFrequency {
-  ONCE = 'once',           // 1회 알림
-  DAILY = 'daily',         // 매일
-  WEEKLY = 'weekly',       // 매주
-  BIWEEKLY = 'biweekly',   // 격주
-  MONTHLY = 'monthly'      // 매월
+  ONCE = 'once', // 1회 알림
+  DAILY = 'daily', // 매일
+  WEEKLY = 'weekly', // 매주
+  BIWEEKLY = 'biweekly', // 격주
+  MONTHLY = 'monthly' // 매월
 }
 
 /**
@@ -117,7 +118,7 @@ export class MileageAlertService {
    * 생성자
    * @param apiClient API 클라이언트
    */
-  constructor(apiClient: ApiClient) {
+  constructor(apiClient = defaultApiClient) {
     this.apiClient = apiClient;
   }
 
@@ -128,7 +129,7 @@ export class MileageAlertService {
    */
   async createAlert(request: CreateMileageAlertRequest): Promise<MileageAlert> {
     try {
-      const response = await this.apiClient.post(this.basePath, request);
+      const response: AxiosResponse<MileageAlert> = await this.apiClient.post<MileageAlert>(this.basePath, request);
       return response.data;
     } catch (error) {
       console.error('주행거리 알림 생성 중 오류 발생:', error);
@@ -143,7 +144,7 @@ export class MileageAlertService {
    */
   async updateAlert(request: UpdateMileageAlertRequest): Promise<MileageAlert> {
     try {
-      const response = await this.apiClient.put(`${this.basePath}/${request.id}`, request);
+      const response: AxiosResponse<MileageAlert> = await this.apiClient.put<MileageAlert>(`${this.basePath}/${request.id}`, request);
       return response.data;
     } catch (error) {
       console.error(`알림 ID ${request.id} 업데이트 중 오류 발생:`, error);
@@ -158,7 +159,7 @@ export class MileageAlertService {
    */
   async getAlert(alertId: string): Promise<MileageAlert> {
     try {
-      const response = await this.apiClient.get(`${this.basePath}/${alertId}`);
+      const response: AxiosResponse<MileageAlert> = await this.apiClient.get<MileageAlert>(`${this.basePath}/${alertId}`);
       return response.data;
     } catch (error) {
       console.error(`알림 ID ${alertId} 조회 중 오류 발생:`, error);
@@ -173,7 +174,7 @@ export class MileageAlertService {
    */
   async getAlerts(filter?: MileageAlertFilter): Promise<MileageAlert[]> {
     try {
-      const response = await this.apiClient.get(this.basePath, { params: filter });
+      const response: AxiosResponse<MileageAlert[]> = await this.apiClient.get<MileageAlert[]>(this.basePath, { params: filter });
       return response.data;
     } catch (error) {
       console.error('주행거리 알림 목록 조회 중 오류 발생:', error);
@@ -187,7 +188,10 @@ export class MileageAlertService {
    * @param filter 추가 필터
    * @returns 알림 목록
    */
-  async getVehicleAlerts(vehicleId: string, filter?: Omit<MileageAlertFilter, 'vehicleId'>): Promise<MileageAlert[]> {
+  async getVehicleAlerts(
+    vehicleId: string,
+    filter?: Omit<MileageAlertFilter, 'vehicleId'>
+  ): Promise<MileageAlert[]> {
     return this.getAlerts({ ...filter, vehicleId });
   }
 
@@ -197,7 +201,10 @@ export class MileageAlertService {
    * @param filter 추가 필터
    * @returns 알림 목록
    */
-  async getUserAlerts(userId: string, filter?: Omit<MileageAlertFilter, 'userId'>): Promise<MileageAlert[]> {
+  async getUserAlerts(
+    userId: string,
+    filter?: Omit<MileageAlertFilter, 'userId'>
+  ): Promise<MileageAlert[]> {
     return this.getAlerts({ ...filter, userId });
   }
 
@@ -233,8 +240,8 @@ export class MileageAlertService {
    */
   async updateVehicleMileage(request: UpdateMileageRequest): Promise<boolean> {
     try {
-      await this.apiClient.post('/vehicles/mileage', request);
-      return true;
+      const response: AxiosResponse<{ success: boolean }> = await this.apiClient.post<{ success: boolean }>('/vehicles/mileage', request);
+      return response.data.success;
     } catch (error) {
       console.error('차량 주행거리 업데이트 중 오류 발생:', error);
       throw error;
@@ -290,7 +297,7 @@ export class MileageAlertService {
 
       // 각 기본 알림에 대해 생성 요청 전송
       const createdAlerts: MileageAlert[] = [];
-      
+
       for (const alertTemplate of defaultAlerts) {
         const alert = await this.createAlert({
           vehicleId,
@@ -313,9 +320,14 @@ export class MileageAlertService {
    * @param mileageUnit 주행거리 단위
    * @returns 트리거된 알림 목록
    */
-  async checkAndTriggerAlerts(vehicleId: string, currentMileage: number, mileageUnit: MileageUnit): Promise<MileageAlert[]> {
+  async checkAndTriggerAlerts(
+    vehicleId: string,
+    currentMileage: number,
+    mileageUnit: MileageUnit
+  ): Promise<MileageAlert[]> {
     try {
-      const response = await this.apiClient.post(`/vehicles/${vehicleId}/check-mileage-alerts`, {
+      const response: AxiosResponse<{ triggeredAlerts: MileageAlert[] }> = await this.apiClient.post<{ triggeredAlerts: MileageAlert[] }>(`${this.basePath}/check`, {
+        vehicleId,
         currentMileage,
         mileageUnit
       });
@@ -332,11 +344,17 @@ export class MileageAlertService {
    * @param channels 알림 채널 설정 (이메일, SMS, 푸시)
    * @returns 업데이트된 알림
    */
-  async setAlertChannels(alertId: string, channels: { sendEmail?: boolean; sendSMS?: boolean; sendPush?: boolean }): Promise<MileageAlert> {
-    return this.updateAlert({
-      id: alertId,
-      ...channels
-    });
+  async setAlertChannels(
+    alertId: string,
+    channels: { sendEmail?: boolean; sendSMS?: boolean; sendPush?: boolean }
+  ): Promise<MileageAlert> {
+    try {
+      const response: AxiosResponse<MileageAlert> = await this.apiClient.put<MileageAlert>(`${this.basePath}/${alertId}/channels`, channels);
+      return response.data;
+    } catch (error) {
+      console.error(`알림 ID ${alertId} 채널 설정 중 오류 발생:`, error);
+      throw error;
+    }
   }
 
   /**
@@ -344,13 +362,17 @@ export class MileageAlertService {
    * @param alertId 알림 ID
    * @returns 알림 트리거 이력
    */
-  async getAlertHistory(alertId: string): Promise<{ triggeredAt: string; mileage: number; mileageUnit: MileageUnit }[]> {
+  async getAlertHistory(
+    alertId: string
+  ): Promise<{ triggeredAt: string; mileage: number; mileageUnit: MileageUnit }[]> {
     try {
-      const response = await this.apiClient.get(`${this.basePath}/${alertId}/history`);
+      const response: AxiosResponse<{ triggeredAt: string; mileage: number; mileageUnit: MileageUnit }[]> = await this.apiClient.get<{ triggeredAt: string; mileage: number; mileageUnit: MileageUnit }[]>(
+        `${this.basePath}/${alertId}/history`
+      );
       return response.data;
     } catch (error) {
       console.error(`알림 ID ${alertId} 이력 조회 중 오류 발생:`, error);
       throw error;
     }
   }
-} 
+}

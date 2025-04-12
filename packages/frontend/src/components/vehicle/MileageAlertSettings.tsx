@@ -1,28 +1,79 @@
 import React, { useState, useEffect } from 'react';
-import { Form, Input, Select, Button, Table, Switch, InputNumber, Space, Popconfirm, message, Card, Typography, Divider, Badge } from 'antd';
-import { 
-  MileageAlertService, 
-  MileageAlert, 
-  MileageAlertType, 
-  AlertFrequency, 
+
+import {
+  PlusOutlined,
+  DeleteOutlined,
+  EditOutlined,
+  BellOutlined,
+  ClockCircleOutlined
+} from '@ant-design/icons';
+import {
+  Form,
+  Input,
+  Select,
+  Button,
+  Table,
+  Switch,
+  InputNumber,
+  Space,
+  Popconfirm,
+  message,
+  Card,
+  Typography,
+  Divider,
+  Badge
+} from 'antd';
+
+import { ApiClient } from '../../api-client';
+import {
+  MileageAlertService,
+  MileageAlert,
+  MileageAlertType,
+  AlertFrequency,
   MileageUnit,
   CreateMileageAlertRequest
 } from '../../services/mileageAlertService';
-import { PlusOutlined, DeleteOutlined, EditOutlined, BellOutlined, ClockCircleOutlined } from '@ant-design/icons';
-import { ApiClient } from '../../../../api-client/src/client';
 
 const { Option } = Select;
 const { Title, Text } = Typography;
 
 // 알림 유형별 라벨 및 설명
 const alertTypeOptions = [
-  { value: MileageAlertType.OIL_CHANGE, label: '오일 교체', description: '차량 오일 교체 시기 알림' },
-  { value: MileageAlertType.TIRE_ROTATION, label: '타이어 교체/로테이션', description: '타이어 교체 또는 로테이션 시기 알림' },
-  { value: MileageAlertType.AIR_FILTER, label: '에어필터 교체', description: '에어필터 교체 시기 알림' },
-  { value: MileageAlertType.BRAKE_CHECK, label: '브레이크 점검', description: '브레이크 상태 점검 알림' },
-  { value: MileageAlertType.REGULAR_SERVICE, label: '정기 점검', description: '차량 정기 점검 알림' },
-  { value: MileageAlertType.TIMING_BELT, label: '타이밍 벨트 교체', description: '타이밍 벨트 교체 시기 알림' },
-  { value: MileageAlertType.CUSTOM, label: '사용자 정의 알림', description: '사용자가 정의한 유지보수 알림' }
+  {
+    value: MileageAlertType.OIL_CHANGE,
+    label: '오일 교체',
+    description: '차량 오일 교체 시기 알림'
+  },
+  {
+    value: MileageAlertType.TIRE_ROTATION,
+    label: '타이어 교체/로테이션',
+    description: '타이어 교체 또는 로테이션 시기 알림'
+  },
+  {
+    value: MileageAlertType.AIR_FILTER,
+    label: '에어필터 교체',
+    description: '에어필터 교체 시기 알림'
+  },
+  {
+    value: MileageAlertType.BRAKE_CHECK,
+    label: '브레이크 점검',
+    description: '브레이크 상태 점검 알림'
+  },
+  {
+    value: MileageAlertType.REGULAR_SERVICE,
+    label: '정기 점검',
+    description: '차량 정기 점검 알림'
+  },
+  {
+    value: MileageAlertType.TIMING_BELT,
+    label: '타이밍 벨트 교체',
+    description: '타이밍 벨트 교체 시기 알림'
+  },
+  {
+    value: MileageAlertType.CUSTOM,
+    label: '사용자 정의 알림',
+    description: '사용자가 정의한 유지보수 알림'
+  }
 ];
 
 // 알림 빈도 옵션
@@ -62,7 +113,7 @@ const MileageAlertSettings: React.FC<MileageAlertSettingsProps> = ({
   const [loading, setLoading] = useState(false);
   const [editingAlert, setEditingAlert] = useState<MileageAlert | null>(null);
   const [isAdding, setIsAdding] = useState(false);
-  
+
   // 알림 목록 로드
   useEffect(() => {
     fetchAlerts();
@@ -124,7 +175,7 @@ const MileageAlertSettings: React.FC<MileageAlertSettingsProps> = ({
   const handleSave = async (values: any) => {
     try {
       setLoading(true);
-      
+
       if (editingAlert) {
         // 기존 알림 업데이트
         await mileageAlertService.updateAlert({
@@ -141,7 +192,7 @@ const MileageAlertSettings: React.FC<MileageAlertSettingsProps> = ({
         await mileageAlertService.createAlert(request);
         message.success('새 알림 설정이 생성되었습니다.');
       }
-      
+
       // 목록 새로고침 및 폼 초기화
       fetchAlerts();
       resetForm();
@@ -207,12 +258,12 @@ const MileageAlertSettings: React.FC<MileageAlertSettingsProps> = ({
       render: (type: MileageAlertType) => {
         const option = alertTypeOptions.find(opt => opt.value === type);
         return option ? option.label : type;
-      },
+      }
     },
     {
       title: '설명',
       dataIndex: 'description',
-      key: 'description',
+      key: 'description'
     },
     {
       title: '주행거리 기준',
@@ -220,7 +271,7 @@ const MileageAlertSettings: React.FC<MileageAlertSettingsProps> = ({
       render: (_: unknown, record: MileageAlert) => {
         const unit = record.mileageUnit === MileageUnit.KILOMETERS ? 'km' : 'miles';
         return `${record.mileageThreshold.toLocaleString()} ${unit}`;
-      },
+      }
     },
     {
       title: '알림 빈도',
@@ -229,7 +280,7 @@ const MileageAlertSettings: React.FC<MileageAlertSettingsProps> = ({
       render: (frequency: AlertFrequency) => {
         const option = frequencyOptions.find(opt => opt.value === frequency);
         return option ? option.label : frequency;
-      },
+      }
     },
     {
       title: '알림 채널',
@@ -240,54 +291,46 @@ const MileageAlertSettings: React.FC<MileageAlertSettingsProps> = ({
         if (record.sendSMS) channels.push('SMS');
         if (record.sendPush) channels.push('앱 알림');
         return channels.join(', ');
-      },
+      }
     },
     {
       title: '상태',
       key: 'status',
       render: (_: unknown, record: MileageAlert) => (
-        <Badge 
+        <Badge
           status={record.isActive ? 'success' : 'default'}
           text={record.isActive ? '활성' : '비활성'}
         />
-      ),
+      )
     },
     {
       title: '활성화',
       key: 'isActive',
       render: (_: unknown, record: MileageAlert) => (
-        <Switch 
-          checked={record.isActive} 
+        <Switch
+          checked={record.isActive}
           onChange={() => handleToggleActive(record)}
           loading={loading}
         />
-      ),
+      )
     },
     {
       title: '액션',
       key: 'action',
       render: (_: unknown, record: MileageAlert) => (
         <Space size="middle">
-          <Button 
-            type="text" 
-            icon={<EditOutlined />} 
-            onClick={() => showEditForm(record)}
-          />
+          <Button type="text" icon={<EditOutlined />} onClick={() => showEditForm(record)} />
           <Popconfirm
             title="정말 이 알림을 삭제하시겠습니까?"
             onConfirm={() => handleDelete(record.id)}
             okText="삭제"
             cancelText="취소"
           >
-            <Button 
-              type="text" 
-              danger
-              icon={<DeleteOutlined />} 
-            />
+            <Button type="text" danger icon={<DeleteOutlined />} />
           </Popconfirm>
         </Space>
-      ),
-    },
+      )
+    }
   ];
 
   return (
@@ -295,30 +338,27 @@ const MileageAlertSettings: React.FC<MileageAlertSettingsProps> = ({
       <Card title={title}>
         <div className="mb-4 flex justify-between items-center">
           <Space>
-            <Button 
-              type="primary" 
-              icon={<PlusOutlined />} 
-              onClick={showAddForm}
-            >
+            <Button type="primary" icon={<PlusOutlined />} onClick={showAddForm}>
               알림 추가
             </Button>
-            <Button 
-              onClick={handleCreateDefaultAlerts} 
-              icon={<BellOutlined />}
-            >
+            <Button onClick={handleCreateDefaultAlerts} icon={<BellOutlined />}>
               기본 알림 생성
             </Button>
           </Space>
-          
+
           {currentMileage !== undefined && (
             <Text>
-              현재 주행거리: <strong>{currentMileage.toLocaleString()} {mileageUnit === MileageUnit.KILOMETERS ? 'km' : 'miles'}</strong>
+              현재 주행거리:{' '}
+              <strong>
+                {currentMileage.toLocaleString()}{' '}
+                {mileageUnit === MileageUnit.KILOMETERS ? 'km' : 'miles'}
+              </strong>
             </Text>
           )}
         </div>
 
-        <Table 
-          dataSource={alerts} 
+        <Table
+          dataSource={alerts}
           columns={columns}
           rowKey="id"
           loading={loading}
@@ -328,15 +368,8 @@ const MileageAlertSettings: React.FC<MileageAlertSettingsProps> = ({
         {isAdding && (
           <>
             <Divider />
-            <Card 
-              title={editingAlert ? '알림 수정' : '알림 추가'} 
-              type="inner"
-            >
-              <Form
-                form={form}
-                layout="vertical"
-                onFinish={handleSave}
-              >
+            <Card title={editingAlert ? '알림 수정' : '알림 추가'} type="inner">
+              <Form form={form} layout="vertical" onFinish={handleSave}>
                 <Form.Item
                   name="alertType"
                   label="알림 유형"
@@ -364,11 +397,11 @@ const MileageAlertSettings: React.FC<MileageAlertSettingsProps> = ({
                   label="주행거리 기준"
                   rules={[{ required: true, message: '주행거리 기준을 입력해주세요' }]}
                 >
-                  <InputNumber 
-                    min={1} 
-                    step={100} 
+                  <InputNumber
+                    min={1}
+                    step={100}
                     style={{ width: '100%' }}
-                    formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                    formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                     parser={(value: string | undefined) => {
                       const parsed = value?.replace(/\$\s?|(,*)/g, '');
                       return parsed ? Number(parsed) : 0;
@@ -423,9 +456,7 @@ const MileageAlertSettings: React.FC<MileageAlertSettingsProps> = ({
                     <Button type="primary" htmlType="submit" loading={loading}>
                       저장
                     </Button>
-                    <Button onClick={resetForm}>
-                      취소
-                    </Button>
+                    <Button onClick={resetForm}>취소</Button>
                   </Space>
                 </Form.Item>
               </Form>
@@ -437,4 +468,4 @@ const MileageAlertSettings: React.FC<MileageAlertSettingsProps> = ({
   );
 };
 
-export default MileageAlertSettings; 
+export default MileageAlertSettings;

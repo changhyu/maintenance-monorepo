@@ -6,4 +6,4 @@ declare module 'file-saver' {
       autoBom?: boolean;
     }
   ): void;
-} 
+}

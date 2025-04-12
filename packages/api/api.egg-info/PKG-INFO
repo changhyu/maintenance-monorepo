@@ -1,0 +1,20 @@
+Metadata-Version: 2.1
+Name: api
+Version: 0.1.0
+Summary: Maintenance API service
+Home-page: UNKNOWN
+Author: Maintenance Team
+Author-email: maintenance@example.com
+License: UNKNOWN
+Platform: UNKNOWN
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: Developers
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Requires-Python: >=3.8
+Provides-Extra: dev
+
+UNKNOWN
+

@@ -16,4 +16,4 @@ export * from './bookingService';
 export * from './mileageAlertService';
 export * from './mapService';
 // Geofence 서비스에서는 서비스만 내보내고 타입은 내보내지 않음
-export { geofenceService } from './geofenceService'; 
+export { geofenceService } from './geofenceService';
