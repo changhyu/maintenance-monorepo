@@ -8,6 +8,16 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=8000
+      - ENVIRONMENT=production
+      - CORS_ORIGINS=["https://www.car-goro.com", "https://car-goro.com"]
+      - SSL_REDIRECT=true
+      - API_DOMAIN=api.car-goro.com
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.api.rule=Host(`api.car-goro.com`, `api.car-goro.kr`)"
+      - "traefik.http.routers.api.tls=true"
+      - "traefik.http.routers.api.entrypoints=websecure"
+      - "traefik.http.services.api.loadbalancer.server.port=8000"
     deploy:
       replicas: 2
       update_config:
@@ -28,7 +38,16 @@ services:
         - NODE_ENV=production
     environment:
       - NODE_ENV=production
-      - REACT_APP_API_URL=https://api.example.com
+      - REACT_APP_API_URL=https://api.car-goro.com
+    volumes:
+      - frontend_nginx_conf:/etc/nginx/conf.d
+      - frontend_ssl:/etc/nginx/ssl
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=Host(`www.car-goro.com`, `car-goro.com`, `www.car-goro.kr`, `car-goro.kr`)"
+      - "traefik.http.routers.frontend.tls=true"
+      - "traefik.http.routers.frontend.entrypoints=websecure"
+      - "traefik.http.services.frontend.loadbalancer.server.port=80"
     deploy:
       replicas: 2
       update_config:
@@ -81,9 +100,15 @@ services:
       - '--storage.tsdb.path=/prometheus'
       - '--web.console.libraries=/usr/share/prometheus/console_libraries'
       - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.external-url=https://metrics.car-goro.com/prometheus'
     restart: always
     networks:
       - maintenance-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.prometheus.rule=Host(`metrics.car-goro.com`) && PathPrefix(`/prometheus`)"
+      - "traefik.http.routers.prometheus.tls=true"
+      - "traefik.http.routers.prometheus.entrypoints=websecure"
     deploy:
       resources:
         limits:
@@ -98,6 +123,8 @@ services:
     environment:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_SERVER_ROOT_URL=https://metrics.car-goro.com
+      - GF_SERVER_DOMAIN=metrics.car-goro.com
     restart: always
     networks:
       - maintenance-network
@@ -105,11 +132,42 @@ services:
       - "3001:3000"
     depends_on:
       - prometheus
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.grafana.rule=Host(`metrics.car-goro.com`)"
+      - "traefik.http.routers.grafana.tls=true"
+      - "traefik.http.routers.grafana.entrypoints=websecure"
     deploy:
       resources:
         limits:
           cpus: '0.25'
           memory: 256M
+
+  traefik:
+    image: traefik:v2.10
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "./docker/traefik/traefik.yml:/traefik.yml:ro"
+      - "./docker/traefik/dynamic:/dynamic:ro"
+      - "traefik_certs:/letsencrypt"
+    networks:
+      - maintenance-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dashboard.rule=Host(`traefik.car-goro.com`)"
+      - "traefik.http.routers.dashboard.service=api@internal"
+      - "traefik.http.routers.dashboard.tls=true"
+      - "traefik.http.routers.dashboard.entrypoints=websecure"
+      - "traefik.http.routers.dashboard.middlewares=dashboard-auth"
+      - "traefik.http.middlewares.dashboard-auth.basicauth.users=${TRAEFIK_DASHBOARD_AUTH:-admin:$$apr1$$1UnUW8zz$$Yd1XC/Q1Ocbw2J0b0Wyit0}"
+    restart: always
+    depends_on:
+      - api
+      - frontend
 
 secrets:
   db_password:
@@ -123,3 +181,4 @@ volumes:
   frontend_ssl:
   prometheus_data:
   grafana_data:
+  traefik_certs:

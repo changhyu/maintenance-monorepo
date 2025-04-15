@@ -1,25 +1,66 @@
 {
-  "short_name": "차량 정비 관리",
+  "short_name": "차량정비관리",
   "name": "차량 정비 관리 시스템",
+  "description": "효율적인 차량 정비 관리 시스템 - 정비 내역, 비용, 일정 관리를 한 곳에서",
   "icons": [
     {
       "src": "favicon.ico",
       "sizes": "64x64 32x32 24x24 16x16",
-      "type": "image/x-icon"
+      "type": "image/x-icon",
+      "purpose": "any"
     },
     {
       "src": "logo192.png",
       "type": "image/png",
-      "sizes": "192x192"
+      "sizes": "192x192",
+      "purpose": "any"
     },
     {
       "src": "logo512.png",
       "type": "image/png",
-      "sizes": "512x512"
+      "sizes": "512x512",
+      "purpose": "any"
+    },
+    {
+      "src": "maskable_icon.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "maskable"
     }
   ],
-  "start_url": ".",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "theme_color": "#000000",
-  "background_color": "#ffffff"
+  "orientation": "portrait",
+  "theme_color": "#0052CC",
+  "background_color": "#ffffff",
+  "prefer_related_applications": true,
+  "related_applications": [
+    {
+      "platform": "play",
+      "id": "com.car.goro",
+      "url": "https://play.google.com/store/apps/details?id=com.car.goro"
+    },
+    {
+      "platform": "itunes",
+      "url": "https://apps.apple.com/app/id123456789"
+    }
+  ],
+  "categories": ["auto", "productivity", "utilities"],
+  "shortcuts": [
+    {
+      "name": "정비 일정 추가",
+      "short_name": "일정 추가",
+      "description": "새로운 정비 일정 추가하기",
+      "url": "/maintenance/new",
+      "icons": [{ "src": "/icons/add.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "내 차량 관리",
+      "short_name": "차량 관리",
+      "description": "등록된 차량 관리하기",
+      "url": "/vehicles",
+      "icons": [{ "src": "/icons/car.png", "sizes": "192x192" }]
+    }
+  ]
 } 

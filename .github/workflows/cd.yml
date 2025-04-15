@@ -84,6 +84,10 @@ jobs:
       - name: Build static site
         run: npm run build
       
+      - name: Configure custom domain
+        run: |
+          echo "www.car-goro.com" > packages/frontend/dist/CNAME
+      
       - name: Setup GitHub Pages
         uses: actions/configure-pages@v4
       
@@ -97,10 +101,6 @@ jobs:
         uses: actions/deploy-pages@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-      
-      - name: Configure custom domain
-        run: |
-          echo "www.car-goro.com" > packages/frontend/dist/CNAME
   
   deploy-staging:
     name: Deploy to Staging
@@ -149,6 +149,23 @@ jobs:
           ssh ${{ secrets.PRODUCTION_SSH_USER }}@${{ secrets.PRODUCTION_SSH_HOST }} "cd /opt/maintenance-app && \
           docker compose -f docker-compose.yml -f docker-compose.prod.yml pull && \
           docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --force-recreate"
+      
+      - name: Deploy SSL certificates
+        run: |
+          # SSL 인증서 파일 생성 (실제 배포시에는 안전하게 저장된 인증서 사용)
+          mkdir -p ssl_certs
+          echo "${{ secrets.SSL_CERTIFICATE }}" > ssl_certs/car-goro.com.crt
+          echo "${{ secrets.SSL_PRIVATE_KEY }}" > ssl_certs/car-goro.com.key
+          
+          # 서버에 SSL 인증서 복사
+          scp -r ssl_certs/* ${{ secrets.PRODUCTION_SSH_USER }}@${{ secrets.PRODUCTION_SSH_HOST }}:/opt/maintenance-app/ssl/
+          
+          # 인증서 적용을 위한 컨테이너 재시작
+          ssh ${{ secrets.PRODUCTION_SSH_USER }}@${{ secrets.PRODUCTION_SSH_HOST }} "cd /opt/maintenance-app && \
+          docker compose restart frontend"
+          
+          # 로컬 SSL 인증서 파일 삭제
+          rm -rf ssl_certs
       
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1

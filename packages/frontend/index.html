@@ -7,14 +7,42 @@
     <meta name="theme-color" content="#000000" />
     <meta
       name="description"
-      content="차량 정비 관리 시스템"
+      content="효율적인 차량 정비 관리 시스템 - 정비 내역, 비용, 일정 관리를 한 곳에서"
     />
+    <meta name="keywords" content="차량정비,자동차관리,정비일정,차량관리,오토케어,정비히스토리" />
+    <meta name="author" content="car-goro.com" />
+    <meta property="og:title" content="차량 정비 관리 시스템" />
+    <meta property="og:description" content="효율적인 차량 정비 관리 시스템 - 정비 내역, 비용, 일정 관리를 한 곳에서" />
+    <meta property="og:image" content="https://www.car-goro.com/logo512.png" />
+    <meta property="og:url" content="https://www.car-goro.com" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="차량 정비 관리 시스템" />
+    <meta name="twitter:description" content="효율적인 차량 정비 관리 시스템 - 정비 내역, 비용, 일정 관리를 한 곳에서" />
+    <meta name="twitter:image" content="https://www.car-goro.com/logo512.png" />
+    <meta property="al:ios:url" content="cargoro://home" />
+    <meta property="al:ios:app_store_id" content="123456789" />
+    <meta property="al:ios:app_name" content="차량정비관리" />
+    <meta property="al:android:url" content="cargoro://home" />
+    <meta property="al:android:package" content="com.car.goro" />
+    <meta property="al:android:app_name" content="차량정비관리" />
+    <meta property="al:web:url" content="https://www.car-goro.com" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="차량정비관리" />
+    <link rel="canonical" href="https://www.car-goro.com" />
     <link rel="apple-touch-icon" href="%BASE_URL%/logo192.png" />
     <link rel="manifest" href="%BASE_URL%/manifest.json" />
-    <title>차량 정비 관리 시스템</title>
+    <title>차량 정비 관리 시스템 | 자동차 관리의 모든 것</title>
+    <!-- 서비스 워커 등록 스크립트 -->
+    <script src="%BASE_URL%/register-sw.js" defer></script>
   </head>
   <body>
     <noscript>이 앱을 실행하려면 JavaScript를 활성화해야 합니다.</noscript>
     <div id="root"></div>
+    <!-- 오프라인 상태 표시 -->
+    <div id="offline-indicator" style="display: none; position: fixed; bottom: 20px; right: 20px; padding: 10px 15px; background-color: #f44336; color: white; border-radius: 4px; z-index: 9999; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
+      오프라인 모드
+    </div>
   </body>
 </html> 

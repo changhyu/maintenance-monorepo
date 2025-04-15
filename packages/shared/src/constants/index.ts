@@ -7,7 +7,7 @@
 
 // API 설정
 export const API_CONFIG = {
-  BASE_URL: process.env.API_URL || 'http://localhost:5000/api',
+  BASE_URL: process.env.API_URL || 'https://api.car-goro.com/api',
   TIMEOUT: 30000,
   CACHE_TTL: 60000, // 1분
   MAX_RETRIES: 3

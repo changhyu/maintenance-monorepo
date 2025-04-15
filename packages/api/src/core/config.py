@@ -76,7 +76,13 @@ try:
         JWT_ALGORITHM: str = "HS256"
         
         # 보안 설정
-        SSL_REDIRECT: bool = False
+        SSL_REDIRECT: bool = os.getenv("ENVIRONMENT", "development").lower() == "production"
+        SECURE_HSTS_SECONDS: int = 31536000 if os.getenv("ENVIRONMENT", "development").lower() == "production" else 0
+        SECURE_HSTS_INCLUDE_SUBDOMAINS: bool = os.getenv("ENVIRONMENT", "development").lower() == "production"
+        SECURE_HSTS_PRELOAD: bool = os.getenv("ENVIRONMENT", "development").lower() == "production"
+        SECURE_CONTENT_TYPE_NOSNIFF: bool = True
+        SECURE_BROWSER_XSS_FILTER: bool = True
+        SECURE_SSL_REDIRECT: bool = os.getenv("ENVIRONMENT", "development").lower() == "production"
         
         # 필드 추가
         HOST: str = Field(default="0.0.0.0")

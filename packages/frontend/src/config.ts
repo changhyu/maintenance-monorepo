@@ -22,6 +22,23 @@ interface Config {
       end: string; // "HH:MM" 포맷
     };
   };
+  pwaSettings: {
+    enableServiceWorker: boolean;
+    enablePushNotifications: boolean;
+    cacheStrategy: 'network-first' | 'cache-first' | 'stale-while-revalidate';
+    offlineCapabilities: {
+      enableOfflineMode: boolean;
+      cacheExpiration: number; // 캐시 만료 시간 (시간 단위)
+      maxCacheSize: number; // 최대 캐시 크기 (MB)
+      priorityResources: readonly string[]; // 우선적으로 캐싱할 리소스
+    };
+    syncSettings: {
+      enableBackgroundSync: boolean;
+      retryInterval: number; // 동기화 재시도 간격 (분 단위)
+      maxRetries: number; // 최대 재시도 횟수
+      syncOnReconnect: boolean; // 인터넷 재연결 시 자동 동기화
+    };
+  };
   dateFormat: string;
   maxConcurrentRequests: number;
   featureFlags: {
@@ -55,6 +72,23 @@ const configs = {
         end: '08:00'
       }
     },
+    pwaSettings: {
+      enableServiceWorker: true,
+      enablePushNotifications: true,
+      cacheStrategy: 'network-first',
+      offlineCapabilities: {
+        enableOfflineMode: true,
+        cacheExpiration: 72, // 3일
+        maxCacheSize: 50, // 50MB
+        priorityResources: ['/index.html', '/manifest.json', '/static/js/main.js', '/static/css/main.css']
+      },
+      syncSettings: {
+        enableBackgroundSync: true,
+        retryInterval: 15, // 15분
+        maxRetries: 5,
+        syncOnReconnect: true
+      }
+    },
     dateFormat: 'YYYY-MM-DD',
     maxConcurrentRequests: 5,
     featureFlags: {
@@ -67,7 +101,7 @@ const configs = {
     }
   },
   test: {
-    apiUrl: 'http://test-api.example.com/api',
+    apiUrl: 'https://test-api.car-goro.com/api',
     appName: '차량 정비 관리 시스템',
     version: '0.1.0',
     environment: 'test',
@@ -85,6 +119,23 @@ const configs = {
         end: '08:00'
       }
     },
+    pwaSettings: {
+      enableServiceWorker: true,
+      enablePushNotifications: true,
+      cacheStrategy: 'network-first',
+      offlineCapabilities: {
+        enableOfflineMode: true,
+        cacheExpiration: 72, // 3일
+        maxCacheSize: 50, // 50MB
+        priorityResources: ['/index.html', '/manifest.json', '/static/js/main.js', '/static/css/main.css']
+      },
+      syncSettings: {
+        enableBackgroundSync: true,
+        retryInterval: 30, // 30분
+        maxRetries: 5,
+        syncOnReconnect: true
+      }
+    },
     dateFormat: 'YYYY-MM-DD',
     maxConcurrentRequests: 5,
     featureFlags: {
@@ -97,7 +148,7 @@ const configs = {
     }
   },
   production: {
-    apiUrl: 'https://api.example.com/api',
+    apiUrl: 'https://api.car-goro.com/api',
     appName: '차량 정비 관리 시스템',
     version: '0.1.0',
     environment: 'production',
@@ -113,6 +164,23 @@ const configs = {
         enabled: true,
         start: '22:00',
         end: '08:00'
+      }
+    },
+    pwaSettings: {
+      enableServiceWorker: true,
+      enablePushNotifications: true,
+      cacheStrategy: 'stale-while-revalidate',
+      offlineCapabilities: {
+        enableOfflineMode: true,
+        cacheExpiration: 168, // 7일
+        maxCacheSize: 100, // 100MB
+        priorityResources: ['/index.html', '/manifest.json', '/static/js/main.js', '/static/css/main.css']
+      },
+      syncSettings: {
+        enableBackgroundSync: true,
+        retryInterval: 60, // 60분
+        maxRetries: 10,
+        syncOnReconnect: true
       }
     },
     dateFormat: 'YYYY-MM-DD',

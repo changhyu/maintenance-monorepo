@@ -13,6 +13,7 @@ from .maintenance import router as maintenance_router
 from .shops import router as shops_router
 from .todos import router as todos_router
 from .schedule import router as schedule_router
+from .notifications import router as notifications_router
 from .base_router import BaseRouter
 
 logger = logging.getLogger(__name__)
@@ -24,7 +25,8 @@ routers = [
     maintenance_router,
     shops_router,
     todos_router,
-    schedule_router
+    schedule_router,
+    notifications_router
 ]
 
 # 메인 라우터 정의
@@ -37,6 +39,7 @@ api_router.include_router(maintenance_router, prefix="/maintenance", tags=["main
 api_router.include_router(shops_router, prefix="/shops", tags=["shops"])
 api_router.include_router(todos_router, prefix="/todos", tags=["todos"])
 api_router.include_router(schedule_router, prefix="/schedules", tags=["schedules"])
+api_router.include_router(notifications_router, prefix="/notifications", tags=["notifications"])
 
 __all__ = [
     "routers",
@@ -46,5 +49,6 @@ __all__ = [
     "shops_router",
     "todos_router",
     "schedule_router",
+    "notifications_router",
     "BaseRouter"
 ]

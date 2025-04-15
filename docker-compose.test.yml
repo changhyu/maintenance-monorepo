@@ -15,7 +15,7 @@ services:
       - DEBUG=True
       - ENVIRONMENT=test
       - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/test_maintenance
-      - CORS_ORIGINS=["http://localhost:3000"]
+      - CORS_ORIGINS=["http://localhost:3000", "https://test.car-goro.com"]
       - REDIS_URL=redis://redis:6379/1
       - TESTING=True
     depends_on:

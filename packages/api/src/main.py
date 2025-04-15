@@ -65,6 +65,25 @@ def create_app() -> FastAPI:
     # 예외 핸들러 설정
     setup_exception_handlers(app)
     
+    # 보안 헤더 설정
+    if hasattr(settings, 'SECURE_SSL_REDIRECT') and settings.SECURE_SSL_REDIRECT:
+        from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
+        app.add_middleware(HTTPSRedirectMiddleware)
+    
+    if hasattr(settings, 'SECURE_HSTS_SECONDS') and settings.SECURE_HSTS_SECONDS > 0:
+        from fastapi.middleware.trustedhost import TrustedHostMiddleware
+        app.add_middleware(
+            TrustedHostMiddleware, 
+            allowed_hosts=[
+                "api.car-goro.com", 
+                "test-api.car-goro.com", 
+                "api.car-goro.kr",
+                "test-api.car-goro.kr",
+                "localhost", 
+                "127.0.0.1"
+            ]
+        )
+    
     # 라우터 로드
     routers = load_routers()
     for router in routers:
@@ -88,7 +107,21 @@ def create_app() -> FastAPI:
             "status": "active",
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "version": settings.VERSION,
-            "environment": settings.ENVIRONMENT
+            "environment": settings.ENVIRONMENT,
+            "domain": os.getenv("API_DOMAIN", "localhost")
+        }
+    
+    # 도메인별 상태 확인 엔드포인트
+    @app.get("/domain-status", tags=["상태"])
+    async def domain_status() -> Dict[str, Any]:
+        """
+        현재 도메인 정보와 CORS 설정 확인 엔드포인트
+        """
+        return {
+            "api_domain": os.getenv("API_DOMAIN", "localhost"),
+            "cors_origins": settings.CORS_ORIGINS if hasattr(settings, "CORS_ORIGINS") else settings.BACKEND_CORS_ORIGINS,
+            "environment": settings.ENVIRONMENT,
+            "ssl_enabled": settings.SSL_REDIRECT if hasattr(settings, "SSL_REDIRECT") else False
         }
     
     # WebSocket 엔드포인트

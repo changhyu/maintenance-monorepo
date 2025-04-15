@@ -1,0 +1,55 @@
+http:
+  middlewares:
+    # 보안 헤더 미들웨어
+    secHeaders:
+      headers:
+        frameDeny: true
+        browserXssFilter: true
+        contentTypeNosniff: true
+        forceSTSHeader: true
+        stsIncludeSubdomains: true
+        stsPreload: true
+        stsSeconds: 31536000
+        customResponseHeaders:
+          X-Robots-Tag: "index,follow,noarchive"
+          Server: ""
+          X-Content-Type-Options: nosniff
+          Referrer-Policy: strict-origin-when-cross-origin
+    
+    # CORS 설정 미들웨어
+    cors:
+      headers:
+        accessControlAllowMethods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - OPTIONS
+        accessControlAllowHeaders:
+          - Content-Type
+          - Authorization
+          - X-Requested-With
+        accessControlAllowOriginList:
+          - https://www.car-goro.com
+          - https://car-goro.com
+          - https://www.car-goro.kr
+          - https://car-goro.kr
+        accessControlMaxAge: 100
+        addVaryHeader: true
+    
+    # 압축 미들웨어
+    compress:
+      compress: {}
+    
+    # 레이트 리밋 미들웨어
+    rateLimit:
+      rateLimit:
+        average: 100
+        burst: 50
+    
+    # IP 화이트리스트 미들웨어 (예: 관리자 접근용)
+    adminWhitelist:
+      ipWhiteList:
+        sourceRange:
+          - "127.0.0.1/32"
+          - "10.0.0.0/8" 

@@ -343,7 +343,7 @@ export class ApiClient {
 
 // API 클라이언트 싱글톤 인스턴스
 const baseURL = process.env.NODE_ENV === 'production' 
-  ? process.env.REACT_APP_API_URL || '/api' 
+  ? process.env.REACT_APP_API_URL || 'https://api.car-goro.com/api' 
   : '/api';
 
 export const apiClient = new ApiClient(baseURL);
