@@ -1,50 +1,42 @@
 """
-Database package initialization.
+데이터베이스 모듈 초기화 및 설정
 """
 
 import logging
+from typing import Generator
+
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.exc import SQLAlchemyError
 
 from ..core.config import settings
 
-# 로거 설정
+# 로깅 설정
 logger = logging.getLogger(__name__)
 
-# SQLAlchemy 설정
+# 데이터베이스 연결 URL 설정
+SQLALCHEMY_DATABASE_URL = settings.DATABASE_URL
+
+# 데이터베이스 엔진 생성
 try:
-    # 데이터베이스 URL 검증
-    if not settings.DATABASE_URL:
-        raise ValueError("DATABASE_URL이 설정되지 않았습니다.")
-    
-    # 엔진 생성
     engine = create_engine(
-        settings.DATABASE_URL,
+        SQLALCHEMY_DATABASE_URL,
+        pool_pre_ping=True,
         pool_size=settings.DB_POOL_SIZE,
         max_overflow=settings.DB_MAX_OVERFLOW,
-        pool_pre_ping=True  # 연결 상태 확인
+        connect_args=settings.DB_CONNECT_ARGS
     )
-    
-    # 세션 팩토리 생성
-    SessionLocal = sessionmaker(
-        autocommit=False,
-        autoflush=False,
-        bind=engine
-    )
-    
-    # Base 클래스 생성
-    Base = declarative_base()
-    
-    logger.info("데이터베이스 연결 설정이 완료되었습니다.")
-    
-except SQLAlchemyError as e:
-    logger.error("데이터베이스 연결 오류: %s", str(e))
-    raise
+    logger.info("데이터베이스 엔진이 성공적으로 생성되었습니다.")
 except Exception as e:
-    logger.error("데이터베이스 설정 중 예상치 못한 오류 발생: %s", str(e))
+    logger.error("데이터베이스 엔진 생성 중 오류가 발생했습니다: %s", str(e))
     raise
+
+# 세션 팩토리 생성
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+# 베이스 클래스 생성
+Base = declarative_base()
+
 
 def get_session() -> Session:
     """
@@ -58,4 +50,3 @@ def get_session() -> Session:
         logger.error("데이터베이스 세션 생성 중 오류가 발생했습니다: %s", str(e))
         session.close()
         raise
-\n

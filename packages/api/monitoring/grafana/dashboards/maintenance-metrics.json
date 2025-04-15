@@ -1,0 +1,300 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "gnetId": null,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "title": "시스템 리소스",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "panels": [
+        {
+          "title": "CPU 사용률",
+          "type": "gauge",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "system_cpu_usage_percent",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 70 },
+                  { "color": "red", "value": 85 }
+                ]
+              },
+              "unit": "percent"
+            }
+          }
+        },
+        {
+          "title": "메모리 사용량",
+          "type": "gauge",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "system_memory_usage_bytes / 1024 / 1024 / 1024",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "gbytes"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "title": "API 성능",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "id": 2,
+      "panels": [
+        {
+          "title": "HTTP 요청 수",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "sum(rate(http_requests_total[5m])) by (method, endpoint)",
+              "legendFormat": "{{method}} {{endpoint}}"
+            }
+          ]
+        },
+        {
+          "title": "응답 시간",
+          "type": "heatmap",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "rate(http_request_duration_seconds_bucket[5m])",
+              "format": "heatmap"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "데이터베이스",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "id": 3,
+      "panels": [
+        {
+          "title": "DB 연결 수",
+          "type": "stat",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "db_connections_current",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "title": "쿼리 실행 시간",
+          "type": "histogram",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "rate(db_query_duration_seconds_sum[5m]) / rate(db_query_duration_seconds_count[5m])",
+              "refId": "A"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "캐시 성능",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "id": 4,
+      "panels": [
+        {
+          "title": "캐시 히트율",
+          "type": "gauge",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "rate(cache_hits_total[5m]) / (rate(cache_hits_total[5m]) + rate(cache_misses_total[5m])) * 100",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "title": "정비 업무",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 16
+      },
+      "id": 5,
+      "panels": [
+        {
+          "title": "평균 정비 완료 시간",
+          "type": "stat",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "rate(maintenance_completion_time_hours_sum[24h]) / rate(maintenance_completion_time_hours_count[24h])",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "hours"
+            }
+          }
+        },
+        {
+          "title": "부품 재고 현황",
+          "type": "bargauge",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "parts_inventory_level_percent",
+              "legendFormat": "{{part_id}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "red", "value": null },
+                  { "color": "yellow", "value": 30 },
+                  { "color": "green", "value": 50 }
+                ]
+              },
+              "unit": "percent"
+            }
+          }
+        },
+        {
+          "title": "고객 대기 시간",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "rate(customer_wait_time_minutes_sum[1h]) / rate(customer_wait_time_minutes_count[1h])",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "minutes"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "title": "보안",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 24
+      },
+      "id": 6,
+      "panels": [
+        {
+          "title": "로그인 실패",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "sum(rate(login_failures_total[5m])) by (ip_address)",
+              "legendFormat": "{{ip_address}}"
+            }
+          ]
+        },
+        {
+          "title": "권한 거부",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "sum(rate(permission_denials_total[5m])) by (endpoint)",
+              "legendFormat": "{{endpoint}}"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 27,
+  "style": "dark",
+  "tags": ["maintenance", "monitoring"],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "5s",
+      "10s",
+      "30s",
+      "1m",
+      "5m",
+      "15m",
+      "30m",
+      "1h",
+      "2h",
+      "1d"
+    ]
+  },
+  "timezone": "browser",
+  "title": "차량 정비 관리 시스템 대시보드",
+  "version": 1
+} 

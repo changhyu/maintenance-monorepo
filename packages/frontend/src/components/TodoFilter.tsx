@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
 
 import { FilterOutlined, ClearOutlined } from '@ant-design/icons';
-import { Form, Input, Select, DatePicker, Space, Collapse, Button } from 'antd';
-import dayjs from 'dayjs';
+import { Form, Input, Select, Space, Collapse, Button } from 'antd';
 
 import { TodoFilterType } from '../context/TodoContext';
-import { TodoPriority, TodoStatus, TodoStatusType } from '../services/todoService';
+import { TodoPriority } from '../services/todoService';
 
 interface TodoFilterProps {
   onFilterChange: (filter: TodoFilterType) => void;
@@ -108,7 +107,7 @@ const TodoFilter: React.FC<TodoFilterProps> = ({
             form={form}
             layout="vertical"
             onFinish={handleFilterChange}
-            onValuesChange={(_, allValues) => handleFilterChange(allValues)}
+            onValuesChange={(_: any, allValues: any) => handleFilterChange(allValues)}
           >
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <Form.Item name="search" label="검색어">

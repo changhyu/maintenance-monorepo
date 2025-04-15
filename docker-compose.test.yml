@@ -1,0 +1,84 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+      args:
+        - ENVIRONMENT=test
+    volumes:
+      - ./packages/api:/app
+      - ./packages/shared:/app/packages/shared
+      - api-node-modules:/app/node_modules
+      - ./packages/api/tests:/app/tests
+    command: bash -c "pytest -xvs tests/"
+    environment:
+      - DEBUG=True
+      - ENVIRONMENT=test
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/test_maintenance
+      - CORS_ORIGINS=["http://localhost:3000"]
+      - REDIS_URL=redis://redis:6379/1
+      - TESTING=True
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend.dev
+      args:
+        - NODE_ENV=test
+    volumes:
+      - ./packages/frontend:/app/packages/frontend
+      - ./packages/shared:/app/packages/shared
+      - ./packages/api-client:/app/packages/api-client
+      - frontend-node-modules:/app/packages/frontend/node_modules
+      - ./packages/frontend/coverage:/app/packages/frontend/coverage
+    environment:
+      - NODE_ENV=test
+      - VITE_API_URL=http://api:8000
+      - VITE_TESTING=true
+    command: npm test
+    depends_on:
+      - api
+
+  db:
+    image: postgres:13-alpine
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_DB=test_maintenance
+    volumes:
+      - postgres_data_test:/var/lib/postgresql/data
+      - ./docker/postgres/init-test.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:6-alpine
+    volumes:
+      - redis_data_test:/data
+      - ./docker/redis/redis-test.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data_test:
+  redis_data_test:
+  api-node-modules:
+  frontend-node-modules:

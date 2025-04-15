@@ -12,6 +12,8 @@ from pydantic.generics import GenericModel
 # REMOVED: from pydantic import BaseModel, Field, EmailStr, ConfigDict
 from pydantic import BaseModel, Field, EmailStr, ConfigDict
 
+# 필드 설명 상수
+VEHICLE_ID_DESC = "차량 ID"
 
 # 기본 스키마
 class BaseSchema(BaseModel):
@@ -163,7 +165,7 @@ class Vehicle(VehicleBase):
 class MaintenanceBase(BaseSchema):
     """정비 기본 스키마."""
 
-    vehicle_id: str = Field(..., description="차량 ID")
+    vehicle_id: str = Field(..., description=VEHICLE_ID_DESC)
     type: str = Field(..., description="정비 유형 (routine, repair, emergency, recall, inspection, oil_change, seasonal)")
     description: str = Field(..., description="정비 설명")
     date: datetime = Field(..., description="정비 예정일")
@@ -416,7 +418,7 @@ class TodoBase(BaseSchema):
     due_date: Optional[datetime] = Field(None, description="마감일")
     status: TodoStatus = Field(default=TodoStatus.PENDING, description="상태")
     priority: TodoPriority = Field(default=TodoPriority.MEDIUM, description="우선순위")
-    vehicle_id: Optional[str] = Field(None, description="차량 ID")
+    vehicle_id: Optional[str] = Field(None, description=VEHICLE_ID_DESC)
     user_id: str = Field(..., description="담당자 ID")
     assignee_id: Optional[str] = Field(None, description="할당자 ID")
     related_entity_type: Optional[str] = Field(None, description="관련 엔티티 타입")
@@ -524,15 +526,10 @@ class TodoListResponse(BaseSchema):
     stats: Optional[TodoStats] = None
 
 
-class TodoDetailResponse(ApiResponse[TodoResponse]):
-    """Todo 상세 응답"""
-    pass
-
-
 # 제네릭 타입 변수 정의
 T = TypeVar('T')
 
-class ApiResponse(GenericModel, Generic[T]):
+class APIResponse(GenericModel, Generic[T]):
     """표준 API 응답 형식"""
     success: bool = True
     data: Optional[T] = None
@@ -541,7 +538,7 @@ class ApiResponse(GenericModel, Generic[T]):
     timestamp: datetime = Field(default_factory=datetime.utcnow)
     
     @classmethod
-    def success_response(cls, data: T, metadata: Optional[Dict[str, Any]] = None) -> 'ApiResponse[T]':
+    def success_response(cls, data: T, metadata: Optional[Dict[str, Any]] = None) -> 'APIResponse[T]':
         """성공 응답 생성"""
         return cls(
             success=True,
@@ -550,13 +547,17 @@ class ApiResponse(GenericModel, Generic[T]):
         )
     
     @classmethod
-    def error_response(cls, error: str, metadata: Optional[Dict[str, Any]] = None) -> 'ApiResponse[None]':
+    def error_response(cls, error: str, metadata: Optional[Dict[str, Any]] = None) -> 'APIResponse[None]':
         """오류 응답 생성"""
         return cls(
             success=False,
             error=error,
             metadata=metadata
         )
+
+class TodoDetailResponse(APIResponse[TodoResponse]):
+    """Todo 상세 응답"""
+    pass
 
 # 페이지네이션 응답 타입 정의를 위한 제네릭 타입 변수
 T = TypeVar('T')
@@ -576,3 +577,179 @@ class PaginatedResponse(BaseModel, Generic[T]):
 class VehicleListResponse(PaginatedResponse[Vehicle]):
     """차량 목록 페이지네이션 응답"""
     pass
+
+class ScheduleStatus(str, Enum):
+    """일정 상태 열거형."""
+    
+    PENDING = "pending"
+    CONFIRMED = "confirmed"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+
+class SchedulePriority(str, Enum):
+    """일정 우선순위 열거형."""
+    
+    LOW = "low"
+    NORMAL = "normal"
+    HIGH = "high"
+    URGENT = "urgent"
+
+class RecurrencePattern(str, Enum):
+    """반복 패턴 열거형."""
+    
+    DAILY = "daily"
+    WEEKLY = "weekly"
+    MONTHLY = "monthly"
+    YEARLY = "yearly"
+
+class MaintenanceType(str, Enum):
+    """정비 유형 열거형."""
+    
+    REGULAR = "regular"
+    OIL_CHANGE = "oil_change"
+    INSPECTION = "inspection"
+    REPAIR = "repair"
+    TIRE_CHANGE = "tire_change"
+    BRAKE_SERVICE = "brake_service"
+    ENGINE_SERVICE = "engine_service"
+    TRANSMISSION = "transmission"
+    ELECTRICAL = "electrical"
+    AC_SERVICE = "ac_service"
+    BODY_WORK = "body_work"
+    OTHER = "other"
+
+# 일정 관련 스키마
+class ScheduleReminderBase(BaseSchema):
+    """일정 알림 기본 스키마."""
+    
+    reminder_time: datetime = Field(..., description="알림 시간")
+    reminder_type: str = Field(default="email", description="알림 타입")
+
+class ScheduleReminderCreate(ScheduleReminderBase):
+    """일정 알림 생성 스키마."""
+    pass
+
+class ScheduleReminderResponse(ScheduleReminderBase):
+    """일정 알림 응답 스키마."""
+    
+    id: str
+    schedule_id: str
+    status: str
+    created_at: datetime
+
+class ScheduleNoteBase(BaseSchema):
+    """일정 노트 기본 스키마."""
+    
+    content: str = Field(..., description="노트 내용")
+    created_by: Optional[str] = Field(None, description="작성자")
+
+class ScheduleNoteCreate(ScheduleNoteBase):
+    """일정 노트 생성 스키마."""
+    pass
+
+class ScheduleNoteResponse(ScheduleNoteBase):
+    """일정 노트 응답 스키마."""
+    
+    id: str
+    schedule_id: str
+    created_at: datetime
+    updated_at: datetime
+
+class ScheduleBase(BaseSchema):
+    """일정 기본 스키마."""
+    
+    vehicle_id: str = Field(..., description=VEHICLE_ID_DESC)
+    title: str = Field(..., description="일정 제목")
+    description: Optional[str] = Field(None, description="일정 설명")
+    scheduled_date: datetime = Field(..., description="예약 일시")
+    end_date: Optional[datetime] = Field(None, description="종료 일시")
+    estimated_duration: Optional[int] = Field(60, description="예상 소요 시간(분)")
+    estimated_cost: Optional[float] = Field(0.0, description="예상 비용")
+    maintenance_type: MaintenanceType = Field(..., description="정비 유형")
+    status: ScheduleStatus = Field(default=ScheduleStatus.PENDING, description="일정 상태")
+    is_recurring: bool = Field(default=False, description="반복 여부")
+    recurrence_pattern: Optional[RecurrencePattern] = Field(None, description="반복 패턴")
+    recurrence_interval: Optional[int] = Field(1, description="반복 간격")
+    priority: SchedulePriority = Field(default=SchedulePriority.NORMAL, description="우선순위")
+    assigned_to: Optional[str] = Field(None, description="담당자")
+    shop_id: Optional[str] = Field(None, description="정비소 ID")
+
+class ScheduleCreate(ScheduleBase):
+    """일정 생성 스키마."""
+    
+    reminders: Optional[List[ScheduleReminderCreate]] = Field(default_factory=list, description="알림 설정")
+    notes: Optional[List[ScheduleNoteCreate]] = Field(default_factory=list, description="노트")
+
+class ScheduleUpdate(BaseSchema):
+    """일정 업데이트 스키마."""
+    
+    title: Optional[str] = None
+    description: Optional[str] = None
+    scheduled_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    estimated_duration: Optional[int] = None
+    estimated_cost: Optional[float] = None
+    maintenance_type: Optional[MaintenanceType] = None
+    status: Optional[ScheduleStatus] = None
+    is_recurring: Optional[bool] = None
+    recurrence_pattern: Optional[RecurrencePattern] = None
+    recurrence_interval: Optional[int] = None
+    priority: Optional[SchedulePriority] = None
+    assigned_to: Optional[str] = None
+    shop_id: Optional[str] = None
+    reminders: Optional[List[ScheduleReminderCreate]] = None
+    notes: Optional[List[ScheduleNoteCreate]] = None
+
+class ScheduleStatusUpdate(BaseSchema):
+    """일정 상태 업데이트 스키마."""
+    
+    status: ScheduleStatus = Field(..., description="변경할 상태")
+
+class ScheduleResponse(ScheduleBase):
+    """일정 응답 스키마."""
+    
+    id: str
+    created_at: datetime
+    updated_at: datetime
+    reminders: Optional[List[ScheduleReminderResponse]] = Field(default_factory=list, description="알림 설정")
+    notes: Optional[List[ScheduleNoteResponse]] = Field(default_factory=list, description="노트")
+    
+    # 추가 정보
+    vehicle_info: Optional[Dict[str, Any]] = None
+    shop_info: Optional[Dict[str, Any]] = None
+    assigned_to_info: Optional[Dict[str, Any]] = None
+
+class ScheduleListResponse(BaseSchema):
+    """일정 목록 응답 스키마."""
+    
+    schedules: List[ScheduleResponse] = Field(..., description="일정 목록")
+    total: int = Field(..., description="전체 일정 수")
+    page: int = Field(default=1, description="현재 페이지 번호")
+    limit: int = Field(..., description="페이지당 항목 수")
+    has_more: bool = Field(default=False, description="다음 페이지 존재 여부")
+
+# API 공통 응답 스키마
+class APIErrorResponse(BaseSchema):
+    """API 오류 응답 스키마."""
+    
+    status: str = Field(default="error", description="응답 상태")
+    code: int = Field(..., description="HTTP 상태 코드")
+    message: str = Field(..., description="오류 메시지")
+    details: Optional[Dict[str, Any]] = Field(None, description="추가 오류 상세 정보")
+    timestamp: datetime = Field(default_factory=datetime.now, description="오류 발생 시간")
+
+class APISuccessResponse(BaseSchema):
+    """API 성공 응답 스키마(데이터가 없는 경우)."""
+    
+    status: str = Field(default="success", description="응답 상태")
+    message: str = Field(..., description="성공 메시지")
+    timestamp: datetime = Field(default_factory=datetime.now, description="응답 시간")
+
+class ShopImageResponse(BaseModel):
+    id: int
+    image_url: str
+
+class ShopImageBatchResponse(BaseModel):
+    images: List[ShopImageResponse]
+
+ApiResponse = APIResponse

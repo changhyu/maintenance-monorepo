@@ -1,27 +1,43 @@
 import logging
 import os
-import json
-import subprocess
 from datetime import datetime
 from typing import Dict, Any, List, Optional
+from pathlib import Path
 
 from ..models.schemas import MaintenanceStatus
 from ..repositories.maintenance_repository import MaintenanceRepository
 from ..repositories.vehicle_repository import VehicleRepository
+from ..services.git_service import GitService
+from ..core.exceptions import ResourceNotFoundException, DatabaseOperationException, GitOperationException
 
 logger = logging.getLogger(__name__)
 
 class MaintenanceController:
-    def __init__(self, path: str):
-        self.path = path
+    def __init__(self, path: str = None):
+        """
+        MaintenanceController 초기화
+        
+        Args:
+            path (str, optional): 저장소 경로. 기본값은 프로젝트 루트 디렉토리
+        """
+        if path is None:
+            # 현재 파일의 위치에서 프로젝트 루트 디렉토리 계산
+            current_file = Path(__file__).resolve()
+            # src/controllers에서 두 단계 위로 (src의 부모 디렉토리가 프로젝트 루트)
+            self.path = str(current_file.parent.parent.parent)
+        else:
+            self.path = os.path.abspath(path)
+            
+        logger.info(f"MaintenanceController 초기화: 경로={self.path}")
         self.maintenance_repository = MaintenanceRepository()
         self.vehicle_repository = VehicleRepository()
+        self.git_service = GitService(repo_path=self.path)
 
     def get_status(self):
         """정비 시스템 상태 조회"""
         try:
             # Git 상태 확인
-            git_status = self._get_git_status()
+            git_status = self.git_service.get_status()
             maintenance_count = self.maintenance_repository.count_maintenance_records()
             
             return {
@@ -31,40 +47,26 @@ class MaintenanceController:
                 "maintenance_records_count": maintenance_count,
                 "last_updated": datetime.now().isoformat()
             }
+        except GitOperationException as e:
+            logger.warning(f"Git 상태 조회 중 오류: {str(e)}")
+            return {
+                "status": "active",
+                "path": self.path, 
+                "git_status": {"error": str(e)},
+                "maintenance_records_count": self.maintenance_repository.count_maintenance_records(),
+                "last_updated": datetime.now().isoformat()
+            }
         except Exception as e:
             logger.error(f"정비 상태 조회 중 오류 발생: {str(e)}")
             return {"status": "error", "message": str(e)}
 
-    def create_maintenance_commit(self, message: str):
+    def create_maintenance_commit(self, message: str, paths: List[str] = None):
         """정비 관련 Git 커밋 생성"""
         try:
-            # 변경사항 스테이징
-            subprocess.run(["git", "-C", self.path, "add", "."], check=True)
-            
-            # 커밋 생성
-            result = subprocess.run(
-                ["git", "-C", self.path, "commit", "-m", f"정비: {message}"],
-                capture_output=True,
-                text=True,
-                check=True
-            )
-            
-            # 커밋 해시 가져오기
-            commit_hash = subprocess.run(
-                ["git", "-C", self.path, "rev-parse", "HEAD"],
-                capture_output=True,
-                text=True,
-                check=True
-            ).stdout.strip()
-            
-            return {
-                "commit": commit_hash,
-                "message": message,
-                "details": result.stdout
-            }
-        except subprocess.CalledProcessError as e:
-            logger.error(f"Git 커밋 생성 중 오류 발생: {e.stderr}")
-            return {"error": e.stderr}
+            return self.git_service.create_commit(f"정비: {message}", paths)
+        except GitOperationException as e:
+            logger.error(f"Git 커밋 생성 중 오류: {str(e)}")
+            return {"error": str(e)}
         except Exception as e:
             logger.error(f"정비 커밋 생성 중 오류 발생: {str(e)}")
             return {"error": str(e)}
@@ -72,41 +74,21 @@ class MaintenanceController:
     def pull_repository(self):
         """원격 저장소에서 변경사항 가져오기"""
         try:
-            result = subprocess.run(
-                ["git", "-C", self.path, "pull"],
-                capture_output=True,
-                text=True,
-                check=True
-            )
-            
-            return {
-                "success": True,
-                "details": result.stdout
-            }
-        except subprocess.CalledProcessError as e:
-            logger.error(f"Git pull 중 오류 발생: {e.stderr}")
-            return {"success": False, "error": e.stderr}
+            return self.git_service.pull()
+        except GitOperationException as e:
+            logger.error(f"Git pull 중 오류: {str(e)}")
+            return {"success": False, "error": str(e)}
         except Exception as e:
             logger.error(f"저장소 pull 중 오류 발생: {str(e)}")
             return {"success": False, "error": str(e)}
 
-    def push_repository(self):
+    def push_repository(self, force: bool = False):
         """변경사항을 원격 저장소로 푸시"""
         try:
-            result = subprocess.run(
-                ["git", "-C", self.path, "push"],
-                capture_output=True,
-                text=True,
-                check=True
-            )
-            
-            return {
-                "success": True,
-                "details": result.stdout
-            }
-        except subprocess.CalledProcessError as e:
-            logger.error(f"Git push 중 오류 발생: {e.stderr}")
-            return {"success": False, "error": e.stderr}
+            return self.git_service.push(force=force)
+        except GitOperationException as e:
+            logger.error(f"Git push 중 오류: {str(e)}")
+            return {"success": False, "error": str(e)}
         except Exception as e:
             logger.error(f"저장소 push 중 오류 발생: {str(e)}")
             return {"success": False, "error": str(e)}
@@ -116,7 +98,7 @@ class MaintenanceController:
         try:
             vehicle = self.vehicle_repository.get_vehicle_by_id(vehicle_id)
             if not vehicle:
-                return {"error": f"차량 ID {vehicle_id}를 찾을 수 없습니다."}
+                raise ResourceNotFoundException(f"차량 ID {vehicle_id}를 찾을 수 없습니다.")
                 
             maintenance_records = self.maintenance_repository.get_maintenance_by_vehicle_id(vehicle_id)
             
@@ -126,6 +108,9 @@ class MaintenanceController:
                 "maintenance_records": maintenance_records,
                 "count": len(maintenance_records)
             }
+        except ResourceNotFoundException as e:
+            logger.warning(f"차량 정비 내역 조회 실패: {str(e)}")
+            return {"error": str(e)}
         except Exception as e:
             logger.error(f"차량 정비 내역 조회 중 오류 발생: {str(e)}")
             return {"error": str(e)}
@@ -135,7 +120,7 @@ class MaintenanceController:
         try:
             vehicle = self.vehicle_repository.get_vehicle_by_id(vehicle_id)
             if not vehicle:
-                return {"error": f"차량 ID {vehicle_id}를 찾을 수 없습니다."}
+                raise ResourceNotFoundException(f"차량 ID {vehicle_id}를 찾을 수 없습니다.")
             
             # 예약 정비 생성
             maintenance_data = {
@@ -157,6 +142,12 @@ class MaintenanceController:
                 "schedule_date": schedule_date,
                 "maintenance_type": maintenance_type
             }
+        except ResourceNotFoundException as e:
+            logger.warning(f"정비 예약 생성 실패: {str(e)}")
+            return {"scheduled": False, "error": str(e)}
+        except DatabaseOperationException as e:
+            logger.error(f"정비 예약 생성 중 데이터베이스 오류: {str(e)}")
+            return {"scheduled": False, "error": f"데이터베이스 오류: {str(e)}"}
         except Exception as e:
             logger.error(f"정비 예약 생성 중 오류 발생: {str(e)}")
             return {"scheduled": False, "error": str(e)}
@@ -166,7 +157,7 @@ class MaintenanceController:
         try:
             maintenance = self.maintenance_repository.get_maintenance_by_id(maintenance_id)
             if not maintenance:
-                return {"error": f"정비 ID {maintenance_id}를 찾을 수 없습니다."}
+                raise ResourceNotFoundException(f"정비 ID {maintenance_id}를 찾을 수 없습니다.")
             
             # 정비 상태 업데이트
             update_data = {
@@ -190,6 +181,12 @@ class MaintenanceController:
                 self.vehicle_repository.update_vehicle_status(vehicle_id, "active")
             
             return updated_maintenance
+        except ResourceNotFoundException as e:
+            logger.warning(f"정비 완료 처리 실패: {str(e)}")
+            return {"error": str(e)}
+        except DatabaseOperationException as e:
+            logger.error(f"정비 완료 처리 중 데이터베이스 오류: {str(e)}")
+            return {"error": f"데이터베이스 오류: {str(e)}"}
         except Exception as e:
             logger.error(f"정비 완료 처리 중 오류 발생: {str(e)}")
             return {"error": str(e)}
@@ -265,90 +262,76 @@ class MaintenanceController:
             if not vehicle:
                 return {"error": f"차량 ID {vehicle_id}를 찾을 수 없습니다."}
             
+            # 정비 내역 조회
             maintenance_records = self.maintenance_repository.get_maintenance_by_vehicle_id(vehicle_id)
             
-            # 기본 통계 계산
-            total_count = len(maintenance_records)
-            completed_count = sum(1 for record in maintenance_records if record.get("status") == MaintenanceStatus.COMPLETED)
-            scheduled_count = sum(1 for record in maintenance_records if record.get("status") == MaintenanceStatus.SCHEDULED)
-            in_progress_count = sum(1 for record in maintenance_records if record.get("status") == MaintenanceStatus.IN_PROGRESS)
-            
-            # 총 비용 계산
-            total_cost = sum(record.get("cost", 0) for record in maintenance_records if record.get("status") == MaintenanceStatus.COMPLETED)
-            
-            # 정비 유형별 분석
-            maintenance_types = {}
+            # 비용 합계 계산
+            total_cost = 0
             for record in maintenance_records:
-                mtype = record.get("type", "기타")
-                if mtype not in maintenance_types:
-                    maintenance_types[mtype] = 0
-                maintenance_types[mtype] += 1
+                cost = record.get("cost", 0)
+                if cost:
+                    total_cost += cost
+                    
+            # 통계 생성
+            avg_cost = total_cost / len(maintenance_records) if maintenance_records else 0
             
             return {
                 "vehicle_id": vehicle_id,
-                "total": total_count,
-                "completed": completed_count,
-                "scheduled": scheduled_count,
-                "in_progress": in_progress_count,
-                "total_cost": total_cost,
-                "maintenance_types": maintenance_types,
-                "last_maintenance": maintenance_records[0] if maintenance_records else None
+                "total_maintenance_count": len(maintenance_records),
+                "recent_maintenance": maintenance_records[:3] if maintenance_records else [],
+                "cost_summary": {
+                    "total": total_cost,
+                    "average": avg_cost
+                }
             }
         except Exception as e:
             logger.error(f"정비 통계 조회 중 오류 발생: {str(e)}")
             return {"error": str(e)}
             
-    def _get_git_status(self):
-        """Git 저장소 상태 조회 헬퍼 메서드"""
+    def get_recent_maintenance_records(self, limit: int = 10):
+        """최근 정비 내역 조회"""
         try:
-            # 변경된 파일 수 확인
-            modified_files = subprocess.run(
-                ["git", "-C", self.path, "status", "--porcelain"],
-                capture_output=True,
-                text=True,
-                check=True
-            ).stdout.strip().split("\n")
+            records = self.maintenance_repository.get_recent_maintenance_records(limit)
+            return records
+        except Exception as e:
+            logger.error(f"최근 정비 내역 조회 중 오류 발생: {str(e)}")
+            return {"error": str(e)}
             
-            modified_count = len([f for f in modified_files if f.strip()])
+    def get_scheduled_maintenance(self, limit: int = 10):
+        """예약된 정비 내역 조회"""
+        try:
+            records = self.maintenance_repository.get_maintenance_by_status(
+                MaintenanceStatus.SCHEDULED, limit=limit
+            )
+            return records
+        except Exception as e:
+            logger.error(f"예약 정비 내역 조회 중 오류 발생: {str(e)}")
+            return {"error": str(e)}
             
-            # 현재 브랜치 확인
-            current_branch = subprocess.run(
-                ["git", "-C", self.path, "rev-parse", "--abbrev-ref", "HEAD"],
-                capture_output=True,
-                text=True,
-                check=True
-            ).stdout.strip()
+    def get_pending_approvals(self):
+        """승인 대기 중인 정비 내역 조회"""
+        try:
+            records = self.maintenance_repository.get_pending_approval_maintenance()
+            return records
+        except Exception as e:
+            logger.error(f"승인 대기 정비 내역 조회 중 오류 발생: {str(e)}")
+            return {"error": str(e)}
             
-            # 마지막 커밋 정보
-            last_commit = subprocess.run(
-                ["git", "-C", self.path, "log", "-1", "--pretty=format:%h|%an|%s|%ci"],
-                capture_output=True,
-                text=True,
-                check=True
-            ).stdout.strip()
-            
-            if last_commit:
-                commit_parts = last_commit.split("|")
-                last_commit_info = {
-                    "hash": commit_parts[0],
-                    "author": commit_parts[1],
-                    "message": commit_parts[2],
-                    "date": commit_parts[3]
-                }
-            else:
-                last_commit_info = None
+    def get_maintenance_summary(self):
+        """정비 요약 정보 조회"""
+        try:
+            total = self.maintenance_repository.count_maintenance_records()
+            scheduled = self.maintenance_repository.count_maintenance_by_status(MaintenanceStatus.SCHEDULED)
+            completed = self.maintenance_repository.count_maintenance_by_status(MaintenanceStatus.COMPLETED)
+            in_progress = self.maintenance_repository.count_maintenance_by_status(MaintenanceStatus.IN_PROGRESS)
             
             return {
-                "branch": current_branch,
-                "modified_files": modified_count,
-                "has_changes": modified_count > 0,
-                "last_commit": last_commit_info
+                "total": total,
+                "scheduled": scheduled,
+                "completed": completed,
+                "in_progress": in_progress,
+                "completion_rate": (completed / total * 100) if total > 0 else 0
             }
-        except subprocess.CalledProcessError as e:
-            logger.error(f"Git 상태 확인 중 오류 발생: {e.stderr}")
-            return {"error": e.stderr}
         except Exception as e:
-            logger.error(f"Git 상태 확인 중 예외 발생: {str(e)}")
+            logger.error(f"정비 요약 정보 조회 중 오류 발생: {str(e)}")
             return {"error": str(e)}
-
-## 필요한 경우 로컬 유지보수 관련 기능 추가 구현 

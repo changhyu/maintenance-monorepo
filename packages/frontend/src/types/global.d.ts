@@ -217,4 +217,200 @@ declare module '@ant-design/icons' {
 declare module 'jspdf';
 declare module 'xlsx';
 declare module 'react-beautiful-dnd';
-declare module 'styled-components'; 
+declare module 'styled-components';
+
+// jspdf 및 jspdf-autotable 타입 정의
+declare module 'jspdf' {
+  export class jsPDF {
+    constructor(options?: any);
+    text(text: string, x: number, y: number, options?: any): jsPDF;
+    save(filename: string): jsPDF;
+    addPage(options?: any): jsPDF;
+    setFontSize(size: number): jsPDF;
+    autoTable?: (options: any) => jsPDF;
+  }
+}
+
+declare module 'jspdf-autotable' {
+  import { jsPDF } from 'jspdf';
+  
+  interface jsPDFWithAutoTable extends jsPDF {
+    autoTable: (options: any) => jsPDF;
+  }
+  
+  function autoTable(options: any): jsPDF;
+  export = autoTable;
+}
+
+// html2canvas 관련 타입
+declare module 'html2canvas' {
+  interface Options {
+    useCORS?: boolean;
+    scale?: number;
+    logging?: boolean;
+    backgroundColor?: string;
+    allowTaint?: boolean;
+    imageTimeout?: number;
+  }
+  
+  function html2canvas(element: HTMLElement, options?: Options): Promise<HTMLCanvasElement>;
+  export default html2canvas;
+}
+
+// 보고서 시스템 관련 공통 타입
+interface ReportChartElement extends HTMLElement {
+  __chartRef?: any;
+}
+
+// 차트 데이터 타입
+interface ChartDataPoint {
+  name: string;
+  value: number;
+  [key: string]: any;
+}
+
+// 차트 타입 확장으로 더 구체적인 차트 타입 정의
+interface LineChartDataPoint extends ChartDataPoint {
+  date?: string;
+  time?: string;
+  trend?: 'up' | 'down' | 'neutral';
+}
+
+interface BarChartDataPoint extends ChartDataPoint {
+  category?: string;
+  color?: string;
+  compare?: number;
+}
+
+interface PieChartDataPoint extends ChartDataPoint {
+  percentage?: number;
+  color?: string;
+  highlight?: boolean;
+}
+
+// 차트 구성 옵션 타입
+interface ChartOptions {
+  width?: number;
+  height?: number;
+  colors?: string[];
+  legend?: boolean;
+  grid?: boolean;
+  animation?: boolean;
+  responsive?: boolean;
+  tooltip?: boolean;
+  xAxis?: {
+    label?: string;
+    showGrid?: boolean;
+    tickCount?: number;
+  };
+  yAxis?: {
+    label?: string;
+    showGrid?: boolean;
+    tickCount?: number;
+  };
+}
+
+// 보고서 템플릿 관련 타입
+interface ReportTemplate {
+  id: string;
+  name: string;
+  type: string;
+  sections: ReportSection[];
+  createdAt: string;
+  lastModified?: string;
+  author?: string;
+  version?: string;
+}
+
+interface ReportSection {
+  id: string;
+  type: 'header' | 'table' | 'chart' | 'text' | 'image';
+  title?: string;
+  content?: any;
+  options?: Record<string, any>;
+  order?: number;
+  visible?: boolean;
+}
+
+// PDF 다국어 지원 관련 타입
+interface PDFLocalization {
+  locale: string;
+  translations: {
+    pageTitle?: string;
+    generatedOn?: string;
+    page?: string;
+    of?: string;
+    reportSummary?: string;
+    tableSummary?: string;
+    chartSummary?: string;
+    dataSource?: string;
+    exportedBy?: string;
+    confidential?: string;
+    dateFormat?: string;
+  };
+}
+
+// 웹 접근성 향상을 위한 보고서 메타데이터 타입
+interface ReportAccessibility {
+  lang?: string;
+  altTexts?: {[key: string]: string};
+  ariaLabels?: {[key: string]: string};
+  tableCaption?: string;
+  chartDescriptions?: {[key: string]: string};
+  highContrastMode?: boolean;
+  textToSpeech?: boolean;
+  keyboardNavigable?: boolean;
+}
+
+// 보고서 캐싱 관련 타입
+interface ReportCache {
+  key: string;
+  data: any;
+  timestamp: number;
+  expiresIn?: number;
+  version?: string;
+}
+
+// 차트 이미지 캐싱
+interface ChartImageCache {
+  chartId: string;
+  imageData: string; // base64 이미지 데이터
+  timestamp: number;
+  dimensions: {width: number; height: number};
+  checksum?: string; // 데이터 변경 감지를 위한 체크섬
+}
+
+// 보고서 PDF 옵션 타입
+interface ReportExportOptions {
+  includeCharts?: boolean;
+  paperSize?: 'a4' | 'letter' | 'legal';
+  landscape?: boolean;
+  quality?: number;
+  password?: string;
+  watermark?: {
+    text?: string;
+    fontSize?: number;
+    opacity?: number;
+    angle?: number;
+  };
+  header?: {
+    text?: string;
+    logo?: string;
+    height?: number;
+  };
+  footer?: {
+    text?: string;
+    pagination?: boolean;
+    height?: number;
+  };
+  compression?: boolean;
+  metadata?: {
+    title?: string;
+    author?: string;
+    subject?: string;
+    keywords?: string[];
+    creator?: string;
+  };
+  accessibility?: ReportAccessibility;
+  localization?: PDFLocalization;
+} 

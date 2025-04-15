@@ -219,6 +219,8 @@ export interface ExportOptions {
   includeRawData?: boolean;
   paperSize?: 'a4' | 'letter' | 'legal';
   landscape?: boolean;
+  preview?: boolean; // 미리보기 모드 여부
+  saveToIndexedDB?: boolean; // 보고서를 IndexedDB에 저장할지 여부
 }
 
 /**

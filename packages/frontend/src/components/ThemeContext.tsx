@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, ReactNode } from 'react';
+import React, { createContext, useState, useContext, ReactNode, useEffect, useMemo } from 'react';
 
 // 테마 타입 정의
 type Theme = 'light' | 'dark';
@@ -40,19 +40,22 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   };
 
   // 초기 로딩 시 HTML 요소에 테마 클래스 적용
-  React.useEffect(() => {
+  useEffect(() => {
     if (theme === 'dark') {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
     }
-  }, []);
+  }, [theme]);
 
-  // 컨텍스트 값 제공
-  const contextValue: ThemeContextType = {
-    theme,
-    toggleTheme
-  };
+  // 컨텍스트 값을 useMemo로 메모이제이션
+  const contextValue = useMemo(
+    () => ({
+      theme,
+      toggleTheme
+    }),
+    [theme]
+  );
 
   return <ThemeContext.Provider value={contextValue}>{children}</ThemeContext.Provider>;
 };

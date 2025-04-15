@@ -1,0 +1,97 @@
+groups:
+  - name: maintenance_alerts
+    rules:
+      # 시스템 리소스 알림
+      - alert: HighCPUUsage
+        expr: system_cpu_usage_percent > 85
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "높은 CPU 사용률 ({{ $value }}%)"
+          description: "CPU 사용률이 85%를 초과했습니다.\n현재 값: {{ $value }}%"
+
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 90
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "높은 메모리 사용률 ({{ $value }}%)"
+          description: "메모리 사용률이 90%를 초과했습니다.\n현재 값: {{ $value }}%"
+
+      # API 성능 알림
+      - alert: HighResponseTime
+        expr: rate(http_request_duration_seconds_sum[5m]) / rate(http_request_duration_seconds_count[5m]) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "높은 API 응답 시간"
+          description: "API 응답 시간이 2초를 초과했습니다.\n현재 값: {{ $value }}s"
+
+      - alert: HighErrorRate
+        expr: sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m])) * 100 > 5
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "높은 에러율 ({{ $value }}%)"
+          description: "HTTP 5xx 에러율이 5%를 초과했습니다."
+
+      # 데이터베이스 알림
+      - alert: HighDBConnections
+        expr: db_connections_current > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "높은 데이터베이스 연결 수"
+          description: "데이터베이스 연결 수가 80을 초과했습니다.\n현재 값: {{ $value }}"
+
+      - alert: SlowQueries
+        expr: rate(db_query_duration_seconds_sum[5m]) / rate(db_query_duration_seconds_count[5m]) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "느린 쿼리 실행"
+          description: "평균 쿼리 실행 시간이 1초를 초과했습니다.\n현재 값: {{ $value }}s"
+
+      # 캐시 성능 알림
+      - alert: LowCacheHitRate
+        expr: rate(cache_hits_total[5m]) / (rate(cache_hits_total[5m]) + rate(cache_misses_total[5m])) * 100 < 50
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "낮은 캐시 히트율 ({{ $value }}%)"
+          description: "캐시 히트율이 50% 미만입니다."
+
+      # 비즈니스 알림
+      - alert: LowPartsInventory
+        expr: parts_inventory_level_percent < 30
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "낮은 부품 재고 ({{ $value }}%)"
+          description: "부품 재고가 30% 미만입니다.\n부품 ID: {{ $labels.part_id }}"
+
+      - alert: LongMaintenanceTime
+        expr: rate(maintenance_completion_time_hours_sum[24h]) / rate(maintenance_completion_time_hours_count[24h]) > 4
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "긴 정비 소요 시간"
+          description: "평균 정비 완료 시간이 4시간을 초과했습니다.\n현재 값: {{ $value }}시간"
+
+      - alert: LongCustomerWaitTime
+        expr: rate(customer_wait_time_minutes_sum[1h]) / rate(customer_wait_time_minutes_count[1h]) > 30
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "긴 고객 대기 시간"
+          description: "평균 고객 대기 시간이 30분을 초과했습니다.\n현재 값: {{ $value }}분" 

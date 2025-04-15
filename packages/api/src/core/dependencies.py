@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from .config import settings
 from .security import get_current_user
 from .logging import app_logger
+from .cache import cache, RedisCache
 
 
 # 데이터베이스 세션 의존성
@@ -18,21 +19,26 @@ def get_db() -> Generator[Session, None, None]:
     
     Returns:
         데이터베이스 세션
-    
-    Note:
-        실제 구현 시 DB 연결 및 세션 관리 로직이 필요합니다.
     """
-    # 실제 연결이 설정되면 아래 주석 해제하고 구현
-    # from ..database.session import SessionLocal
-    # db = SessionLocal()
-    db = None  # 임시 구현: 실제 프로젝트에서는 연결 설정 필요
+    from ..database import SessionLocal
+    db = SessionLocal()
     try:
         app_logger.debug("DB 세션 생성")
         yield db
     finally:
-        if db:
-            app_logger.debug("DB 세션 종료")
-            db.close()
+        app_logger.debug("DB 세션 종료")
+        db.close()
+
+
+# Redis 캐시 의존성
+def get_cache() -> RedisCache:
+    """
+    Redis 캐시 제공 의존성.
+    
+    Returns:
+        Redis 캐시 인스턴스
+    """
+    return cache
 
 
 # 현재 활성 사용자 의존성
@@ -83,4 +89,8 @@ async def get_current_admin_user(
             detail="관리자 권한이 필요합니다",
         )
     return current_user
-\n
+
+
+def get_service():
+    """서비스 객체를 반환합니다. (현재 기본 구현은 None을 반환합니다.)"""
+    return None

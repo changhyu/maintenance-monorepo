@@ -1,201 +1,219 @@
 import React, { useState } from 'react';
-
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
-  MenuFoldOutlined,
-  MenuUnfoldOutlined,
-  CarOutlined,
-  UserOutlined,
-  CalendarOutlined,
-  DashboardOutlined,
-  SettingOutlined,
-  BellOutlined,
-  LogoutOutlined,
-  FileTextOutlined,
-  ToolOutlined,
-  AppstoreOutlined
-} from '@ant-design/icons';
-import { Layout, Menu, Avatar, Dropdown, Button, Badge } from 'antd';
-import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
+  AppBar,
+  Box,
+  Drawer,
+  IconButton,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Toolbar,
+  Typography,
+  Divider,
+  Avatar,
+  Menu,
+  MenuItem,
+  Container,
+} from '@mui/material';
+import {
+  Menu as MenuIcon,
+  Home as HomeIcon,
+  DirectionsCar as CarIcon,
+  Build as MaintenanceIcon,
+  Store as ShopIcon,
+  Settings as SettingsIcon,
+  Notifications as NotificationsIcon,
+  AccountCircle,
+  ChevronLeft as ChevronLeftIcon,
+} from '@mui/icons-material';
+import OfflineNotice from '../components/OfflineNotice';
 
-const { Header, Sider, Content } = Layout;
-const { SubMenu } = Menu;
+const drawerWidth = 240;
 
-/**
- * 메인 레이아웃 컴포넌트
- */
-const MainLayout: React.FC = () => {
-  const [collapsed, setCollapsed] = useState(false);
-  const location = useLocation();
+interface MainLayoutProps {
+  children: React.ReactNode;
+}
+
+interface MenuItem {
+  text: string;
+  path: string;
+  icon: React.ReactNode;
+}
+
+const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const navigate = useNavigate();
+  const location = useLocation();
 
-  // 사이드바 토글
-  const toggle = () => {
-    setCollapsed(!collapsed);
+  const menuItems: MenuItem[] = [
+    { text: '대시보드', path: '/', icon: <HomeIcon /> },
+    { text: '차량 관리', path: '/vehicles', icon: <CarIcon /> },
+    { text: '정비 관리', path: '/maintenance', icon: <MaintenanceIcon /> },
+    { text: '정비소', path: '/shops', icon: <ShopIcon /> },
+  ];
+
+  const handleDrawerToggle = () => {
+    setDrawerOpen(!drawerOpen);
   };
 
-  // 현재 활성화된 메뉴 키 계산
-  const getActiveMenuKey = () => {
-    const path = location.pathname;
-    if (path.startsWith('/vehicles')) return ['vehicles'];
-    if (path.startsWith('/booking/history')) return ['booking-history'];
-    if (path.startsWith('/booking')) return ['booking'];
-    if (path.startsWith('/profile')) return ['profile'];
-    return ['dashboard'];
+  const handleProfileMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
   };
 
-  // 로그아웃 처리
-  const handleLogout = () => {
-    // 실제 구현 시 인증 상태 초기화
-    navigate('/login');
+  const handleProfileMenuClose = () => {
+    setAnchorEl(null);
   };
 
-  // 사용자 메뉴
-  const userMenu = (
-    <Menu>
-      <Menu.Item key="profile" icon={<UserOutlined />}>
-        <Link to="/profile">프로필</Link>
-      </Menu.Item>
-      <Menu.Item key="settings" icon={<SettingOutlined />}>
-        <Link to="/settings">설정</Link>
-      </Menu.Item>
-      <Menu.Divider />
-      <Menu.Item key="logout" icon={<LogoutOutlined />} onClick={handleLogout}>
-        로그아웃
-      </Menu.Item>
-    </Menu>
-  );
+  const handleMenuClick = (path: string) => {
+    navigate(path);
+    setDrawerOpen(false);
+  };
 
-  // 알림 메뉴
-  const notificationMenu = (
-    <Menu>
-      <Menu.Item key="notification1">
-        <span>차량 1001 정비 예약이 확정되었습니다.</span>
-      </Menu.Item>
-      <Menu.Item key="notification2">
-        <span>차량 1002 주행거리가 5,000km에 도달했습니다.</span>
-      </Menu.Item>
-      <Menu.Item key="notification3">
-        <span>차량 1003 정비가 완료되었습니다.</span>
-      </Menu.Item>
-      <Menu.Divider />
-      <Menu.Item key="all-notifications">
-        <Link to="/notifications">모든 알림 보기</Link>
-      </Menu.Item>
-    </Menu>
-  );
+  const isActive = (path: string): boolean => {
+    if (path === '/' && location.pathname !== '/') return false;
+    return location.pathname.startsWith(path);
+  };
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
-      {/* 사이드바 */}
-      <Sider trigger={null} collapsible collapsed={collapsed} width={250}>
-        <div
-          className="logo"
-          style={{
-            height: '64px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: collapsed ? 'center' : 'flex-start',
-            padding: collapsed ? '0' : '0 24px'
-          }}
-        >
-          <CarOutlined style={{ color: '#fff', fontSize: '24px' }} />
-          {!collapsed && (
-            <span style={{ color: '#fff', fontSize: '18px', marginLeft: '10px' }}>
-              정비 관리 시스템
-            </span>
-          )}
-        </div>
+    <Box sx={{ display: 'flex' }}>
+      <AppBar
+        position="fixed"
+        sx={{
+          width: { md: `calc(100% - ${drawerOpen ? drawerWidth : 0}px)` },
+          ml: { md: `${drawerOpen ? drawerWidth : 0}px` },
+          transition: theme => theme.transitions.create(['margin', 'width'], {
+            easing: theme.transitions.easing.sharp,
+            duration: theme.transitions.duration.leavingScreen,
+          }),
+        }}
+      >
+        <Toolbar>
+          <IconButton
+            color="inherit"
+            aria-label="open drawer"
+            edge="start"
+            onClick={handleDrawerToggle}
+            sx={{ mr: 2 }}
+          >
+            <MenuIcon />
+          </IconButton>
+          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
+            차량 정비 관리 시스템
+          </Typography>
 
-        <Menu
-          theme="dark"
-          mode="inline"
-          selectedKeys={getActiveMenuKey()}
-          defaultOpenKeys={getActiveMenuKey()}
-        >
-          <Menu.Item key="dashboard" icon={<DashboardOutlined />}>
-            <Link to="/dashboard">대시보드</Link>
-          </Menu.Item>
+          <IconButton color="inherit" sx={{ mr: 1 }}>
+            <NotificationsIcon />
+          </IconButton>
 
-          <Menu.Item key="vehicles" icon={<CarOutlined />}>
-            <Link to="/vehicles">차량 관리</Link>
-          </Menu.Item>
+          <IconButton
+            edge="end"
+            aria-label="account of current user"
+            aria-haspopup="true"
+            onClick={handleProfileMenuOpen}
+            color="inherit"
+          >
+            <Avatar sx={{ width: 32, height: 32, bgcolor: 'secondary.main' }}>A</Avatar>
+          </IconButton>
 
-          <SubMenu key="booking" icon={<CalendarOutlined />} title="정비 예약">
-            <Menu.Item key="booking">
-              <Link to="/booking">예약 등록</Link>
-            </Menu.Item>
-            <Menu.Item key="booking-history">
-              <Link to="/booking/history">예약 내역</Link>
-            </Menu.Item>
-          </SubMenu>
+          <Menu
+            anchorEl={anchorEl}
+            anchorOrigin={{
+              vertical: 'bottom',
+              horizontal: 'right',
+            }}
+            keepMounted
+            transformOrigin={{
+              vertical: 'top',
+              horizontal: 'right',
+            }}
+            open={Boolean(anchorEl)}
+            onClose={handleProfileMenuClose}
+          >
+            <MenuItem onClick={handleProfileMenuClose}>프로필</MenuItem>
+            <MenuItem onClick={handleProfileMenuClose}>설정</MenuItem>
+            <MenuItem onClick={handleProfileMenuClose}>로그아웃</MenuItem>
+          </Menu>
+        </Toolbar>
+      </AppBar>
 
-          <Menu.Item key="maintenance" icon={<ToolOutlined />}>
-            <Link to="/maintenance">정비 이력</Link>
-          </Menu.Item>
-
-          <Menu.Item key="reports" icon={<FileTextOutlined />}>
-            <Link to="/reports">보고서</Link>
-          </Menu.Item>
-
-          <SubMenu key="settings" icon={<SettingOutlined />} title="설정">
-            <Menu.Item key="user-settings">
-              <Link to="/settings/user">사용자 설정</Link>
-            </Menu.Item>
-            <Menu.Item key="system-settings">
-              <Link to="/settings/system">시스템 설정</Link>
-            </Menu.Item>
-          </SubMenu>
-        </Menu>
-      </Sider>
-
-      <Layout className="site-layout">
-        {/* 헤더 */}
-        <Header
-          style={{
-            padding: 0,
-            background: '#fff',
-            display: 'flex',
-            justifyContent: 'space-between',
-            boxShadow: '0 1px 4px rgba(0, 21, 41, 0.08)'
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center' }}>
-            {React.createElement(collapsed ? MenuUnfoldOutlined : MenuFoldOutlined, {
-              className: 'trigger',
-              onClick: toggle,
-              style: { padding: '0 24px', fontSize: '18px' }
-            })}
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', marginRight: '24px' }}>
-            <Dropdown overlay={notificationMenu} placement="bottomRight">
-              <Badge count={3} dot>
-                <Button type="text" icon={<BellOutlined style={{ fontSize: '18px' }} />} />
-              </Badge>
-            </Dropdown>
-
-            <Dropdown overlay={userMenu} placement="bottomRight">
-              <div
-                style={{
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  marginLeft: '24px'
-                }}
+      <Drawer
+        sx={{
+          width: drawerWidth,
+          flexShrink: 0,
+          '& .MuiDrawer-paper': {
+            width: drawerWidth,
+            boxSizing: 'border-box',
+          },
+        }}
+        variant="persistent"
+        anchor="left"
+        open={drawerOpen}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', px: 1, py: 2 }}>
+          <Typography variant="h6" sx={{ flexGrow: 1, pl: 1 }}>
+            메뉴
+          </Typography>
+          <IconButton onClick={handleDrawerToggle}>
+            <ChevronLeftIcon />
+          </IconButton>
+        </Box>
+        <Divider />
+        <List>
+          {menuItems.map((item) => (
+            <ListItem key={item.text} disablePadding>
+              <ListItemButton
+                selected={isActive(item.path)}
+                onClick={() => handleMenuClick(item.path)}
               >
-                <Avatar icon={<UserOutlined />} />
-                <span style={{ marginLeft: '8px' }}>관리자</span>
-              </div>
-            </Dropdown>
-          </div>
-        </Header>
+                <ListItemIcon
+                  sx={{
+                    color: isActive(item.path) ? 'primary.main' : 'inherit',
+                  }}
+                >
+                  {item.icon}
+                </ListItemIcon>
+                <ListItemText primary={item.text} />
+              </ListItemButton>
+            </ListItem>
+          ))}
+        </List>
+        <Divider />
+        <List>
+          <ListItem disablePadding>
+            <ListItemButton onClick={() => handleMenuClick('/settings')}>
+              <ListItemIcon>
+                <SettingsIcon />
+              </ListItemIcon>
+              <ListItemText primary="설정" />
+            </ListItemButton>
+          </ListItem>
+        </List>
+      </Drawer>
 
-        {/* 콘텐츠 */}
-        <Content style={{ margin: '24px', background: '#fff', minHeight: 280 }}>
-          <Outlet />
-        </Content>
-      </Layout>
-    </Layout>
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          p: 3,
+          ml: { md: `${drawerOpen ? drawerWidth : 0}px` },
+          width: { xs: '100%', md: `calc(100% - ${drawerOpen ? drawerWidth : 0}px)` },
+          transition: theme => theme.transitions.create(['margin', 'width'], {
+            easing: theme.transitions.easing.sharp,
+            duration: theme.transitions.duration.leavingScreen,
+          }),
+        }}
+      >
+        <Toolbar /> {/* 헤더 아래 공간 확보 */}
+        <OfflineNotice />
+        <Container maxWidth="xl" sx={{ mt: 2 }}>
+          {children}
+        </Container>
+      </Box>
+    </Box>
   );
 };
 

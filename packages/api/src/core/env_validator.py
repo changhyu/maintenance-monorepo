@@ -316,9 +316,26 @@ def validate_env() -> bool:
     Returns:
         검증 성공 여부
     """
+    # 필수 변수 누락 시 개발 환경에서 자동 생성
+    if os.environ.get("ENVIRONMENT", "").lower() in ["development", "dev", "local"]:
+        # SECRET_KEY가 없으면 임시로 생성
+        if "SECRET_KEY" not in os.environ:
+            import secrets
+            os.environ["SECRET_KEY"] = secrets.token_hex(32)
+            logger.warning("SECRET_KEY가 없어 임시로 생성했습니다. 프로덕션 환경에서는 반드시 설정하세요.")
+            
+        # 개발 환경에서 필수 변수가 없으면 기본값 설정
+        if "DATABASE_URL" not in os.environ:
+            os.environ["DATABASE_URL"] = "sqlite:///./app.db"
+            logger.warning("DATABASE_URL이 없어 기본값(SQLite)을 사용합니다.")
+            
     success = env_validator.validate_all()
     env_validator.print_summary()
-    return success 
-
-
-\n
+    
+    # 개발 환경에서는 일부 검증 오류는 무시 가능
+    if not success and os.environ.get("ENVIRONMENT", "").lower() in ["development", "dev", "local"]:
+        if not env_validator.missing_vars:  # 누락 변수는 없고 유효하지 않은 변수만 있는 경우
+            logger.warning("개발 환경에서 일부 환경 변수 유효성 검증 실패를 무시합니다.")
+            return True
+    
+    return success

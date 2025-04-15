@@ -1,0 +1,57 @@
+branches:
+  - name: main
+    protection:
+      required_status_checks:
+        strict: true
+        contexts:
+          - unit-tests
+          - integration-tests
+          - lint
+          - security-scan
+          - build-check
+          - e2e-tests
+      enforce_admins: true
+      required_pull_request_reviews:
+        required_approving_review_count: 2
+        dismiss_stale_reviews: true
+        require_code_owner_reviews: true
+      restrictions:
+        users: []
+        teams: ["maintainers"]
+      required_linear_history: true
+      allow_force_pushes: false
+      allow_deletions: false
+
+  - name: develop
+    protection:
+      required_status_checks:
+        strict: true
+        contexts:
+          - unit-tests
+          - lint
+          - build-check
+      required_pull_request_reviews:
+        required_approving_review_count: 1
+        dismiss_stale_reviews: true
+      restrictions:
+        users: []
+        teams: ["developers"]
+      required_linear_history: true
+      allow_force_pushes: false
+      allow_deletions: false
+
+  - name: 'release/*'
+    protection:
+      required_status_checks:
+        strict: true
+        contexts:
+          - unit-tests
+          - integration-tests
+          - lint
+          - security-scan
+          - build-check
+      required_pull_request_reviews:
+        required_approving_review_count: 1
+      restrictions:
+        users: []
+        teams: ["release-managers"] 

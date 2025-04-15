@@ -6,56 +6,37 @@
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "skipLibCheck": true,
-    "jsx": "react-jsx",
-    "jsxImportSource": "react",
     "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
-    "typeRoots": ["./node_modules/@types", "./src/types"],
-
+    
     /* Bundler mode */
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-
+    "jsx": "react-jsx",
+    
     /* Linting */
-    "strict": false,
-    "noImplicitAny": false,
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
-    "baseUrl": ".",
-    
-    /* JSX 타입 및 리액트 컴포넌트 에러 수정을 위한 설정 */
-    "noImplicitReturns": false,
-    "allowUnreachableCode": false,
     "forceConsistentCasingInFileNames": true,
-    "exactOptionalPropertyTypes": false,
-    "noPropertyAccessFromIndexSignature": false,
-    "noImplicitThis": false,
     
-    /* 경로 설정 */
+    /* Paths */
+    "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"],
-      "@components/*": ["./src/components/*"],
-      "@hooks/*": ["./src/hooks/*"],
-      "@pages/*": ["./src/pages/*"],
-      "@services/*": ["./src/services/*"],
-      "@stores/*": ["./src/stores/*"],
-      "@types/*": ["./src/types/*"],
-      "@utils/*": ["./src/utils/*"],
-      "@layouts/*": ["./src/layouts/*"],
-      "@context/*": ["./src/context/*"],
-      "react": ["./node_modules/@types/react"]
+      "@/*": ["src/*"],
+      "@components/*": ["src/components/*"],
+      "@services/*": ["src/services/*"],
+      "@hooks/*": ["src/hooks/*"],
+      "@utils/*": ["src/utils/*"],
+      "@context/*": ["src/context/*"]
     }
   },
-  "include": [
-    "src/**/*", 
-    "**/*.ts", 
-    "**/*.tsx",
-    "src/types/**/*.d.ts"
-  ],
+  "include": ["src"],
   "exclude": ["node_modules", "build", "dist"],
   "references": [{ "path": "./tsconfig.node.json" }]
 } 

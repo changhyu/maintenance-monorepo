@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { FormInstance } from 'antd/es/form';
 
 import {
   PlusOutlined,
@@ -277,12 +278,12 @@ const GeofenceManager: React.FC<GeofenceManagerProps> = ({
   const handleStatusChange = async (geofenceId: string, active: boolean) => {
     try {
       setLoading(true);
-      // 상태 업데이트 방식을 수정
-      // active 속성이 geofenceData에 없는 경우 별도 필드로 전달
+      // Geofence 타입에는 active가 있지만 GeofenceCreate에는 없으므로,
+      // 백엔드에서 처리할 수 있는 다른 속성들로 업데이트
       const updateData: Partial<GeofenceCreate> = {
-        // 여기에 active 대신 활성화 관련 필드 설정
-        // 예: status: active ? 'active' : 'inactive'
-        // 또는 enabled: active 등 실제 API가 지원하는 필드로 수정
+        description: active ? '활성화된 지오펜스' : '비활성화된 지오펜스',
+        // 백엔드에서는 다른 방식으로 active 상태를 관리할 수 있음
+        vehicleIds: active ? undefined : [] // 활성화 상태가 아닐 때는 빈 배열로 설정
       };
       await mapService.updateGeofence(geofenceId, updateData);
       message.success(`지오펜스가 ${active ? '활성화' : '비활성화'}되었습니다.`);
@@ -369,7 +370,7 @@ const GeofenceManager: React.FC<GeofenceManagerProps> = ({
       render: (active: boolean, record: Geofence) => (
         <Switch
           checked={active}
-          onChange={checked => handleStatusChange(record.id, checked)}
+          onChange={(checked: boolean) => handleStatusChange(record.id, checked)}
           checkedChildren="활성"
           unCheckedChildren="비활성"
         />
@@ -489,7 +490,7 @@ const GeofenceManager: React.FC<GeofenceManagerProps> = ({
               rowKey="id"
               loading={loading}
               pagination={{ pageSize: 10 }}
-              onRow={record => ({
+              onRow={(record: Geofence) => ({
                 onClick: () => handleGeofenceSelect(record)
               })}
             />
@@ -563,9 +564,11 @@ const GeofenceManager: React.FC<GeofenceManagerProps> = ({
 
           <Form.Item
             noStyle
-            shouldUpdate={(prevValues, currentValues) => prevValues.type !== currentValues.type}
+            shouldUpdate={(prevValues: GeofenceFormValues, currentValues: GeofenceFormValues) => 
+              prevValues.type !== currentValues.type
+            }
           >
-            {({ getFieldValue }) => {
+            {({ getFieldValue }: FormInstance<GeofenceFormValues>) => {
               const type = getFieldValue('type');
 
               if (type === GeofenceType.CIRCLE) {

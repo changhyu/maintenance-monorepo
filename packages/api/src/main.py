@@ -1,160 +1,146 @@
 """
 Main application entry point for the API service.
 """
-
 import logging
 import os
 import sys
 from typing import Any, Dict
+from datetime import datetime, timezone
 
 # 현재 디렉토리를 파이썬 시스템 경로에 추가
 sys.path.insert(0, os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
 
-from fastapi import FastAPI, Request, APIRouter
-from fastapi.exceptions import RequestValidationError
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI, Request, APIRouter, Depends, status, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
-import uvicorn
 
+# 내부 모듈 import
 from .core.config import settings
+from .core.exceptions import setup_exception_handlers
+from .core.metrics import init_metrics
+from .core.versioning import setup_versioning, ApiVersion
+from .core.rate_limiter import RateLimiter
+from .core.documentation import setup_api_documentation
+from .core.monitoring.middleware import MonitoringMiddleware
+from .core.monitoring.metrics import metrics_collector
+from .core.logging_setup import setup_logging
+from .core.router_loader import import_router, load_routers
+from .core.cache import setup_cache, CacheSettings, CacheBackendType
+from .core.cache_manager import CacheManager
+from .core.security import SecurityMiddleware
+from .core.websocket_manager import WebSocketManager
+from .core.background_tasks import start_background_tasks, cancel_background_tasks
+from .core.metrics_collector import initialize_metrics
+from .core.cache_optimizer import initialize_cache_optimizer
+from .core.middleware import setup_middlewares
+from .core.lifespan import configure_lifespan
+from .core.env_validator import validate_env_variables
 
-# 라우터 임포트를 try-except로 보호
-try:
-    from .routers.auth import router as auth_router
-except ImportError:
-    auth_router = APIRouter()
-    logging.warning("auth_router를 임포트할 수 없습니다.")
+# 로깅 설정 적용
+logger = setup_logging()
+logger.info("로깅 시스템이 초기화되었습니다")
 
-try:
-    from .routers.vehicles import router as vehicles_router
-except ImportError:
-    vehicles_router = APIRouter()
-    logging.warning("vehicles_router를 임포트할 수 없습니다.")
-
-try:
-    from .routers.maintenance import router as maintenance_router
-except ImportError:
-    maintenance_router = APIRouter()
-    logging.warning("maintenance_router를 임포트할 수 없습니다.")
-
-try:
-    from .routers.shops import router as shops_router
-except ImportError:
-    shops_router = APIRouter()
-    logging.warning("shops_router를 임포트할 수 없습니다.")
-
-try:
-    from .routers.todos import router as todos_router
-    logging.info("Todo 라우터가 성공적으로 로드되었습니다.")
-except ImportError as e:
-    todos_router = APIRouter(prefix="/todos", tags=["todos"])
-    logging.error(f"Todo 라우터 로드 실패: {str(e)} - API 기능이 제한됩니다.")
+def create_app() -> FastAPI:
+    """
+    FastAPI 애플리케이션 생성 및 설정
+    """
+    # FastAPI 앱 인스턴스 생성
+    app = FastAPI(
+        title=settings.PROJECT_NAME,
+        description=settings.PROJECT_DESCRIPTION,
+        version=settings.VERSION,
+        docs_url="/docs" if settings.SHOW_DOCS else None,
+        redoc_url="/redoc" if settings.SHOW_DOCS else None,
+        lifespan=configure_lifespan()
+    )
     
-    @todos_router.get("/")
-    async def todo_import_error():
-        """Todo 모듈 로드 실패 시 에러 메시지 반환"""
-        return {"error": "Todo 모듈 로드 실패", "message": "시스템 관리자에게 문의하세요."}
-
-# 로깅 설정
-logging.basicConfig(
-    level=logging.INFO if settings.DEBUG else logging.WARNING,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
-logger = logging.getLogger(__name__)
+    # API 문서 설정
+    setup_api_documentation(app)
+    
+    # 버전 관리 설정
+    setup_versioning(app)
+    
+    # 미들웨어 설정
+    setup_middlewares(app)
+    
+    # 예외 핸들러 설정
+    setup_exception_handlers(app)
+    
+    # 라우터 로드
+    routers = load_routers()
+    for router in routers:
+        app.include_router(router)
+    
+    # 메트릭 엔드포인트 추가
+    try:
+        from .core import test_metrics
+        app.include_router(test_metrics.router)
+    except ImportError:
+        logger.warning("메트릭 라우터를 로드할 수 없습니다.")
+    
+    # 정상 작동 확인용 엔드포인트
+    @app.get("/", tags=["상태"])
+    @app.get("/health", tags=["상태"])
+    async def health_check() -> Dict[str, Any]:
+        """
+        서비스 상태 확인 엔드포인트
+        """
+        return {
+            "status": "active",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "version": settings.VERSION,
+            "environment": settings.ENVIRONMENT
+        }
+    
+    # WebSocket 엔드포인트
+    websocket_manager = WebSocketManager()
+    
+    @app.websocket("/ws/{client_id}")
+    async def websocket_endpoint(websocket: WebSocket, client_id: str):
+        await websocket_manager.connect(websocket, client_id)
+        try:
+            while True:
+                data = await websocket.receive_text()
+                await websocket_manager.process_message(client_id, data)
+        except WebSocketDisconnect:
+            websocket_manager.disconnect(client_id)
+    
+    return app
 
 # FastAPI 애플리케이션 생성
-app = FastAPI(
-    title=settings.PROJECT_NAME,
-    description=settings.PROJECT_DESCRIPTION,
-    version=settings.PROJECT_VERSION,
-    docs_url="/docs" if settings.DEBUG else None,  # 개발 환경에서만 Swagger UI 노출
-    redoc_url="/redoc" if settings.DEBUG else None,  # 개발 환경에서만 ReDoc 노출
-)
+app = create_app()
 
-# CORS 미들웨어 설정
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# 라우터 등록
-ROUTERS = [
-    auth_router,
-    vehicles_router,
-    maintenance_router,
-    shops_router,
-    todos_router,
-]
-
-for router in ROUTERS:
-    try:
-        app.include_router(router)
-        logger.info(f"라우터 등록: {router.prefix if hasattr(router, 'prefix') else '/'}")
-    except Exception as e:
-        logger.error(f"라우터 등록 실패: {str(e)}")
-
-
-@app.exception_handler(RequestValidationError)
-async def validation_exception_handler(_request: Request, exc: RequestValidationError) -> JSONResponse:
-    """
-    요청 유효성 검사 오류 처리
-    """
-    logger.warning(f"요청 유효성 검사 오류: {exc}")
-    return JSONResponse(
-        status_code=422,
-        content={"detail": "잘못된 요청 데이터입니다.", "errors": exc.errors()},
-    )
-
-
-@app.exception_handler(Exception)
-async def global_exception_handler(_request: Request, exc: Exception) -> JSONResponse:
-    """
-    전역 예외 처리기
-    """
-    logger.error(f"처리되지 않은 예외: {exc}", exc_info=True)
-    return JSONResponse(
-        status_code=500,
-        content={"detail": "서버 내부 오류가 발생했습니다."},
-    )
-
-
-@app.get("/")
-def health_check() -> Dict[str, Any]:
-    """
-    상태 확인 엔드포인트
-    """
-    logger.debug("상태 확인 요청 처리")
-    return {
-        "status": "ok",
-        "message": "Vehicle Maintenance API is running",
-        "version": settings.PROJECT_VERSION
-    }
-
-
-@app.on_event("startup")
-async def startup_event() -> None:
-    """
-    애플리케이션 시작 이벤트 핸들러
-    """
-    logger.info(f"애플리케이션 시작: {settings.PROJECT_NAME} v{settings.PROJECT_VERSION}")
-    logger.info(f"환경: {'개발' if settings.DEBUG else '프로덕션'}")
-
-
-@app.on_event("shutdown")
-async def shutdown_event() -> None:
-    """
-    애플리케이션 종료 이벤트 핸들러
-    """
-    logger.info("애플리케이션 종료")
-
-
+# 직접 실행될 경우 개발 서버 시작
 if __name__ == "__main__":
-    uvicorn.run(
-        "src.main:app",
-        host=settings.HOST,
-        port=settings.PORT,
-        reload=settings.DEBUG
-    )
+    import uvicorn
+    
+    try:
+        # 필수 환경 변수 검증
+        validate_env_variables()
+        
+        # 환경 변수나 설정에서 포트 가져오기
+        port = int(os.getenv("PORT", settings.PORT if hasattr(settings, "PORT") else 8000))
+        
+        # 로거에 기록
+        logger.info(f"API 서버 시작: 포트 {port}, 디버그 모드: {settings.DEBUG}, 환경: {settings.ENVIRONMENT}")
+        
+        # 서버 설정
+        uvicorn_config = {
+            "app": "src.main:app",  # 절대 경로로 수정
+            "host": "0.0.0.0",
+            "port": port,
+            "reload": settings.DEBUG,
+            "log_level": "info" if not settings.DEBUG else "debug",
+            "workers": settings.WORKERS if hasattr(settings, "WORKERS") else 1,
+            "timeout_keep_alive": 120,  # 연결 유지 타임아웃 설정
+            "access_log": True
+        }
+        
+        # 서버 실행
+        logger.info("API 서버를 시작합니다...")
+        uvicorn.run(**uvicorn_config)
+    except (ImportError, ModuleNotFoundError) as e:
+        logger.error(f"서버 시작 중 모듈 오류 발생: {str(e)}")
+        raise
+    except Exception as e:
+        logger.error(f"서버 시작 중 예상치 못한 오류 발생: {str(e)}")
+        raise

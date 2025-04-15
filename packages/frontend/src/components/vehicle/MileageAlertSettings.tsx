@@ -5,7 +5,6 @@ import {
   DeleteOutlined,
   EditOutlined,
   BellOutlined,
-  ClockCircleOutlined
 } from '@ant-design/icons';
 import {
   Form,
@@ -287,21 +286,30 @@ const MileageAlertSettings: React.FC<MileageAlertSettingsProps> = ({
       key: 'channels',
       render: (_: unknown, record: MileageAlert) => {
         const channels = [];
-        if (record.sendEmail) channels.push('이메일');
-        if (record.sendSMS) channels.push('SMS');
-        if (record.sendPush) channels.push('앱 알림');
+        if (record.sendEmail) {
+          channels.push('Email');
+        }
+        if (record.sendSMS) {
+          channels.push('SMS');
+        }
+        if (record.sendPush) {
+          channels.push('Push');
+        }
         return channels.join(', ');
       }
     },
     {
       title: '상태',
       key: 'status',
-      render: (_: unknown, record: MileageAlert) => (
-        <Badge
-          status={record.isActive ? 'success' : 'default'}
-          text={record.isActive ? '활성' : '비활성'}
-        />
-      )
+      render: (_: unknown, record: MileageAlert) => {
+        const value = record.isActive ? '활성' : '비활성';
+        return (
+          <Badge
+            status={record.isActive ? 'success' : 'default'}
+            text={value}
+          />
+        );
+      }
     },
     {
       title: '활성화',
@@ -401,7 +409,7 @@ const MileageAlertSettings: React.FC<MileageAlertSettingsProps> = ({
                     min={1}
                     step={100}
                     style={{ width: '100%' }}
-                    formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                    formatter={(value: number | undefined) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                     parser={(value: string | undefined) => {
                       const parsed = value?.replace(/\$\s?|(,*)/g, '');
                       return parsed ? Number(parsed) : 0;

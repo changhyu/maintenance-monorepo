@@ -1,7 +1,35 @@
 import React, { useEffect, useState, useRef } from 'react';
+import {
+  Box,
+  Typography,
+  IconButton,
+  Badge,
+  Popover,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemIcon,
+  Button,
+  Divider,
+  CircularProgress,
+  useTheme,
+  Switch,
+  FormControlLabel,
+  Tooltip
+} from '@mui/material';
+import {
+  NotificationsNone as NotificationIcon,
+  CheckCircleOutline as SuccessIcon,
+  ErrorOutline as ErrorIcon,
+  InfoOutlined as InfoIcon,
+  WarningAmber as WarningIcon,
+  VolumeUp as VolumeUpIcon,
+  VolumeOff as VolumeOffIcon
+} from '@mui/icons-material';
+import { motion, AnimatePresence } from 'framer-motion';
 
 import { notificationService } from '../../services/notificationService';
-import { Notification, NotificationStatus } from '../../types/notification';
+import { Notification, NotificationStatus, NotificationType } from '../../types/notification';
 import {
   formatNotificationDate,
   getNotificationIcon,
@@ -14,7 +42,20 @@ interface NotificationDropdownProps {
   onClose: () => void;
   maxItems?: number;
   onViewAllClick?: () => void;
+  soundEnabled?: boolean;
 }
+
+const NotificationSounds = {
+  [NotificationType.MAINTENANCE]: '/sounds/maintenance.mp3',
+  [NotificationType.VEHICLE]: '/sounds/vehicle.mp3',
+  [NotificationType.SYSTEM]: '/sounds/system.mp3',
+  [NotificationType.APPOINTMENT]: '/sounds/appointment.mp3',
+  [NotificationType.SERVICE]: '/sounds/service.mp3',
+  [NotificationType.RECALL]: '/sounds/recall.mp3',
+  [NotificationType.PAYMENT]: '/sounds/payment.mp3',
+  [NotificationType.MESSAGE]: '/sounds/message.mp3',
+  default: '/sounds/notification.mp3'
+};
 
 /**
  * 알림 목록을 표시하는 드롭다운 컴포넌트
@@ -24,170 +65,268 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
   isOpen,
   onClose,
   maxItems = 5,
-  onViewAllClick
+  onViewAllClick,
+  soundEnabled: initialSoundEnabled = true
 }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [soundEnabled, setSoundEnabled] = useState(initialSoundEnabled);
+  const anchorRef = useRef<HTMLButtonElement>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const theme = useTheme();
 
-  // 알림 데이터 로드
   useEffect(() => {
-    const fetchNotifications = async () => {
-      if (!isOpen) return;
-
-      try {
-        setLoading(true);
-        const result = await notificationService.getNotifications({
-          userId,
-          status: [NotificationStatus.UNREAD],
-          limit: maxItems + 1, // 추가로 하나 더 로드하여 "더 보기" 표시 여부 결정
-          order: 'desc'
-        });
-        setNotifications(result.slice(0, maxItems));
-      } catch (error) {
-        console.error('알림 목록 조회 실패:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchNotifications();
-
-    // 실시간 알림 업데이트
-    const handleNotificationUpdate = (_: any) => {
-      fetchNotifications();
-    };
-
-    if (isOpen && userId) {
-      notificationService.subscribeToNotifications(userId, handleNotificationUpdate);
-    }
+    // 오디오 엘리먼트 생성
+    audioRef.current = new Audio(NotificationSounds.default);
+    audioRef.current.volume = 0.5;
 
     return () => {
-      if (userId) {
-        notificationService.unsubscribeFromNotifications();
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
       }
     };
+  }, []);
+
+  const playNotificationSound = (type: NotificationType = NotificationType.SYSTEM) => {
+    if (!soundEnabled || !audioRef.current) return;
+
+    const soundUrl = NotificationSounds[type] || NotificationSounds.default;
+    audioRef.current.src = soundUrl;
+    audioRef.current.play().catch(error => {
+      console.error('Failed to play notification sound:', error);
+    });
+  };
+
+  const fetchNotifications = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await notificationService.getNotifications(userId, maxItems);
+      
+      // 새로운 알림이 있는지 확인
+      const hasNewNotifications = data.some(
+        notification => !notifications.find(n => n.id === notification.id)
+      );
+      
+      if (hasNewNotifications && isOpen) {
+        playNotificationSound();
+      }
+      
+      setNotifications(data);
+    } catch (err) {
+      setError('알림을 불러오는데 실패했습니다.');
+      console.error('Failed to fetch notifications:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchNotifications();
+    }
   }, [isOpen, userId, maxItems]);
 
-  // 알림 읽음 표시 처리
-  const handleNotificationClick = async (notification: Notification) => {
-    try {
-      await notificationService.markAsRead(notification.id);
-
-      // 링크가 있는 경우 이동
-      if (notification.link) {
-        window.location.href = notification.link;
-      }
-    } catch (error) {
-      console.error('알림 읽음 표시 실패:', error);
-    }
-  };
-
-  // 모든 알림 읽음 표시
-  const handleMarkAllAsRead = async () => {
-    try {
-      await notificationService.markAllAsRead(userId);
-
-      // 알림 목록 다시 로드
-      const result = await notificationService.getNotifications({
-        userId,
-        status: [NotificationStatus.UNREAD],
-        limit: maxItems,
-        order: 'desc'
-      });
-      setNotifications(result);
-    } catch (error) {
-      console.error('모든 알림 읽음 표시 실패:', error);
-    }
-  };
-
-  // 외부 클릭 시 드롭다운 닫기
+  // 실시간 알림 구독
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        onClose();
-      }
+    const handleNewNotification = (notification: Notification) => {
+      setNotifications(prev => {
+        const isNew = !prev.find(n => n.id === notification.id);
+        if (isNew) {
+          playNotificationSound(notification.type);
+          return [notification, ...prev].slice(0, maxItems);
+        }
+        return prev;
+      });
     };
 
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
+    if (userId) {
+      notificationService.subscribeToNotifications(userId, handleNewNotification);
     }
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      notificationService.unsubscribeFromNotifications();
     };
-  }, [isOpen, onClose]);
+  }, [userId, maxItems, soundEnabled]);
 
-  if (!isOpen) {
-    return null;
-  }
+  const getStatusIcon = (status: NotificationStatus) => {
+    switch (status) {
+      case NotificationStatus.SUCCESS:
+        return <SuccessIcon sx={{ color: theme.palette.success.main }} />;
+      case NotificationStatus.ERROR:
+        return <ErrorIcon sx={{ color: theme.palette.error.main }} />;
+      case NotificationStatus.WARNING:
+        return <WarningIcon sx={{ color: theme.palette.warning.main }} />;
+      case NotificationStatus.INFO:
+      default:
+        return <InfoIcon sx={{ color: theme.palette.info.main }} />;
+    }
+  };
+
+  const handleMarkAsRead = async (notificationId: string) => {
+    try {
+      await notificationService.markAsRead(notificationId);
+      setNotifications(prevNotifications =>
+        prevNotifications.map(notification =>
+          notification.id === notificationId
+            ? { ...notification, isRead: true }
+            : notification
+        )
+      );
+    } catch (err) {
+      console.error('Failed to mark notification as read:', err);
+    }
+  };
+
+  const handleSoundToggle = () => {
+    setSoundEnabled(!soundEnabled);
+    if (!soundEnabled) {
+      // 소리를 켤 때 테스트 사운드 재생
+      playNotificationSound();
+    }
+  };
 
   return (
-    <div
-      ref={dropdownRef}
-      className="absolute right-0 mt-2 w-80 bg-white rounded-md shadow-lg z-50 overflow-hidden"
-    >
-      <div className="p-4 border-b flex justify-between items-center">
-        <h3 className="text-lg font-medium">알림</h3>
-        <button
-          onClick={handleMarkAllAsRead}
-          className="text-sm text-blue-600 hover:text-blue-800"
-          disabled={notifications.length === 0}
+    <>
+      <IconButton
+        ref={anchorRef}
+        onClick={() => !isOpen && onClose()}
+        sx={{ color: theme.palette.text.primary }}
+      >
+        <Badge
+          badgeContent={notifications.filter(n => !n.isRead).length}
+          color="error"
+          overlap="circular"
         >
-          모두 읽음 표시
-        </button>
-      </div>
+          <NotificationIcon />
+        </Badge>
+      </IconButton>
 
-      {loading ? (
-        <div className="p-4 text-center">
-          <p>로딩 중...</p>
-        </div>
-      ) : notifications.length === 0 ? (
-        <div className="p-4 text-center text-gray-500">
-          <p>새로운 알림이 없습니다</p>
-        </div>
-      ) : (
-        <div>
-          <ul className="max-h-96 overflow-y-auto">
-            {notifications.map(notification => (
-              <li key={notification.id} className="border-b last:border-0">
-                <button
-                  className="w-full text-left p-4 hover:bg-gray-50 transition duration-150 flex items-start"
-                  onClick={() => handleNotificationClick(notification)}
-                >
-                  <div
-                    className="mr-3 flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center"
-                    style={{ backgroundColor: getNotificationColor(notification.type) }}
+      <Popover
+        open={isOpen}
+        anchorEl={anchorRef.current}
+        onClose={onClose}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'right',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'right',
+        }}
+        PaperProps={{
+          sx: {
+            width: 360,
+            maxHeight: 480,
+            overflow: 'hidden',
+            borderRadius: 2,
+            boxShadow: theme.shadows[8]
+          }
+        }}
+      >
+        <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="h6" component="h2">
+              알림
+            </Typography>
+            <Tooltip title={soundEnabled ? '알림 소리 끄기' : '알림 소리 켜기'}>
+              <IconButton size="small" onClick={handleSoundToggle}>
+                {soundEnabled ? <VolumeUpIcon /> : <VolumeOffIcon />}
+              </IconButton>
+            </Tooltip>
+          </Box>
+        </Box>
+
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+            <CircularProgress size={24} />
+          </Box>
+        ) : error ? (
+          <Box sx={{ p: 3, textAlign: 'center' }}>
+            <Typography color="error">{error}</Typography>
+            <Button onClick={fetchNotifications} sx={{ mt: 1 }}>
+              다시 시도
+            </Button>
+          </Box>
+        ) : notifications.length === 0 ? (
+          <Box sx={{ p: 3, textAlign: 'center' }}>
+            <Typography color="textSecondary">
+              새로운 알림이 없습니다.
+            </Typography>
+          </Box>
+        ) : (
+          <>
+            <List sx={{ p: 0, maxHeight: 360, overflowY: 'auto' }}>
+              <AnimatePresence>
+                {notifications.map((notification, index) => (
+                  <motion.div
+                    key={notification.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ duration: 0.2, delay: index * 0.05 }}
                   >
-                    <i
-                      className={`fas fa-${getNotificationIcon(notification.type)} text-white`}
-                    ></i>
-                  </div>
-                  <div className="flex-grow min-w-0">
-                    <p className="font-medium text-gray-900 truncate">{notification.title}</p>
-                    <p className="text-sm text-gray-600 truncate">{notification.message}</p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {formatNotificationDate(notification.createdAt)}
-                    </p>
-                  </div>
-                </button>
-              </li>
-            ))}
-          </ul>
+                    <ListItem
+                      button
+                      onClick={() => handleMarkAsRead(notification.id)}
+                      sx={{
+                        bgcolor: notification.isRead ? 'transparent' : 'action.hover',
+                        '&:hover': {
+                          bgcolor: 'action.selected'
+                        }
+                      }}
+                    >
+                      <ListItemIcon>
+                        {getStatusIcon(notification.status)}
+                      </ListItemIcon>
+                      <ListItemText
+                        primary={notification.title}
+                        secondary={
+                          <>
+                            <Typography
+                              component="span"
+                              variant="body2"
+                              color="textSecondary"
+                              sx={{ display: 'block' }}
+                            >
+                              {notification.message}
+                            </Typography>
+                            <Typography
+                              component="span"
+                              variant="caption"
+                              color="textSecondary"
+                            >
+                              {formatNotificationDate(notification.createdAt)}
+                            </Typography>
+                          </>
+                        }
+                      />
+                    </ListItem>
+                    {index < notifications.length - 1 && (
+                      <Divider variant="inset" component="li" />
+                    )}
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </List>
 
-          {notifications.length >= maxItems && (
-            <div className="p-2 text-center border-t">
-              <button
-                onClick={onViewAllClick}
-                className="w-full p-2 text-blue-600 hover:text-blue-800 text-sm font-medium"
-              >
-                모든 알림 보기
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
+            {onViewAllClick && (
+              <Box sx={{ p: 1, borderTop: 1, borderColor: 'divider' }}>
+                <Button
+                  fullWidth
+                  onClick={onViewAllClick}
+                  sx={{ textTransform: 'none' }}
+                >
+                  모든 알림 보기
+                </Button>
+              </Box>
+            )}
+          </>
+        )}
+      </Popover>
+    </>
   );
 };
 

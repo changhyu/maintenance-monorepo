@@ -2,9 +2,12 @@
  * 알림 상태 enum
  */
 export enum NotificationStatus {
+  SUCCESS = 'success',
+  ERROR = 'error',
+  WARNING = 'warning',
+  INFO = 'info',
   UNREAD = 'unread',
-  READ = 'read',
-  ARCHIVED = 'archived'
+  READ = 'read'
 }
 
 /**
@@ -19,8 +22,7 @@ export enum NotificationType {
   RECALL = 'recall',
   PAYMENT = 'payment',
   MESSAGE = 'message',
-  ACCOUNT = 'account',
-  OTHER = 'other'
+  ACCOUNT = 'account'
 }
 
 /**
@@ -31,6 +33,16 @@ export enum NotificationPriority {
   MEDIUM = 'medium',
   HIGH = 'high',
   URGENT = 'urgent'
+}
+
+/**
+ * 알림 카테고리 enum
+ */
+export enum NotificationCategory {
+  TASK = 'task',
+  ALERT = 'alert',
+  UPDATE = 'update',
+  REMINDER = 'reminder'
 }
 
 /**
@@ -60,29 +72,24 @@ export enum NotificationChannel {
  */
 export interface Notification {
   id: string;
-  userId: string;
-  type: NotificationType;
   title: string;
   message: string;
   status: NotificationStatus;
+  type: NotificationType;
   priority: NotificationPriority;
-  metadata?: Record<string, any>;
-  recipientIds?: string[];
+  category: NotificationCategory;
+  createdAt: Date;
+  expiresAt?: Date;
+  isRead: boolean;
+  isArchived?: boolean;
+  isMuted?: boolean;
   link?: string;
-  channelsSent?: NotificationChannel[];
+  actions?: NotificationAction[];
+  metadata?: Record<string, any>;
+  userId: string;
+  groupId?: string;
   thumbnail?: string;
-  icon?: string;
-  actionText?: string;
-  secondaryActionText?: string;
-  batchId?: string;
-  relatedEntityType?: string;
-  relatedEntityId?: string;
-  expiresAt?: string;
-  scheduledAt?: string;
-  readAt?: string;
-  archivedAt?: string;
-  createdAt: string;
-  updatedAt: string;
+  sound?: string;
 }
 
 /**
@@ -290,4 +297,16 @@ export enum NotificationBatchStatus {
   COMPLETED = 'completed',
   FAILED = 'failed',
   CANCELLED = 'cancelled'
+}
+
+/**
+ * 알림 액션 인터페이스
+ */
+export interface NotificationAction {
+  label: string;
+  action: string;
+  url?: string;
+  icon?: string;
+  variant?: 'text' | 'outlined' | 'contained';
+  color?: 'primary' | 'secondary' | 'success' | 'error' | 'warning' | 'info';
 }

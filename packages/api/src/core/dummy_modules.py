@@ -10,6 +10,7 @@
 # 더미 함수 및 클래스 정의
 class DummySession:
     """세션 임시 클래스"""
+
     def query(self, _model):
         return DummyQuery()
 
@@ -28,6 +29,7 @@ class DummySession:
 
 class DummyQuery:
     """쿼리 임시 클래스"""
+
     def filter_by(self, **_kwargs):
         return self
 
@@ -47,6 +49,7 @@ class DummyQuery:
         class Result:
             avg_rating = None
             review_count = 0
+
         return Result()
 
     def count(self):
@@ -74,6 +77,7 @@ class DummyQuery:
 
 class DummyFunc:
     """더미 SQL 함수 클래스"""
+
     @staticmethod
     def avg(_column):
         return 0
@@ -90,8 +94,9 @@ def get_session():
 
 def geodesic(_point1, _point2):
     """거리 계산 임시 함수"""
+
     class Distance:
         def __init__(self):
             self.kilometers = 0
+
     return Distance()
-\n

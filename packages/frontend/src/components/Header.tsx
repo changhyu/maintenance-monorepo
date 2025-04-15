@@ -1,196 +1,146 @@
 import React, { useState } from 'react';
+import {
+  AppBar,
+  Toolbar,
+  IconButton,
+  Typography,
+  Avatar,
+  Menu,
+  MenuItem,
+  Badge,
+  useTheme,
+  Switch,
+  Box,
+} from '@mui/material';
+import {
+  Menu as MenuIcon,
+  Notifications as NotificationsIcon,
+  Brightness4 as DarkModeIcon,
+  Brightness7 as LightModeIcon,
+} from '@mui/icons-material';
+import { useAuth } from '../hooks/useAuth';
+import { useThemeMode } from '../hooks/useThemeMode';
 
 interface HeaderProps {
-  userFullName?: string;
-  userRole?: string;
-  onLogout?: () => void;
+  onMenuClick: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ userFullName, userRole, onLogout }) => {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
+  const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
+  const [notificationAnchor, setNotificationAnchor] = React.useState<null | HTMLElement>(null);
+  const { user, logout } = useAuth();
+  const { mode, toggleTheme } = useThemeMode();
+  const theme = useTheme();
+
+  const handleProfileMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleProfileMenuClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleNotificationClick = (event: React.MouseEvent<HTMLElement>) => {
+    setNotificationAnchor(event.currentTarget);
+  };
+
+  const handleNotificationClose = () => {
+    setNotificationAnchor(null);
+  };
+
+  const handleLogout = () => {
+    handleProfileMenuClose();
+    logout();
+  };
 
   return (
-    <header className="bg-white shadow">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16">
-          <div className="flex">
-            <div className="flex-shrink-0 flex items-center">
-              <h1 className="text-xl font-bold text-indigo-600">차량 관리 시스템</h1>
-            </div>
-            <nav className="hidden md:ml-6 md:flex md:space-x-8">
-              <a
-                href="/dashboard"
-                className="border-indigo-500 text-gray-900 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
-              >
-                대시보드
-              </a>
-              <a
-                href="/vehicles"
-                className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
-              >
-                차량 목록
-              </a>
-              <a
-                href="/maintenance"
-                className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
-              >
-                정비 기록
-              </a>
-              <a
-                href="/reports"
-                className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
-              >
-                보고서
-              </a>
-            </nav>
-          </div>
+    <AppBar 
+      position="fixed" 
+      sx={{ 
+        zIndex: theme.zIndex.drawer + 1,
+        backgroundColor: theme.palette.background.paper,
+        color: theme.palette.text.primary,
+      }}
+    >
+      <Toolbar>
+        <IconButton
+          color="inherit"
+          aria-label="open drawer"
+          edge="start"
+          onClick={onMenuClick}
+          sx={{ mr: 2 }}
+        >
+          <MenuIcon />
+        </IconButton>
 
-          <div className="hidden md:ml-6 md:flex md:items-center">
-            {userFullName ? (
-              <div className="ml-3 relative">
-                <div>
-                  <button
-                    type="button"
-                    className="max-w-xs bg-white flex items-center text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                    onClick={() => setIsMenuOpen(!isMenuOpen)}
-                  >
-                    <span className="sr-only">사용자 메뉴 열기</span>
-                    <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center">
-                      <span className="text-indigo-800 font-medium">{userFullName.charAt(0)}</span>
-                    </div>
-                    <span className="ml-2 text-gray-700">{userFullName}</span>
-                    {userRole && <span className="ml-1 text-xs text-gray-500">({userRole})</span>}
-                  </button>
-                </div>
+        <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
+          차량 정비 관리 시스템
+        </Typography>
 
-                {isMenuOpen && (
-                  <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none">
-                    <a
-                      href="/profile"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    >
-                      내 프로필
-                    </a>
-                    <a
-                      href="/settings"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    >
-                      설정
-                    </a>
-                    <button
-                      onClick={onLogout}
-                      className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    >
-                      로그아웃
-                    </button>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div>
-                <a
-                  href="/login"
-                  className="text-gray-500 hover:text-gray-700 px-3 py-2 rounded-md text-sm font-medium"
-                >
-                  로그인
-                </a>
-              </div>
-            )}
-          </div>
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          {/* 다크 모드 토글 */}
+          <IconButton color="inherit" onClick={toggleTheme}>
+            {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
+          </IconButton>
 
-          <div className="-mr-2 flex items-center md:hidden">
-            <button
-              type="button"
-              className="bg-white inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500"
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-            >
-              <span className="sr-only">메뉴 열기</span>
-              <svg
-                className="block h-6 w-6"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                aria-hidden="true"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M4 6h16M4 12h16M4 18h16"
-                />
-              </svg>
-            </button>
-          </div>
-        </div>
-      </div>
+          {/* 알림 아이콘 */}
+          <IconButton color="inherit" onClick={handleNotificationClick}>
+            <Badge badgeContent={4} color="error">
+              <NotificationsIcon />
+            </Badge>
+          </IconButton>
 
-      {isMenuOpen && (
-        <div className="md:hidden">
-          <div className="pt-2 pb-3 space-y-1">
-            <a
-              href="/dashboard"
-              className="bg-indigo-50 border-indigo-500 text-indigo-700 block pl-3 pr-4 py-2 border-l-4 text-base font-medium"
+          {/* 프로필 아바타 */}
+          <IconButton
+            edge="end"
+            aria-label="account of current user"
+            aria-haspopup="true"
+            onClick={handleProfileMenuOpen}
+            color="inherit"
+            sx={{ ml: 1 }}
+          >
+            <Avatar 
+              sx={{ 
+                width: 32, 
+                height: 32, 
+                bgcolor: theme.palette.secondary.main 
+              }}
             >
-              대시보드
-            </a>
-            <a
-              href="/vehicles"
-              className="border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800 block pl-3 pr-4 py-2 border-l-4 text-base font-medium"
-            >
-              차량 목록
-            </a>
-            <a
-              href="/maintenance"
-              className="border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800 block pl-3 pr-4 py-2 border-l-4 text-base font-medium"
-            >
-              정비 기록
-            </a>
-            <a
-              href="/reports"
-              className="border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800 block pl-3 pr-4 py-2 border-l-4 text-base font-medium"
-            >
-              보고서
-            </a>
-          </div>
+              {user?.name?.[0] || 'U'}
+            </Avatar>
+          </IconButton>
+        </Box>
 
-          {userFullName && (
-            <div className="pt-4 pb-3 border-t border-gray-200">
-              <div className="flex items-center px-4">
-                <div className="flex-shrink-0">
-                  <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
-                    <span className="text-indigo-800 font-medium">{userFullName.charAt(0)}</span>
-                  </div>
-                </div>
-                <div className="ml-3">
-                  <div className="text-base font-medium text-gray-800">{userFullName}</div>
-                  {userRole && <div className="text-sm font-medium text-gray-500">{userRole}</div>}
-                </div>
-              </div>
-              <div className="mt-3 space-y-1">
-                <a
-                  href="/profile"
-                  className="block px-4 py-2 text-base font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100"
-                >
-                  내 프로필
-                </a>
-                <a
-                  href="/settings"
-                  className="block px-4 py-2 text-base font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100"
-                >
-                  설정
-                </a>
-                <button
-                  onClick={onLogout}
-                  className="w-full text-left block px-4 py-2 text-base font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100"
-                >
-                  로그아웃
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-    </header>
+        {/* 알림 메뉴 */}
+        <Menu
+          anchorEl={notificationAnchor}
+          open={Boolean(notificationAnchor)}
+          onClose={handleNotificationClose}
+          PaperProps={{
+            sx: { width: 320, maxHeight: 400 }
+          }}
+        >
+          <MenuItem onClick={handleNotificationClose}>
+            새로운 정비 요청이 있습니다
+          </MenuItem>
+          <MenuItem onClick={handleNotificationClose}>
+            차량 점검 일정이 다가옵니다
+          </MenuItem>
+        </Menu>
+
+        {/* 프로필 메뉴 */}
+        <Menu
+          anchorEl={anchorEl}
+          open={Boolean(anchorEl)}
+          onClose={handleProfileMenuClose}
+        >
+          <MenuItem onClick={handleProfileMenuClose}>프로필</MenuItem>
+          <MenuItem onClick={handleProfileMenuClose}>설정</MenuItem>
+          <MenuItem onClick={handleLogout}>로그아웃</MenuItem>
+        </Menu>
+      </Toolbar>
+    </AppBar>
   );
 };
+
+export default Header;

@@ -77,8 +77,7 @@ def camel_to_snake(camel_str: str) -> str:
     Returns:
         스네이크 케이스 문자열 (예: 'camel_case')
     """
-    snake = re.sub(r'(?<!^)(?=[A-Z])', '_', camel_str).lower()
-    return snake
+    return re.sub(r'(?<!^)(?=[A-Z])', '_', camel_str).lower()
 
 def build_query_params(params: Dict[str, Any]) -> str:
     """
@@ -90,12 +89,7 @@ def build_query_params(params: Dict[str, Any]) -> str:
     Returns:
         URL 쿼리 문자열
     """
-    query_parts = []
-    for key, value in params.items():
-        if value is not None:
-            query_parts.append(f"{key}={value}")
-    
-    return "&".join(query_parts)
+    return "&".join([f"{key}={value}" for key, value in params.items() if value is not None])
 
 def filter_none_values(data: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -138,4 +132,9 @@ def paginate_list(
             "limit": limit,
             "has_more": (skip + len(items)) < total_count
         }
-    } 
+    }
+
+def validate_image_file() -> bool:
+    """주어진 image 파일의 유효성을 검사합니다. 필요에 따라 유효성 로직을 구현하세요."""
+    # 기본적으로 True 반환. 유효성 검사 로직을 추가하세요.
+    return True 

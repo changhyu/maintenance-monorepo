@@ -1,4 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import type { MenuProps } from 'antd';
+import type { RangePickerProps } from 'antd/es/date-picker';
+import type { TableProps } from 'antd/es/table';
+import type { TablePaginationConfig } from 'antd/es/table';
+import type { FilterValue, SorterResult } from 'antd/es/table/interface';
+import type { Dayjs } from 'dayjs';
 
 import {
   LeftOutlined,
@@ -40,6 +46,8 @@ import {
 } from 'antd';
 import type { ModalStaticFunctions } from 'antd/es/modal/confirm';
 import dayjs from 'dayjs';
+import type { MenuInfo } from 'rc-menu/lib/interface';
+import type { DatePickerProps } from 'antd/es/date-picker';
 
 import { BookingButton } from '../components/booking';
 import apiClient from '../services/api';
@@ -57,6 +65,9 @@ export enum BookingStatus {
   CANCELLED = '취소'
 }
 
+// UrgencyLevel 타입 정의
+type UrgencyLevel = 'low' | 'medium' | 'high';
+
 // 예약 정보 인터페이스
 interface Booking {
   id: string;
@@ -73,7 +84,7 @@ interface Booking {
   contactName: string;
   contactPhone: string;
   description?: string;
-  urgencyLevel: 'low' | 'medium' | 'high';
+  urgencyLevel: UrgencyLevel;
   requiresPickup: boolean;
   createdAt: string;
   updatedAt: string;
@@ -81,15 +92,60 @@ interface Booking {
   cost?: number;
 }
 
-// 필터 인터페이스
+// 날짜 범위 타입 정의
+type DateRange = [Dayjs, Dayjs];
+
+// 필터 인터페이스 수정
 interface BookingFilters {
   search: string;
   vehicleId?: string;
   shopId?: string;
-  dateRange?: [dayjs.Dayjs, dayjs.Dayjs] | null;
+  dateRange?: DateRange | null;
   maintenanceTypeId?: string;
-  urgencyLevel?: 'low' | 'medium' | 'high';
+  urgencyLevel?: UrgencyLevel;
 }
+
+// 테이블 레코드 타입 정의
+type TableRecord = {
+  key: React.Key;
+  id: string;
+  vehicleName: string;
+  vehicleType: string;
+  maintenanceTypeName: string;
+  shopName: string;
+  date: string;
+  time: string;
+  status: BookingStatus;
+  urgencyLevel: string;
+  cost?: number;
+};
+
+// 메뉴 아이템 클릭 핸들러 타입
+type MenuClickHandler = Required<MenuProps>['onClick'];
+
+// 테이블 변경 핸들러 타입
+type TableChangeHandler = Required<TableProps<Booking>>['onChange'];
+
+// 날짜 범위 선택 핸들러 타입
+type DateRangeChangeHandler = RangePickerProps['onChange'];
+
+// 컬럼 렌더러 타입 정의
+type ColumnRenderer<T = any> = (value: T, record: Booking) => React.ReactNode;
+
+// 테이블 컬럼 타입 정의
+interface ColumnType<T = any> {
+  title: string;
+  dataIndex?: string;
+  key: string;
+  width?: number;
+  render?: ColumnRenderer<T>;
+}
+
+// Select 컴포넌트의 onChange 핸들러 타입
+type SelectHandler = (value: string) => void;
+
+// Select 컴포넌트의 onChange 핸들러 타입 수정
+type UrgencySelectHandler = (value: UrgencyLevel | undefined) => void;
 
 /**
  * 예약 현황 페이지 컴포넌트
@@ -334,11 +390,8 @@ const BookingHistoryPage: React.FC = () => {
   };
 
   // 필터 변경 처리
-  const handleFilterChange = (key: keyof BookingFilters, value: any) => {
-    setFilters(prev => ({
-      ...prev,
-      [key]: value
-    }));
+  const handleFilterChange = (key: keyof BookingFilters, value: string | [dayjs.Dayjs, dayjs.Dayjs] | null) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
   };
 
   // 예약 취소 확인
@@ -460,8 +513,49 @@ const BookingHistoryPage: React.FC = () => {
     }
   };
 
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFilters(prev => ({ ...prev, search: e.target.value }));
+  };
+
+  const handleDateRangeChange: DateRangeChangeHandler = (dates, dateStrings) => {
+    setFilters(prev => ({ ...prev, dateRange: dates as DateRange | null }));
+  };
+
+  const handleVehicleChange = (value: string) => {
+    setFilters(prev => ({ ...prev, vehicleId: value }));
+  };
+
+  const handleShopChange = (value: string) => {
+    setFilters(prev => ({ ...prev, shopId: value }));
+  };
+
+  const handleMaintenanceTypeChange = (value: string) => {
+    setFilters(prev => ({ ...prev, maintenanceTypeId: value }));
+  };
+
+  const handleUrgencyChange: UrgencySelectHandler = (value) => {
+    setFilters(prev => ({ ...prev, urgencyLevel: value }));
+  };
+
+  const handleMenuClick: MenuClickHandler = (info) => {
+    // ... 기존 코드 ...
+  };
+
+  const handleTableChange: TableChangeHandler = (
+    pagination,
+    filters,
+    sorter,
+    extra
+  ) => {
+    // ... 기존 코드 ...
+  };
+
+  const renderBookingActions = (record: Booking) => {
+    // ... 기존 코드 ...
+  };
+
   // 테이블 컬럼 정의
-  const columns = [
+  const columns: ColumnType[] = [
     {
       title: '예약 ID',
       dataIndex: 'id',
@@ -515,14 +609,14 @@ const BookingHistoryPage: React.FC = () => {
       dataIndex: 'urgencyLevel',
       key: 'urgencyLevel',
       width: 100,
-      render: (level: string) => getUrgencyTag(level)
+      render: (level: UrgencyLevel) => getUrgencyTag(level)
     },
     {
       title: '비용',
       dataIndex: 'cost',
       key: 'cost',
       width: 120,
-      render: (cost?: number) =>
+      render: (cost: number | undefined) =>
         cost ? (
           <Text strong>{cost.toLocaleString('ko-KR')}원</Text>
         ) : (
@@ -553,7 +647,7 @@ const BookingHistoryPage: React.FC = () => {
                       vehicleId={record.vehicleId}
                       buttonText="예약 변경"
                       buttonType="link"
-                      onBookingCreated={bookingId => {
+                      onBookingCreated={() => {
                         message.success(`예약이 성공적으로 변경되었습니다.`);
                         handleCancelBooking(record.id);
                       }}
@@ -621,7 +715,7 @@ const BookingHistoryPage: React.FC = () => {
               placeholder="차량, 정비 유형, 정비소 등 검색"
               prefix={<SearchOutlined />}
               value={filters.search}
-              onChange={e => handleFilterChange('search', e.target.value)}
+              onChange={handleSearch}
               style={{ width: '100%' }}
               allowClear
             />
@@ -649,7 +743,7 @@ const BookingHistoryPage: React.FC = () => {
                   style={{ width: '100%' }}
                   allowClear
                   value={filters.vehicleId}
-                  onChange={value => handleFilterChange('vehicleId', value)}
+                  onChange={handleVehicleChange}
                 >
                   {vehicles.map(vehicle => (
                     <Option key={vehicle.id} value={vehicle.id}>
@@ -667,7 +761,7 @@ const BookingHistoryPage: React.FC = () => {
                   style={{ width: '100%' }}
                   allowClear
                   value={filters.shopId}
-                  onChange={value => handleFilterChange('shopId', value)}
+                  onChange={handleShopChange}
                 >
                   {shops.map(shop => (
                     <Option key={shop.id} value={shop.id}>
@@ -685,7 +779,7 @@ const BookingHistoryPage: React.FC = () => {
                   style={{ width: '100%' }}
                   allowClear
                   value={filters.maintenanceTypeId}
-                  onChange={value => handleFilterChange('maintenanceTypeId', value)}
+                  onChange={handleMaintenanceTypeChange}
                 >
                   {maintenanceTypes.map(type => (
                     <Option key={type.id} value={type.id}>
@@ -703,7 +797,7 @@ const BookingHistoryPage: React.FC = () => {
                   style={{ width: '100%' }}
                   allowClear
                   value={filters.urgencyLevel}
-                  onChange={value => handleFilterChange('urgencyLevel', value)}
+                  onChange={handleUrgencyChange}
                 >
                   <Option value="low">낮음</Option>
                   <Option value="medium">중간</Option>
@@ -716,8 +810,8 @@ const BookingHistoryPage: React.FC = () => {
                 </div>
                 <RangePicker
                   style={{ width: '100%' }}
-                  value={filters.dateRange as any}
-                  onChange={value => handleFilterChange('dateRange', value)}
+                  value={filters.dateRange}
+                  onChange={handleDateRangeChange}
                 />
               </Col>
               <Col span={12} style={{ textAlign: 'right' }}>
@@ -795,7 +889,7 @@ const BookingHistoryPage: React.FC = () => {
           loading={loading}
           locale={{ emptyText: <Empty description="예약 내역이 없습니다" /> }}
           expandable={{
-            expandedRowRender: record => (
+            expandedRowRender: (record: Booking) => (
               <div style={{ padding: '0 16px' }}>
                 <Row gutter={[24, 16]}>
                   <Col span={12}>

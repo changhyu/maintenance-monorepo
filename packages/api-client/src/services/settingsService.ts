@@ -267,10 +267,10 @@ export interface SettingsUpdateResponse {
 }
 
 export class SettingsService {
-  private client: ApiClient;
-  private basePath = '/settings';
-  private userPreferencesPath = '/user-preferences';
-  private systemSettingsPath = '/system-settings';
+  private readonly client: ApiClient;
+  private readonly basePath = '/settings';
+  private readonly userPreferencesPath = '/user-preferences';
+  private readonly systemSettingsPath = '/system-settings';
 
   constructor(apiClient: ApiClient) {
     this.client = apiClient;

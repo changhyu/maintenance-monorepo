@@ -30,7 +30,7 @@ except ImportError:
     from ...core.dummy_modules import geodesic
 
 try:
-    from database import get_session
+    from ...database import get_session
 except ImportError:
     logger.error("database 모듈을 찾을 수 없습니다. 데이터베이스 액세스가 작동하지 않습니다.")
     from ...core.dummy_modules import get_session

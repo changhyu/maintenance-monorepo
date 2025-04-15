@@ -227,4 +227,7 @@ class BaseRouter(Generic[T, CreateT, UpdateT]):
     
     def get_router(self) -> APIRouter:
         """라우터 인스턴스 반환"""
-        return self.router 
+        return self.router
+
+    def __getattr__(self, name: str):
+        return getattr(self.router, name) 

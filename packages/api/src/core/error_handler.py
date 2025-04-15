@@ -11,11 +11,15 @@ import os
 import traceback
 from enum import Enum
 from threading import Lock
-from typing import Any, Callable, Dict, List, Optional, TypeVar, Union, cast
+from typing import Any, Callable, Dict, List, Optional, TypeVar, Union, cast, Tuple
 from uuid import uuid4
 
 from fastapi import HTTPException, Request, status
 from pydantic import ValidationError
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
+from sqlalchemy.exc import SQLAlchemyError
+from jose.exceptions import JWTError
 
 from .config import settings
 from .logging import logger
@@ -82,6 +86,65 @@ class ErrorCode(str, Enum):
     BUSINESS_RULE_VIOLATION = "BUSINESS_RULE_VIOLATION"
     DATA_INTEGRITY = "DATA_INTEGRITY"
     RESOURCE_LOCKED = "RESOURCE_LOCKED"
+
+class APIError(Exception):
+    def __init__(
+        self,
+        status_code: int,
+        message: str,
+        error_code: str = None,
+        details: Optional[Dict[str, Any]] = None
+    ):
+        self.status_code = status_code
+        self.message = message
+        self.error_code = error_code
+        self.details = details or {}
+        super().__init__(message)
+
+class DatabaseError(APIError):
+    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
+        super().__init__(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            message=message,
+            error_code="DATABASE_ERROR",
+            details=details
+        )
+
+class AuthenticationError(APIError):
+    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
+        super().__init__(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            message=message,
+            error_code="AUTHENTICATION_ERROR",
+            details=details
+        )
+
+class AuthorizationError(APIError):
+    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
+        super().__init__(
+            status_code=status.HTTP_403_FORBIDDEN,
+            message=message,
+            error_code="AUTHORIZATION_ERROR",
+            details=details
+        )
+
+class ValidationErrorHandler:
+    @staticmethod
+    def handle_validation_error(error: RequestValidationError) -> Dict[str, Any]:
+        errors = []
+        for error in error.errors():
+            error_info = {
+                "field": " -> ".join([str(x) for x in error["loc"]]),
+                "message": error["msg"],
+                "type": error["type"]
+            }
+            errors.append(error_info)
+        
+        return {
+            "message": "입력값 검증 실패",
+            "error_code": "VALIDATION_ERROR",
+            "details": {"errors": errors}
+        }
 
 class ErrorContext:
     """오류 컨텍스트 정보를 저장하는 클래스"""
@@ -421,6 +484,31 @@ def assert_found(
     
     return item
 
+def _find_request_object(args: Tuple) -> Optional[Request]:
+    """인자 목록에서 Request 객체 찾기"""
+    for arg in args:
+        if isinstance(arg, Request):
+            return arg
+    return None
+
+def _create_error_handler(
+    exc: Exception,
+    operation: str,
+    include_trace: bool,
+    request: Optional[Request],
+    language: Optional[str]
+) -> Callable:
+    """오류 처리 함수 생성"""
+    async def handle():
+        return await handle_exception(
+            exc,
+            operation=operation,
+            include_trace=include_trace,
+            request=request,
+            language=language
+        )
+    return handle
+
 def with_error_handling(operation: str, include_trace: bool = False):
     """
     함수를 오류 처리 데코레이터로 감싸는 팩토리 함수
@@ -438,58 +526,29 @@ def with_error_handling(operation: str, include_trace: bool = False):
             try:
                 return await func(*args, **kwargs)
             except Exception as exc:
-                # 요청 객체가 있는지 확인
-                request = None
-                for arg in args:
-                    if isinstance(arg, Request):
-                        request = arg
-                        break
-                
-                # language 파라미터가 있는지 확인
+                request = _find_request_object(args)
                 language = kwargs.get("language")
-                
-                return await handle_exception(
-                    exc, 
-                    operation=operation,
-                    include_trace=include_trace,
-                    request=request,
-                    language=language
+                handler = _create_error_handler(
+                    exc, operation, include_trace, request, language
                 )
+                return await handler()
         
         @functools.wraps(func)
         def sync_wrapper(*args, **kwargs):
             try:
                 return func(*args, **kwargs)
             except Exception as exc:
-                # 비동기 함수를 동기 컨텍스트에서 실행
-                loop = asyncio.get_event_loop()
-                
-                # 요청 객체가 있는지 확인
-                request = None
-                for arg in args:
-                    if isinstance(arg, Request):
-                        request = arg
-                        break
-                
-                # language 파라미터가 있는지 확인
+                request = _find_request_object(args)
                 language = kwargs.get("language")
-                
-                return loop.run_until_complete(
-                    handle_exception(
-                        exc, 
-                        operation=operation,
-                        include_trace=include_trace,
-                        request=request,
-                        language=language
-                    )
+                handler = _create_error_handler(
+                    exc, operation, include_trace, request, language
                 )
+                loop = asyncio.get_event_loop()
+                return loop.run_until_complete(handler())
         
-        # 함수가 비동기인지 동기인지 확인하여 적절한 래퍼 반환
-        if asyncio.iscoroutinefunction(func):
-            return async_wrapper
-        return sync_wrapper
+        return async_wrapper if asyncio.iscoroutinefunction(func) else sync_wrapper
     
-    return decorator 
+    return decorator
 
 def handle_error(exc: Exception) -> ApiResponse:
     """일관된 에러 응답 반환을 위한 핸들러 함수입니다.
@@ -509,3 +568,108 @@ def error_catcher(func):
         except Exception as exc:
             return handle_error(exc)
     return wrapper 
+
+async def api_error_handler(request: Request, exc: APIError) -> JSONResponse:
+    error_response = {
+        "message": exc.message,
+        "error_code": exc.error_code,
+        "details": exc.details,
+        "path": request.url.path
+    }
+    
+    logger.error(
+        f"API 에러 발생: {exc.message}",
+        extra={
+            "error_code": exc.error_code,
+            "status_code": exc.status_code,
+            "path": request.url.path,
+            "details": exc.details
+        }
+    )
+    
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=error_response
+    )
+
+async def validation_error_handler(
+    request: Request,
+    exc: RequestValidationError
+) -> JSONResponse:
+    error_response = ValidationErrorHandler.handle_validation_error(exc)
+    error_response["path"] = request.url.path
+    
+    logger.warning(
+        "유효성 검증 실패",
+        extra={
+            "error_code": error_response["error_code"],
+            "path": request.url.path,
+            "details": error_response["details"]
+        }
+    )
+    
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content=error_response
+    )
+
+async def database_error_handler(request: Request, exc: SQLAlchemyError) -> JSONResponse:
+    error_response = {
+        "message": "데이터베이스 오류가 발생했습니다",
+        "error_code": "DATABASE_ERROR",
+        "path": request.url.path
+    }
+    
+    logger.error(
+        f"데이터베이스 에러: {str(exc)}",
+        extra={
+            "error_code": "DATABASE_ERROR",
+            "path": request.url.path,
+            "details": str(exc)
+        }
+    )
+    
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content=error_response
+    )
+
+async def jwt_error_handler(request: Request, exc: JWTError) -> JSONResponse:
+    error_response = {
+        "message": "인증 토큰이 유효하지 않습니다",
+        "error_code": "INVALID_TOKEN",
+        "path": request.url.path
+    }
+    
+    logger.warning(
+        f"JWT 토큰 에러: {str(exc)}",
+        extra={
+            "error_code": "INVALID_TOKEN",
+            "path": request.url.path
+        }
+    )
+    
+    return JSONResponse(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        content=error_response
+    )
+
+async def http_error_handler(request: Request, exc: HTTPException) -> JSONResponse:
+    error_response = {
+        "message": exc.detail,
+        "error_code": "HTTP_ERROR",
+        "path": request.url.path
+    }
+    
+    logger.warning(
+        f"HTTP 에러: {exc.detail}",
+        extra={
+            "status_code": exc.status_code,
+            "path": request.url.path
+        }
+    )
+    
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=error_response
+    ) 

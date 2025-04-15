@@ -1,50 +1,48 @@
-import React, { useState } from 'react';
-
-import {
-  DownOutlined,
-  FileExcelOutlined,
-  FilePdfOutlined,
-  FileTextOutlined,
-  DownloadOutlined
-} from '@ant-design/icons';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import {
   Button,
-  Dropdown,
-  Menu,
-  Modal,
-  Form,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Typography,
+  MenuItem,
   Select,
-  Input,
+  FormControl,
+  InputLabel,
+  Box,
+  CircularProgress,
+  Divider,
+  IconButton,
+  Tooltip,
+  TextField,
+  Chip,
+  Switch,
+  FormControlLabel,
+  Tab,
   Tabs,
-  Checkbox,
-  message,
-  Spin,
-  Radio,
-  Row,
-  Col,
-  Typography
-} from 'antd';
-import FileSaver from 'file-saver';
-// 필요한 경우에만 주석 해제하여 사용
-// import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
-import * as XLSX from 'xlsx';
+  ListItemText,
+  List,
+  ListItem
+} from '@mui/material';
+import {
+  FileDownload as DownloadIcon,
+  Description as PdfIcon,
+  InsertDriveFile as ExcelIcon,
+  DataArray as CsvIcon,
+  Code as JsonIcon,
+  Preview as PreviewIcon,
+  Add as AddIcon,
+  Save as SaveIcon,
+  Schedule as ScheduleIcon,
+  Edit as EditIcon
+} from '@mui/icons-material';
 
-import { exportData, ExportFormat } from '../../utils/exportUtils';
-
-const { Option } = Select;
-const { TabPane } = Tabs;
-const { Title, Text } = Typography;
-
-// 보고서 유형 정의
-export enum ReportType {
-  VEHICLE_STATUS = 'vehicle_status',
-  MAINTENANCE_HISTORY = 'maintenance_history',
-  GEOFENCE_ANALYSIS = 'geofence_analysis',
-  FLEET_SUMMARY = 'fleet_summary',
-  COST_ANALYSIS = 'cost_analysis',
-  CUSTOM = 'custom'
-}
+import { ExportOptionsForm } from '../reports';
+import { Report, ReportType, ReportFormat, ExportOptions } from '../../services/reportService';
+import { exportService } from '../../services/exportService';
+import * as indexedDBUtils from '../../utils/indexedDBUtils';
 
 // 보고서 템플릿 정의
 export interface ReportTemplate {
@@ -56,7 +54,7 @@ export interface ReportTemplate {
   groupBy?: string[];
   sortBy?: string;
   orientation?: 'portrait' | 'landscape';
-  paperSize?: 'A4' | 'A3' | 'Letter';
+  paperSize?: 'a4' | 'letter' | 'legal';
   includeCharts?: boolean;
   includeImages?: boolean;
   includeHeader?: boolean;
@@ -66,16 +64,16 @@ export interface ReportTemplate {
   logoUrl?: string;
 }
 
-// 기본 템플릿 목록
+// 기본 템플릿 목록 - ReportType 열거형에 맞게 업데이트
 const DEFAULT_TEMPLATES: ReportTemplate[] = [
   {
     id: 'vehicle-status-summary',
     name: '차량 상태 요약',
-    type: ReportType.VEHICLE_STATUS,
+    type: ReportType.VEHICLE_HISTORY,
     description: '모든 차량의 현재 상태 및 기본 정보를 포함한 요약 보고서',
     fields: ['id', 'name', 'status', 'lastMaintenance', 'mileage', 'healthScore'],
     orientation: 'portrait',
-    paperSize: 'A4',
+    paperSize: 'a4',
     includeCharts: true,
     includeHeader: true,
     includeFooter: true
@@ -83,7 +81,7 @@ const DEFAULT_TEMPLATES: ReportTemplate[] = [
   {
     id: 'maintenance-history-detail',
     name: '정비 이력 상세',
-    type: ReportType.MAINTENANCE_HISTORY,
+    type: ReportType.MAINTENANCE_SUMMARY,
     description: '각 차량의 정비 이력 상세 정보를 포함한 보고서',
     fields: [
       'vehicleId',
@@ -98,47 +96,34 @@ const DEFAULT_TEMPLATES: ReportTemplate[] = [
     groupBy: ['vehicleId'],
     sortBy: 'date',
     orientation: 'landscape',
-    paperSize: 'A4',
+    paperSize: 'a4',
     includeCharts: false,
     includeHeader: true,
     includeFooter: true
   },
   {
-    id: 'geofence-activity',
-    name: '지오펜스 활동 분석',
-    type: ReportType.GEOFENCE_ANALYSIS,
-    description: '지오펜스 출입 이벤트 및 체류 시간 분석 보고서',
+    id: 'cost-analysis',
+    name: '비용 분석',
+    type: ReportType.COST_ANALYSIS,
+    description: '정비 비용 분석 보고서',
     fields: [
-      'geofenceId',
-      'geofenceName',
       'vehicleId',
       'vehicleName',
-      'eventType',
-      'timestamp',
-      'dwellTime'
+      'maintenanceType',
+      'date',
+      'cost',
+      'parts',
+      'labor'
     ],
-    groupBy: ['geofenceId', 'vehicleId'],
-    orientation: 'landscape',
-    paperSize: 'A4',
+    groupBy: ['vehicleId'],
+    sortBy: 'date',
+    orientation: 'portrait',
+    paperSize: 'a4',
     includeCharts: true,
     includeHeader: true,
     includeFooter: true
   }
 ];
-
-// 보고서 옵션 인터페이스
-export interface ReportOptions {
-  templateId: string;
-  format: ExportFormat;
-  paperSize?: 'A4' | 'A3' | 'Letter';
-  orientation?: 'portrait' | 'landscape';
-  includeCharts?: boolean;
-  includeHeader?: boolean;
-  includeFooter?: boolean;
-  customTitle?: string;
-  customFields?: string[];
-  dateRange?: [Date, Date];
-}
 
 // 일반 데이터 객체 인터페이스
 export interface DataItem {
@@ -155,7 +140,7 @@ export interface ReportGeneratorProps {
   /** 파일명 접두사 */
   filenamePrefix?: string;
   /** 보고서 생성 후 콜백 함수 */
-  onReportGenerated?: (filename: string, format: ExportFormat) => void;
+  onReportGenerated?: (filename: string, format: ReportFormat) => void;
   /** 버튼 텍스트 */
   buttonText?: string;
   /** 버튼 비활성화 여부 */
@@ -182,93 +167,104 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({
   buttonStyle
 }) => {
   // 상태 관리
-  const [modalVisible, setModalVisible] = useState<boolean>(false);
+  const [dialogOpen, setDialogOpen] = useState<boolean>(false);
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
-  const [exportFormat, setExportFormat] = useState<ExportFormat>('pdf');
-  const [loading, setLoading] = useState<boolean>(false);
-  const [form] = Form.useForm();
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+  const [previewDialogOpen, setPreviewDialogOpen] = useState<boolean>(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState<boolean>(false);
+  const [tabValue, setTabValue] = useState<number>(0);
+  
+  // 새 템플릿 상태
+  const [createTemplateOpen, setCreateTemplateOpen] = useState<boolean>(false);
+  const [newTemplate, setNewTemplate] = useState<Partial<ReportTemplate>>({
+    name: '',
+    type: ReportType.VEHICLE_HISTORY,
+    description: '',
+    fields: [],
+    orientation: 'portrait',
+    paperSize: 'a4',
+    includeCharts: true,
+    includeHeader: true,
+    includeFooter: true
+  });
+  
+  // 정기 보고서 상태
+  const [scheduleDialogOpen, setScheduleDialogOpen] = useState<boolean>(false);
+  const [scheduleOptions, setScheduleOptions] = useState({
+    templateId: '',
+    frequency: 'weekly',
+    dayOfWeek: 1, // 월요일
+    hour: 9,
+    emailNotification: true,
+    saveToIndexedDB: true
+  });
+  
+  // 보고서 템플릿 검색 상태
+  const [templateSearchTerm, setTemplateSearchTerm] = useState<string>('');
+  
+  // 최근 생성된 보고서 상태
+  const [recentReports, setRecentReports] = useState<any[]>([]);
+  
+  // 오프라인 저장된 보고서 로딩
+  useEffect(() => {
+    const loadSavedReports = async () => {
+      try {
+        const reports = await exportService.getReportsFromIndexedDB();
+        setRecentReports(reports.slice(0, 5)); // 최근 5개만 표시
+      } catch (error) {
+        console.error('저장된 보고서 로드 실패:', error);
+      }
+    };
+    
+    loadSavedReports();
+  }, []);
+  
+  // 필터링된 템플릿 목록
+  const filteredTemplates = React.useMemo(() => {
+    return [...DEFAULT_TEMPLATES, ...customTemplates]
+      .filter(template => 
+        availableTypes.includes(template.type) && 
+        (templateSearchTerm === '' || 
+         template.name.toLowerCase().includes(templateSearchTerm.toLowerCase()) || 
+         template.description.toLowerCase().includes(templateSearchTerm.toLowerCase()))
+      );
+  }, [availableTypes, customTemplates, templateSearchTerm]);
+  
+  // 탭 변경 핸들러
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
+    setTabValue(newValue);
+  };
 
   // 모든 템플릿 (기본 + 사용자 정의)
   const allTemplates = [...DEFAULT_TEMPLATES, ...customTemplates].filter(template =>
     availableTypes.includes(template.type)
   );
 
-  // 모달 열기
-  const showModal = () => {
-    setModalVisible(true);
+  // 다이얼로그 열기
+  const handleOpenDialog = () => {
+    setDialogOpen(true);
     if (allTemplates.length > 0 && !selectedTemplate) {
       setSelectedTemplate(allTemplates[0].id);
-      form.setFieldsValue({
-        templateId: allTemplates[0].id,
-        format: 'pdf',
-        paperSize: allTemplates[0].paperSize || 'A4',
-        orientation: allTemplates[0].orientation || 'portrait'
-      });
     }
   };
 
-  // 모달 닫기
-  const handleCancel = () => {
-    setModalVisible(false);
+  // 다이얼로그 닫기
+  const handleCloseDialog = () => {
+    setDialogOpen(false);
+    setError(null);
   };
 
   // 템플릿 변경 처리
-  const handleTemplateChange = (templateId: string) => {
-    setSelectedTemplate(templateId);
-    const template = allTemplates.find(t => t.id === templateId);
-    if (template) {
-      form.setFieldsValue({
-        paperSize: template.paperSize || 'A4',
-        orientation: template.orientation || 'portrait',
-        includeCharts: template.includeCharts || false,
-        includeHeader: template.includeHeader || false,
-        includeFooter: template.includeFooter || false
-      });
-    }
-  };
-
-  // 보고서 생성
-  const handleGenerate = async (values: ReportOptions) => {
-    setLoading(true);
-    try {
-      const template = allTemplates.find(t => t.id === values.templateId);
-      if (!template || !data || data.length === 0) {
-        message.error('보고서를 생성할 수 없습니다.');
-        setLoading(false);
-        return;
-      }
-
-      // 템플릿에 따라 데이터 필터링 및 처리
-      const processedData = processDataForTemplate(data, template, values);
-
-      // 파일명 생성
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);
-      const filename = `${filenamePrefix}_${template.type}_${timestamp}`;
-
-      // 데이터 내보내기
-      exportData(processedData, filename, values.format || 'pdf');
-
-      message.success(`${template.name} 보고서가 성공적으로 생성되었습니다.`);
-
-      // 콜백 함수 호출
-      if (onReportGenerated) {
-        onReportGenerated(filename, values.format || 'pdf');
-      }
-
-      setModalVisible(false);
-    } catch (error) {
-      console.error('보고서 생성 중 오류 발생:', error);
-      message.error('보고서 생성 중 오류가 발생했습니다.');
-    } finally {
-      setLoading(false);
-    }
+  const handleTemplateChange = (event: React.ChangeEvent<{ value: unknown }>) => {
+    setSelectedTemplate(event.target.value as string);
   };
 
   // 템플릿에 따른 데이터 처리
   const processDataForTemplate = (
     rawData: DataItem[],
-    template: ReportTemplate,
-    options: ReportOptions
+    template: ReportTemplate
   ): DataItem[] => {
     // 템플릿 필드에 따라 데이터 필터링
     const processedData = rawData.map(item => {
@@ -319,352 +315,770 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({
     return processedData;
   };
 
-  // 메뉴 항목 클릭 핸들러
-  const handleMenuClick = (e: any) => {
-    // 포맷 설정 후 모달 표시
-    setExportFormat(e.key as ExportFormat);
-    showModal();
-  };
-
-  // 포맷 변경 핸들러
-  const handleFormatChange = (format: ExportFormat) => {
-    setExportFormat(format);
-    form.setFieldsValue({ format });
-  };
-
-  // PDF 생성 함수
-  function createPdf(template: ReportTemplate, processedData: any[], companyLogo?: string) {
-    const doc = new jsPDF({
-      orientation: template.orientation || 'portrait',
-      unit: 'mm',
-      format: template.paperSize || 'a4'
-    });
-
-    // 헤더 추가
-    if (template.includeHeader) {
-      doc.setFontSize(16);
-      doc.text(template.name || '보고서', 14, 15);
-
-      // 회사 로고 추가 (있을 경우)
-      if (companyLogo || template.logoUrl) {
-        // 로고 이미지 처리 - 실제 구현에서는 이미지 로드 후 추가 필요
-        // doc.addImage(logoData, 'PNG', 150, 10, 30, 15);
-      }
-
-      doc.setFontSize(10);
-      doc.text(`생성일: ${new Date().toLocaleDateString('ko-KR')}`, 14, 25);
-      if (template.headerText) {
-        doc.text(template.headerText, 14, 30);
-      }
-
-      doc.line(10, 35, doc.internal.pageSize.width - 10, 35);
+  // 미리보기 다이얼로그 열기
+  const handleOpenPreview = async (exportOptions: ExportOptions) => {
+    if (!selectedTemplate) {
+      setError('템플릿을 선택해주세요.');
+      return;
     }
 
-    // 테이블 헤더 생성
-    const headers = template.fields.map(field => {
-      // 필드명을 사용자 친화적으로 변환 (예: camelCase -> 공백으로 분리된 단어)
-      return field
-        .replace(/([A-Z])/g, ' $1')
-        .replace(/^./, str => str.toUpperCase())
-        .trim();
-    });
+    const template = allTemplates.find(t => t.id === selectedTemplate);
+    if (!template || !data || data.length === 0) {
+      setError('보고서를 생성할 수 없습니다.');
+      return;
+    }
 
-    const rows = processedData.map(item =>
-      template.fields.map(field => item[field]?.toString() || '')
-    );
+    setPreviewLoading(true);
+    setError(null);
 
-    // 테이블 추가
-    (doc as any).autoTable({
-      head: [headers],
-      body: rows,
-      startY: template.includeHeader ? 40 : 10,
-      headStyles: { fillColor: [41, 128, 185], textColor: [255, 255, 255] },
-      styles: { font: 'helvetica', fontSize: 8, cellPadding: 3 },
-      didDrawPage: (data) => {
-        // 페이지가 그려질 때마다 푸터 추가
-        if (template.includeFooter) {
-          doc.setFontSize(8);
-          const { pageSize } = doc.internal;
-          const pageHeight = pageSize.height || pageSize.getHeight();
+    try {
+      // 미리보기용 옵션 설정 (항상 PDF로 설정)
+      const previewOptions: ExportOptions = {
+        ...exportOptions,
+        format: ReportFormat.PDF,
+        includeCharts: template.includeCharts || exportOptions.includeCharts,
+        paperSize: template.paperSize || exportOptions.paperSize,
+        landscape: template.orientation === 'landscape' || exportOptions.landscape,
+        preview: true
+      };
 
-          // 푸터 라인
-          doc.line(10, pageHeight - 20, doc.internal.pageSize.width - 10, pageHeight - 20);
+      // exportService를 사용하여 미리보기 생성
+      const previewBlob = await exportService.previewTemplateReport(
+        data,
+        template,
+        previewOptions
+      );
 
-          // 푸터 텍스트
-          doc.text(template.footerText || '자동 생성된 보고서', 14, pageHeight - 15);
+      // Blob을 URL로 변환
+      const previewBlobUrl = URL.createObjectURL(previewBlob);
+      setPreviewUrl(previewBlobUrl);
+      setPreviewDialogOpen(true);
+    } catch (error) {
+      console.error('보고서 미리보기 생성 중 오류 발생:', error);
+      setError('보고서 미리보기를 생성할 수 없습니다.');
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
 
-          // 페이지 번호
-          doc.text(
-            `페이지 ${data.pageNumber} / ${data.pageCount}`,
-            doc.internal.pageSize.width - 30,
-            pageHeight - 15
-          );
+  // 미리보기 다이얼로그 닫기
+  const handleClosePreview = () => {
+    setPreviewDialogOpen(false);
+    // URL 객체 메모리 정리
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(null);
+    }
+  };
+
+  // 보고서 내보내기 처리
+  const handleExport = async (exportOptions: ExportOptions) => {
+    if (!selectedTemplate) {
+      setError('템플릿을 선택해주세요.');
+      return;
+    }
+
+    const template = allTemplates.find(t => t.id === selectedTemplate);
+    if (!template || !data || data.length === 0) {
+      setError('보고서를 생성할 수 없습니다.');
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // 파일명 생성
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);
+      const filename = `${filenamePrefix}_${template.type}_${timestamp}`;
+
+      // 로컬 저장 옵션이 켜져 있으면 IndexedDB에도 저장
+      if (exportOptions.saveToIndexedDB) {
+        try {
+          // 보고서 데이터를 처리하여 IndexedDB에 저장
+          const processedData = processDataForTemplate(data, template);
+          
+          const reportData = {
+            id: `report_${Date.now()}`,
+            name: template.name,
+            type: template.type,
+            createdAt: new Date().toISOString(),
+            data: processedData,
+            templateId: template.id,
+            exportOptions
+          };
+          
+          // IndexedDB에 저장
+          await exportService.saveReportToIndexedDB(reportData);
+          
+          console.log('보고서가 오프라인 저장소에 저장되었습니다.');
+        } catch (dbError) {
+          console.error('보고서 로컬 저장 중 오류 발생:', dbError);
+          // 로컬 저장 실패는 전체 내보내기를 중단하지 않음
         }
       }
-    });
 
-    return doc;
-  }
+      // 템플릿 기반으로 보고서 내보내기
+      await exportService.exportTemplateReport(
+        data,
+        template,
+        exportOptions
+      );
 
-  // 엑셀 생성 함수
-  function createExcel(template: ReportTemplate, processedData: any[]) {
-    const workbook = XLSX.utils.book_new();
+      // 성공 메시지 및 콜백 처리
+      console.log(`${template.name} 보고서가 성공적으로 생성되었습니다.`);
+      
+      // 콜백 함수 호출
+      if (onReportGenerated) {
+        onReportGenerated(filename, exportOptions.format);
+      }
 
-    // 데이터를 시트에 변환
-    const worksheet = XLSX.utils.json_to_sheet(processedData);
-
-    // 열 너비 설정
-    const colWidths = template.fields.map(field => ({ wch: Math.max(field.length * 1.5, 10) }));
-    worksheet['!cols'] = colWidths;
-
-    // 헤더 스타일링을 위한 사용자 정의 처리 (XLSX에서는 직접적인 스타일링이 제한적임)
-    // 실제 구현에서는 exceljs와 같은 더 강력한 라이브러리 사용 권장
-
-    // 워크시트 추가
-    XLSX.utils.book_append_sheet(workbook, worksheet, template.name || '보고서');
-
-    return workbook;
-  }
-
-  // CSV 생성 함수
-  function createCsv(processedData: any[]) {
-    if (processedData.length === 0) {
-      return '';
+      // 다이얼로그 닫기
+      handleCloseDialog();
+    } catch (error) {
+      console.error('보고서 생성 중 오류 발생:', error);
+      setError('보고서 생성 중 오류가 발생했습니다.');
+    } finally {
+      setIsLoading(false);
     }
+  };
 
-    // 헤더 추출
-    const headers = Object.keys(processedData[0]);
-
-    // 헤더 행 생성 (따옴표로 감싸기)
-    const headerRow = headers.map(header => `"${header.replace(/"/g, '""')}"`).join(',');
-
-    // 데이터 행 생성
-    const rows = processedData.map(item => {
-      return headers
-        .map(header => {
-          const cell = item[header] ?? '';
-
-          // 문자열 값이면 따옴표로 감싸고 내부 따옴표는 이스케이프
-          if (typeof cell === 'string') {
-            return `"${cell.replace(/"/g, '""')}"`;
-          }
-          // 숫자, 불리언 등은 그대로 출력
-          return cell;
-        })
-        .join(',');
+  // 템플릿 생성 다이얼로그 열기
+  const handleOpenCreateTemplate = () => {
+    setCreateTemplateOpen(true);
+  };
+  
+  // 템플릿 생성 다이얼로그 닫기
+  const handleCloseCreateTemplate = () => {
+    setCreateTemplateOpen(false);
+  };
+  
+  // 새 템플릿 필드 변경 핸들러
+  const handleNewTemplateChange = (e: React.ChangeEvent<HTMLInputElement | { name?: string; value: unknown }>) => {
+    const { name, value } = e.target;
+    setNewTemplate(prev => ({
+      ...prev,
+      [name as string]: value
+    }));
+  };
+  
+  // 템플릿 필드 토글 핸들러
+  const handleFieldToggle = (field: string) => {
+    setNewTemplate(prev => {
+      const currentFields = prev.fields || [];
+      const newFields = currentFields.includes(field)
+        ? currentFields.filter(f => f !== field)
+        : [...currentFields, field];
+      
+      return {
+        ...prev,
+        fields: newFields
+      };
     });
-
-    // 최종 CSV 문자열 반환 (헤더 + 데이터 행)
-    return [headerRow, ...rows].join('\n');
-  }
-
-  // 보고서 형식에 따른 드롭다운 메뉴
-  const menu = (
-    <Menu onClick={handleMenuClick}>
-      <Menu.Item key="pdf" icon={<FilePdfOutlined />}>
-        PDF 보고서
-      </Menu.Item>
-      <Menu.Item key="excel" icon={<FileExcelOutlined />}>
-        Excel 보고서
-      </Menu.Item>
-      <Menu.Item key="csv" icon={<FileTextOutlined />}>
-        CSV 내보내기
-      </Menu.Item>
-    </Menu>
-  );
+  };
+  
+  // 새 템플릿 저장 핸들러
+  const handleSaveTemplate = async () => {
+    if (!newTemplate.name || !newTemplate.fields?.length) {
+      setError('템플릿 이름과 하나 이상의 필드를 선택해야 합니다.');
+      return;
+    }
+    
+    try {
+      // 템플릿 저장 로직 구현
+      const fullTemplate: ReportTemplate = {
+        id: `custom_${Date.now()}`,
+        name: newTemplate.name || '새 템플릿',
+        type: newTemplate.type || ReportType.VEHICLE_HISTORY,
+        description: newTemplate.description || '',
+        fields: newTemplate.fields || [],
+        groupBy: newTemplate.groupBy,
+        sortBy: newTemplate.sortBy,
+        orientation: newTemplate.orientation as 'portrait' | 'landscape',
+        paperSize: newTemplate.paperSize as 'a4' | 'letter' | 'legal',
+        includeCharts: newTemplate.includeCharts || false,
+        includeImages: newTemplate.includeImages || false,
+        includeHeader: newTemplate.includeHeader || false,
+        includeFooter: newTemplate.includeFooter || false,
+        headerText: newTemplate.headerText,
+        footerText: newTemplate.footerText,
+        logoUrl: newTemplate.logoUrl || companyLogo
+      };
+      
+      // IndexedDB에 템플릿 저장
+      await indexedDBUtils.saveData('reportTemplates', fullTemplate);
+      
+      // 성공 메시지 또는 콜백 처리
+      console.log('새 템플릿이 저장되었습니다:', fullTemplate.name);
+      
+      // 템플릿 생성 다이얼로그 닫기
+      handleCloseCreateTemplate();
+      
+      // 새 템플릿 선택
+      setSelectedTemplate(fullTemplate.id);
+      
+      // 상태 초기화
+      setNewTemplate({
+        name: '',
+        type: ReportType.VEHICLE_HISTORY,
+        description: '',
+        fields: [],
+        orientation: 'portrait',
+        paperSize: 'a4',
+        includeCharts: true,
+        includeHeader: true,
+        includeFooter: true
+      });
+    } catch (error) {
+      console.error('템플릿 저장 실패:', error);
+      setError('템플릿을 저장하는 중 오류가 발생했습니다.');
+    }
+  };
+  
+  // 정기 보고서 다이얼로그 열기
+  const handleOpenScheduleDialog = () => {
+    if (selectedTemplate) {
+      setScheduleOptions(prev => ({
+        ...prev,
+        templateId: selectedTemplate
+      }));
+      setScheduleDialogOpen(true);
+    } else {
+      setError('정기 보고서를 설정하려면 먼저 템플릿을 선택해주세요.');
+    }
+  };
+  
+  // 정기 보고서 다이얼로그 닫기
+  const handleCloseScheduleDialog = () => {
+    setScheduleDialogOpen(false);
+  };
+  
+  // 정기 보고서 옵션 변경 핸들러
+  const handleScheduleOptionsChange = (e: React.ChangeEvent<HTMLInputElement | { name?: string; value: unknown }>) => {
+    const { name, value, checked } = e.target as any;
+    setScheduleOptions(prev => ({
+      ...prev,
+      [name as string]: checked !== undefined ? checked : value
+    }));
+  };
+  
+  // 정기 보고서 저장 핸들러
+  const handleSaveSchedule = async () => {
+    try {
+      // 정기 보고서 설정 저장 로직 구현
+      const scheduleConfig = {
+        id: `schedule_${Date.now()}`,
+        templateId: scheduleOptions.templateId,
+        frequency: scheduleOptions.frequency,
+        dayOfWeek: scheduleOptions.dayOfWeek,
+        hour: scheduleOptions.hour,
+        emailNotification: scheduleOptions.emailNotification,
+        saveToIndexedDB: scheduleOptions.saveToIndexedDB,
+        createdAt: new Date().toISOString(),
+        lastRun: null,
+        nextRun: null // 다음 실행 시간은 별도 로직으로 계산
+      };
+      
+      // IndexedDB에 정기 보고서 설정 저장
+      await indexedDBUtils.saveData('reportSchedules', scheduleConfig);
+      
+      // 성공 메시지 또는 콜백 처리
+      console.log('정기 보고서 설정이 저장되었습니다');
+      
+      // 다이얼로그 닫기
+      handleCloseScheduleDialog();
+    } catch (error) {
+      console.error('정기 보고서 설정 저장 실패:', error);
+      setError('정기 보고서 설정을 저장하는 중 오류가 발생했습니다.');
+    }
+  };
 
   return (
     <>
-      <Dropdown overlay={menu} disabled={disabled}>
-        <Button
-          type="primary"
-          icon={<DownloadOutlined />}
-          style={{ ...buttonStyle }}
-          disabled={disabled}
-        >
-          {buttonText} <DownOutlined />
-        </Button>
-      </Dropdown>
-
-      <Modal
-        title="보고서 생성"
-        visible={modalVisible}
-        onCancel={handleCancel}
-        width={800}
-        footer={[
-          <Button key="back" onClick={handleCancel}>
-            취소
-          </Button>,
-          <Button key="submit" type="primary" loading={loading} onClick={() => form.submit()}>
-            생성
-          </Button>
-        ]}
+      <Button
+        variant="contained"
+        color="primary"
+        startIcon={<DownloadIcon />}
+        onClick={handleOpenDialog}
+        disabled={disabled || data.length === 0}
+        style={buttonStyle}
       >
-        <Spin spinning={loading}>
-          <Form
-            form={form}
-            layout="vertical"
-            onFinish={handleGenerate}
-            initialValues={{
-              templateId: selectedTemplate,
-              format: exportFormat,
-              paperSize: 'A4',
-              orientation: 'portrait',
-              includeCharts: true,
-              includeHeader: true,
-              includeFooter: true
-            }}
-          >
-            <Tabs defaultActiveKey="basic">
-              <TabPane tab="기본 설정" key="basic">
-                <Row gutter={24}>
-                  <Col span={12}>
-                    <Form.Item
-                      name="templateId"
-                      label="보고서 템플릿"
-                      rules={[{ required: true, message: '템플릿을 선택해주세요' }]}
-                    >
-                      <Select onChange={handleTemplateChange}>
-                        {allTemplates.map(template => (
-                          <Option key={template.id} value={template.id}>
-                            {template.name}
-                          </Option>
-                        ))}
-                      </Select>
-                    </Form.Item>
-                  </Col>
-                  <Col span={12}>
-                    <Form.Item
-                      name="format"
-                      label="출력 형식"
-                      rules={[{ required: true, message: '형식을 선택해주세요' }]}
-                    >
-                      <Radio.Group onChange={e => handleFormatChange(e.target.value)}>
-                        <Radio.Button value="pdf">
-                          <FilePdfOutlined /> PDF
-                        </Radio.Button>
-                        <Radio.Button value="excel">
-                          <FileExcelOutlined /> Excel
-                        </Radio.Button>
-                        <Radio.Button value="csv">
-                          <FileTextOutlined /> CSV
-                        </Radio.Button>
-                      </Radio.Group>
-                    </Form.Item>
-                  </Col>
-                </Row>
+        {buttonText}
+      </Button>
 
-                {/* PDF 옵션 (PDF 형식 선택 시에만 표시) */}
-                {exportFormat === 'pdf' && (
-                  <Row gutter={24}>
-                    <Col span={12}>
-                      <Form.Item name="paperSize" label="용지 크기">
-                        <Select>
-                          <Option value="a4">A4</Option>
-                          <Option value="a3">A3</Option>
-                          <Option value="letter">Letter</Option>
-                        </Select>
-                      </Form.Item>
-                    </Col>
-                    <Col span={12}>
-                      <Form.Item name="orientation" label="방향">
-                        <Radio.Group>
-                          <Radio value="portrait">세로</Radio>
-                          <Radio value="landscape">가로</Radio>
-                        </Radio.Group>
-                      </Form.Item>
-                    </Col>
-                  </Row>
-                )}
+      <Dialog
+        open={dialogOpen}
+        onClose={handleCloseDialog}
+        fullWidth
+        maxWidth="md"
+      >
+        <DialogTitle>
+          <Typography variant="h6">보고서 생성</Typography>
+        </DialogTitle>
 
-                {/* 템플릿 설명 표시 */}
-                {selectedTemplate && (
-                  <div style={{ marginBottom: 20 }}>
-                    <Title level={5}>템플릿 정보</Title>
-                    <Text>
-                      {allTemplates.find(t => t.id === selectedTemplate)?.description || ''}
-                    </Text>
-                  </div>
-                )}
-              </TabPane>
-
-              <TabPane tab="추가 옵션" key="advanced">
-                <Row gutter={24}>
-                  <Col span={8}>
-                    <Form.Item name="includeCharts" valuePropName="checked">
-                      <Checkbox>차트 포함</Checkbox>
-                    </Form.Item>
-                  </Col>
-                  <Col span={8}>
-                    <Form.Item name="includeHeader" valuePropName="checked">
-                      <Checkbox>헤더 포함</Checkbox>
-                    </Form.Item>
-                  </Col>
-                  <Col span={8}>
-                    <Form.Item name="includeFooter" valuePropName="checked">
-                      <Checkbox>푸터 포함</Checkbox>
-                    </Form.Item>
-                  </Col>
-                </Row>
-
-                <Form.Item name="headerText" label="헤더 텍스트">
-                  <Input placeholder="보고서 헤더에 표시할 텍스트" />
-                </Form.Item>
-
-                <Form.Item name="footerText" label="푸터 텍스트">
-                  <Input placeholder="보고서 푸터에 표시할 텍스트" />
-                </Form.Item>
-              </TabPane>
-
-              <TabPane tab="배포 옵션" key="distribution">
-                <Row gutter={24}>
-                  <Col span={12}>
-                    <Form.Item name="emailReport" valuePropName="checked">
-                      <Checkbox>이메일로 보고서 전송</Checkbox>
-                    </Form.Item>
-                  </Col>
-                  <Col span={12}>
-                    <Form.Item name="scheduledReport" valuePropName="checked">
-                      <Checkbox>정기 보고서로 예약</Checkbox>
-                    </Form.Item>
-                  </Col>
-                </Row>
-
-                <Form.Item
-                  name="emailList"
-                  label="수신자 이메일"
-                  rules={[
-                    {
-                      type: 'array',
-                      validator: (_, value) => {
-                        if (!value) {
-                          return Promise.resolve();
-                        }
-                        const emails = value.split(',').map((e: string) => e.trim());
-                        const invalidEmails = emails.filter((e: string) => !/.+@.+\..+/.test(e));
-                        return invalidEmails.length === 0
-                          ? Promise.resolve()
-                          : Promise.reject(new Error('잘못된 이메일 형식이 있습니다'));
-                      }
-                    }
-                  ]}
-                >
-                  <Input placeholder="여러 이메일은 쉼표로 구분 (예: email1@example.com, email2@example.com)" />
-                </Form.Item>
-
-                <Form.Item name="scheduleFrequency" label="보고서 예약 주기">
-                  <Select placeholder="보고서 주기 선택">
-                    <Option value="daily">매일</Option>
-                    <Option value="weekly">매주</Option>
-                    <Option value="monthly">매월</Option>
-                    <Option value="quarterly">분기별</Option>
+        <DialogContent>
+          {error && (
+            <Box sx={{ color: 'error.main', mb: 2 }}>
+              {error}
+            </Box>
+          )}
+          
+          <Tabs value={tabValue} onChange={handleTabChange} sx={{ mb: 2 }}>
+            <Tab label="템플릿 선택" />
+            <Tab label="최근 보고서" />
+          </Tabs>
+          
+          {tabValue === 0 ? (
+            <>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <TextField
+                  placeholder="템플릿 검색..."
+                  variant="outlined"
+                  size="small"
+                  value={templateSearchTerm}
+                  onChange={(e) => setTemplateSearchTerm(e.target.value)}
+                  sx={{ width: '60%' }}
+                />
+                <Box>
+                  <Button
+                    startIcon={<AddIcon />}
+                    onClick={handleOpenCreateTemplate}
+                    sx={{ mr: 1 }}
+                  >
+                    새 템플릿
+                  </Button>
+                  <Button
+                    startIcon={<ScheduleIcon />}
+                    onClick={handleOpenScheduleDialog}
+                    disabled={!selectedTemplate}
+                  >
+                    정기 설정
+                  </Button>
+                </Box>
+              </Box>
+            
+              <Box sx={{ mb: 3 }}>
+                <FormControl fullWidth variant="outlined">
+                  <InputLabel id="template-select-label">템플릿 선택</InputLabel>
+                  <Select
+                    labelId="template-select-label"
+                    value={selectedTemplate || ''}
+                    onChange={handleTemplateChange as any}
+                    label="템플릿 선택"
+                  >
+                    {filteredTemplates.map(template => (
+                      <MenuItem key={template.id} value={template.id}>
+                        {template.name} ({template.description})
+                      </MenuItem>
+                    ))}
                   </Select>
-                </Form.Item>
-              </TabPane>
-            </Tabs>
-          </Form>
-        </Spin>
-      </Modal>
+                </FormControl>
+              </Box>
+
+              {selectedTemplate && (
+                <>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Typography variant="subtitle1">보고서 내보내기 옵션</Typography>
+                    <Tooltip title="미리보기">
+                      <IconButton 
+                        color="primary" 
+                        onClick={() => {
+                          const template = allTemplates.find(t => t.id === selectedTemplate);
+                          if (template) {
+                            handleOpenPreview({
+                              format: ReportFormat.PDF,
+                              paperSize: template.paperSize || 'a4',
+                              landscape: template.orientation === 'landscape',
+                              includeCharts: template.includeCharts || true,
+                              includeRawData: true
+                            });
+                          }
+                        }}
+                        disabled={previewLoading || isLoading}
+                      >
+                        <PreviewIcon />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
+                  <ExportOptionsForm 
+                    onExport={handleExport}
+                    isLoading={isLoading}
+                  />
+                </>
+              )}
+            </>
+          ) : (
+            // 최근 보고서 탭
+            <Box>
+              <Typography variant="subtitle1" gutterBottom>
+                최근 생성된 보고서
+              </Typography>
+              {recentReports.length > 0 ? (
+                <List>
+                  {recentReports.map(report => (
+                    <ListItem
+                      key={report.id}
+                      secondaryAction={
+                        <IconButton
+                          edge="end"
+                          onClick={() => {
+                            // 저장된 보고서로 내보내기 옵션 설정
+                            const exportOptions = report.exportOptions || {
+                              format: ReportFormat.PDF,
+                              includeCharts: true,
+                              includeRawData: true
+                            };
+                            handleExport(exportOptions);
+                          }}
+                        >
+                          <DownloadIcon />
+                        </IconButton>
+                      }
+                    >
+                      <ListItemText
+                        primary={report.name}
+                        secondary={`${new Date(report.createdAt).toLocaleString()} · ${report.type}`}
+                      />
+                    </ListItem>
+                  ))}
+                </List>
+              ) : (
+                <Typography variant="body2" color="text.secondary">
+                  저장된 보고서가 없습니다. 보고서를 생성할 때 'IndexedDB에 저장' 옵션을 선택하면 이곳에 표시됩니다.
+                </Typography>
+              )}
+            </Box>
+          )}
+        </DialogContent>
+
+        <DialogActions>
+          <Button onClick={handleCloseDialog} color="inherit" disabled={isLoading || previewLoading}>
+            취소
+          </Button>
+          {(isLoading || previewLoading) && <CircularProgress size={24} sx={{ ml: 2 }} />}
+        </DialogActions>
+      </Dialog>
+
+      {/* 템플릿 생성 다이얼로그 */}
+      <Dialog
+        open={createTemplateOpen}
+        onClose={handleCloseCreateTemplate}
+        fullWidth
+        maxWidth="md"
+      >
+        <DialogTitle>
+          <Typography variant="h6">새 보고서 템플릿 생성</Typography>
+        </DialogTitle>
+        
+        <DialogContent>
+          <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {/* 기본 정보 */}
+            <TextField
+              label="템플릿 이름"
+              name="name"
+              value={newTemplate.name || ''}
+              onChange={handleNewTemplateChange}
+              fullWidth
+              required
+            />
+            
+            <TextField
+              label="설명"
+              name="description"
+              value={newTemplate.description || ''}
+              onChange={handleNewTemplateChange}
+              fullWidth
+            />
+            
+            <FormControl fullWidth>
+              <InputLabel>보고서 유형</InputLabel>
+              <Select
+                name="type"
+                value={newTemplate.type || ReportType.VEHICLE_HISTORY}
+                onChange={handleNewTemplateChange as any}
+                label="보고서 유형"
+              >
+                {Object.values(ReportType).map(type => (
+                  <MenuItem key={type} value={type}>
+                    {type}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            
+            {/* 데이터 필드 선택 */}
+            <Typography variant="subtitle1" gutterBottom sx={{ mt: 2 }}>
+              포함할 필드 선택
+            </Typography>
+            
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+              {data.length > 0 && Object.keys(data[0]).map(field => (
+                <Chip
+                  key={field}
+                  label={field}
+                  clickable
+                  color={(newTemplate.fields || []).includes(field) ? 'primary' : 'default'}
+                  onClick={() => handleFieldToggle(field)}
+                />
+              ))}
+            </Box>
+            
+            {/* 레이아웃 옵션 */}
+            <Typography variant="subtitle1" gutterBottom sx={{ mt: 2 }}>
+              레이아웃 옵션
+            </Typography>
+            
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+              <FormControl sx={{ minWidth: 200 }}>
+                <InputLabel>용지 크기</InputLabel>
+                <Select
+                  name="paperSize"
+                  value={newTemplate.paperSize || 'a4'}
+                  onChange={handleNewTemplateChange as any}
+                  label="용지 크기"
+                >
+                  <MenuItem value="a4">A4</MenuItem>
+                  <MenuItem value="letter">Letter</MenuItem>
+                  <MenuItem value="legal">Legal</MenuItem>
+                </Select>
+              </FormControl>
+              
+              <FormControl sx={{ minWidth: 200 }}>
+                <InputLabel>방향</InputLabel>
+                <Select
+                  name="orientation"
+                  value={newTemplate.orientation || 'portrait'}
+                  onChange={handleNewTemplateChange as any}
+                  label="방향"
+                >
+                  <MenuItem value="portrait">세로</MenuItem>
+                  <MenuItem value="landscape">가로</MenuItem>
+                </Select>
+              </FormControl>
+            </Box>
+            
+            {/* 포함 항목 */}
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, mt: 2 }}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={newTemplate.includeCharts || false}
+                    onChange={(e) => setNewTemplate({...newTemplate, includeCharts: e.target.checked})}
+                  />
+                }
+                label="차트 포함"
+              />
+              
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={newTemplate.includeHeader || false}
+                    onChange={(e) => setNewTemplate({...newTemplate, includeHeader: e.target.checked})}
+                  />
+                }
+                label="헤더 포함"
+              />
+              
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={newTemplate.includeFooter || false}
+                    onChange={(e) => setNewTemplate({...newTemplate, includeFooter: e.target.checked})}
+                  />
+                }
+                label="푸터 포함"
+              />
+              
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={newTemplate.includeImages || false}
+                    onChange={(e) => setNewTemplate({...newTemplate, includeImages: e.target.checked})}
+                  />
+                }
+                label="이미지 포함"
+              />
+            </Box>
+          </Box>
+        </DialogContent>
+        
+        <DialogActions>
+          <Button onClick={handleCloseCreateTemplate} color="inherit">
+            취소
+          </Button>
+          <Button
+            onClick={handleSaveTemplate}
+            color="primary"
+            startIcon={<SaveIcon />}
+            variant="contained"
+          >
+            템플릿 저장
+          </Button>
+        </DialogActions>
+      </Dialog>
+      
+      {/* 정기 보고서 설정 다이얼로그 */}
+      <Dialog
+        open={scheduleDialogOpen}
+        onClose={handleCloseScheduleDialog}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          <Typography variant="h6">정기 보고서 설정</Typography>
+        </DialogTitle>
+        
+        <DialogContent>
+          <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <FormControl fullWidth>
+              <InputLabel>실행 주기</InputLabel>
+              <Select
+                name="frequency"
+                value={scheduleOptions.frequency}
+                onChange={handleScheduleOptionsChange as any}
+                label="실행 주기"
+              >
+                <MenuItem value="daily">매일</MenuItem>
+                <MenuItem value="weekly">매주</MenuItem>
+                <MenuItem value="monthly">매월</MenuItem>
+              </Select>
+            </FormControl>
+            
+            {scheduleOptions.frequency === 'weekly' && (
+              <FormControl fullWidth>
+                <InputLabel>요일</InputLabel>
+                <Select
+                  name="dayOfWeek"
+                  value={scheduleOptions.dayOfWeek}
+                  onChange={handleScheduleOptionsChange as any}
+                  label="요일"
+                >
+                  <MenuItem value={1}>월요일</MenuItem>
+                  <MenuItem value={2}>화요일</MenuItem>
+                  <MenuItem value={3}>수요일</MenuItem>
+                  <MenuItem value={4}>목요일</MenuItem>
+                  <MenuItem value={5}>금요일</MenuItem>
+                  <MenuItem value={6}>토요일</MenuItem>
+                  <MenuItem value={0}>일요일</MenuItem>
+                </Select>
+              </FormControl>
+            )}
+            
+            <FormControl fullWidth>
+              <InputLabel>실행 시간</InputLabel>
+              <Select
+                name="hour"
+                value={scheduleOptions.hour}
+                onChange={handleScheduleOptionsChange as any}
+                label="실행 시간"
+              >
+                {Array.from({ length: 24 }, (_, i) => (
+                  <MenuItem key={i} value={i}>
+                    {`${i}시`}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={scheduleOptions.emailNotification}
+                  onChange={handleScheduleOptionsChange}
+                  name="emailNotification"
+                />
+              }
+              label="이메일로 보고서 받기"
+            />
+            
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={scheduleOptions.saveToIndexedDB}
+                  onChange={handleScheduleOptionsChange}
+                  name="saveToIndexedDB"
+                />
+              }
+              label="오프라인 저장소에 보고서 저장"
+            />
+          </Box>
+        </DialogContent>
+        
+        <DialogActions>
+          <Button onClick={handleCloseScheduleDialog} color="inherit">
+            취소
+          </Button>
+          <Button
+            onClick={handleSaveSchedule}
+            color="primary"
+            startIcon={<SaveIcon />}
+            variant="contained"
+          >
+            일정 저장
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* 미리보기 다이얼로그 */}
+      <Dialog
+        open={previewDialogOpen}
+        onClose={handleClosePreview}
+        fullWidth
+        maxWidth="lg"
+        PaperProps={{
+          sx: { minHeight: '80vh' }
+        }}
+      >
+        <DialogTitle>
+          <Typography variant="h6">보고서 미리보기</Typography>
+        </DialogTitle>
+
+        <DialogContent>
+          {previewLoading && (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
+              <CircularProgress />
+            </Box>
+          )}
+
+          {previewUrl && !previewLoading && (
+            <Box sx={{ height: '70vh', width: '100%', overflow: 'auto' }}>
+              <iframe 
+                src={previewUrl} 
+                style={{ width: '100%', height: '100%', border: 'none' }}
+                title="보고서 미리보기"
+              />
+            </Box>
+          )}
+        </DialogContent>
+
+        <DialogActions>
+          <Button onClick={handleClosePreview} color="inherit">
+            닫기
+          </Button>
+          <Button 
+            onClick={() => {
+              handleClosePreview();
+              // 미리보기 설정과 동일한 옵션으로 내보내기 실행
+              if (selectedTemplate) {
+                const template = allTemplates.find(t => t.id === selectedTemplate);
+                if (template) {
+                  handleExport({
+                    format: ReportFormat.PDF,
+                    paperSize: template.paperSize || 'a4',
+                    landscape: template.orientation === 'landscape',
+                    includeCharts: template.includeCharts || true,
+                    includeRawData: true
+                  });
+                }
+              }
+            }} 
+            color="primary"
+            startIcon={<DownloadIcon />}
+          >
+            PDF로 내보내기
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 };

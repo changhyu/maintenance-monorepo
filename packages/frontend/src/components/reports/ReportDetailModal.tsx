@@ -183,12 +183,12 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
             printWindow.document.write(`
               <html>
                 <head>
-                  <title>${report?.title || '보고서'}</title>
+                  <title>${report?.title ?? '보고서'}</title>
                   ${printStyles}
                 </head>
                 <body>
                   <div class="print-header">
-                    <h1>${report?.title || '보고서'}</h1>
+                    <h1>${report?.title ?? '보고서'}</h1>
                     <p class="print-date">생성일: ${dayjs(report?.createdAt).format('YYYY년 MM월 DD일 HH:mm')}</p>
                   </div>
                   ${printContent.innerHTML}
@@ -427,7 +427,7 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
 
   return (
     <Modal
-      title={report?.title || '보고서 상세'}
+      title={report?.title ?? '보고서 상세'}
       visible={visible && report !== null}
       onCancel={onClose}
       width={800}

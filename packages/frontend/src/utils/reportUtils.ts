@@ -156,6 +156,54 @@ export const extractTableData = (
           { key: 'confidence', title: '신뢰도 (%)' }
         ]
       };
+    case 'vehicle_utilization':
+      return {
+        data: report.data?.utilizationData || [],
+        columns: [
+          { key: 'vehicleId', title: '차량 ID' },
+          { key: 'vehicleName', title: '차량명' },
+          { key: 'totalDistance', title: '총 주행거리 (km)' },
+          { key: 'utilizationRate', title: '활용률 (%)' },
+          { key: 'operationHours', title: '운행 시간' },
+          { key: 'fuelEfficiency', title: '연비 (km/L)' }
+        ]
+      };
+    case 'maintenance_completion_rate':
+      return {
+        data: report.data?.completionByVehicle || [],
+        columns: [
+          { key: 'vehicleId', title: '차량 ID' },
+          { key: 'vehicleName', title: '차량명' },
+          { key: 'totalTasks', title: '총 정비 건수' },
+          { key: 'completedTasks', title: '완료 건수' },
+          { key: 'completionRate', title: '완료율 (%)' },
+          { key: 'averageCompletionTime', title: '평균 완료 시간 (일)' }
+        ]
+      };
+    case 'predictive_maintenance':
+      return {
+        data: report.data?.predictions || [],
+        columns: [
+          { key: 'vehicleId', title: '차량 ID' },
+          { key: 'vehicleName', title: '차량명' },
+          { key: 'component', title: '부품명' },
+          { key: 'failureProbability', title: '고장 확률 (%)' },
+          { key: 'estimatedReplaceDate', title: '예상 교체 일자' },
+          { key: 'recommendedAction', title: '권장 조치' }
+        ]
+      };
+    case 'parts_usage':
+      return {
+        data: report.data?.partsUsage || [],
+        columns: [
+          { key: 'partId', title: '부품 ID' },
+          { key: 'partName', title: '부품명' },
+          { key: 'usageCount', title: '사용 횟수' },
+          { key: 'totalCost', title: '총 비용 (원)' },
+          { key: 'averageCostPerUse', title: '건당 평균 비용 (원)' },
+          { key: 'mostUsedVehicle', title: '가장 많이 사용된 차량' }
+        ]
+      };
     default:
       return { data: [], columns: [] };
   }

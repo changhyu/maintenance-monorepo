@@ -76,7 +76,9 @@ export const useTodoService = () => {
       try {
         const serviceFilter = adaptContextFilterToServiceFilter(filter);
         const fetchedTodos = await todoService.getTodos(serviceFilter);
+        
         setTodos(fetchedTodos);
+        
         return fetchedTodos;
       } catch (err) {
         const error =
@@ -121,7 +123,9 @@ export const useTodoService = () => {
 
       try {
         const newTodo = await todoService.createTodo(todoData);
+        
         setTodos(prevTodos => [...prevTodos, newTodo]);
+        
         return newTodo;
       } catch (err) {
         const error = err instanceof Error ? err : new Error('할 일을 생성하는 데 실패했습니다.');
@@ -144,7 +148,9 @@ export const useTodoService = () => {
 
       try {
         const updatedTodo = await todoService.updateTodo(id, updates);
+        
         setTodos(prevTodos => prevTodos.map(todo => (todo.id === id ? updatedTodo : todo)));
+        
         return updatedTodo;
       } catch (err) {
         const error =
@@ -168,9 +174,11 @@ export const useTodoService = () => {
 
       try {
         const success = await todoService.deleteTodo(id);
+        
         if (success) {
           setTodos(prevTodos => prevTodos.filter(todo => todo.id !== id));
         }
+        
         return success;
       } catch (err) {
         const error = err instanceof Error ? err : new Error('할 일을 삭제하는 데 실패했습니다.');
@@ -187,37 +195,39 @@ export const useTodoService = () => {
    * Todo 완료 상태 토글
    */
   const toggleComplete = useCallback(
-    async (
-      id: string,
-      completed: boolean
-    ): Promise<{ todo: Todo; previousState: { completed: boolean } }> => {
+    async (id: string): Promise<Todo> => {
       setLoading(true);
       setError(null);
-
+      
       try {
-        // 현재 상태 기억
-        const todoToUpdate = todos.find(todo => todo.id === id);
-        if (!todoToUpdate) throw new Error('해당 ID의 할 일을 찾을 수 없습니다.');
-
-        const previousState = { completed: todoToUpdate.completed };
-
-        // 업데이트 실행
-        const updatedTodo = await todoService.toggleComplete(id, completed);
-
+        // 현재 상태를 확인
+        const currentTodo = todos.find(todo => todo.id === id);
+        if (!currentTodo) {
+          throw new Error(`ID: ${id}에 해당하는 할 일을 찾을 수 없습니다.`);
+        }
+        
+        // 상태를 반전
+        const newCompleted = !currentTodo.completed;
+        
+        // 서비스를 통해 업데이트
+        const updatedTodo = await todoService.updateTodo(id, { completed: newCompleted });
+        
         // 상태 업데이트
-        setTodos(prevTodos => prevTodos.map(todo => (todo.id === id ? updatedTodo : todo)));
-
-        return { todo: updatedTodo, previousState };
+        setTodos(prevTodos => 
+          prevTodos.map(todo => todo.id === id ? updatedTodo : todo)
+        );
+        
+        return updatedTodo;
       } catch (err) {
-        const error =
-          err instanceof Error ? err : new Error('할 일 상태를 변경하는 데 실패했습니다.');
+        const error = 
+          err instanceof Error ? err : new Error('할 일 완료 상태 변경에 실패했습니다.');
         setError(error);
         throw error;
       } finally {
         setLoading(false);
       }
     },
-    [todos, todoService]
+    [todoService, todos]
   );
 
   return {
@@ -233,11 +243,10 @@ export const useTodoService = () => {
   };
 };
 
-// 필요한 타입을 다시 내보내기
+// TodoService 유형 내보내기
 export type {
   Todo,
   TodoCreateRequest,
-  TodoStatusType,
   TodoPriorityType,
-  TodoFilter
-} from '../services/todoService';
+  TodoStatusType
+};

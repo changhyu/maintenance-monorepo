@@ -1,0 +1,125 @@
+# 프로덕션 환경 특화 설정
+services:
+  api:
+    build:
+      dockerfile: Dockerfile.api
+      args:
+        - NODE_ENV=production
+    environment:
+      - NODE_ENV=production
+      - PORT=8000
+    deploy:
+      replicas: 2
+      update_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  frontend:
+    build:
+      dockerfile: Dockerfile.frontend
+      args:
+        - NODE_ENV=production
+    environment:
+      - NODE_ENV=production
+      - REACT_APP_API_URL=https://api.example.com
+    deploy:
+      replicas: 2
+      update_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  db:
+    environment:
+      - POSTGRES_DB=maintenance_prod
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD_FILE=/run/secrets/db_password
+    secrets:
+      - db_password
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  redis:
+    command: redis-server --appendonly yes
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    restart: always
+    networks:
+      - maintenance-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+
+  grafana:
+    image: grafana/grafana:latest
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+    restart: always
+    networks:
+      - maintenance-network
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+
+secrets:
+  db_password:
+    external: true
+
+volumes:
+  api_logs:
+  postgres_data:
+  redis_data:
+  frontend_nginx_conf:
+  frontend_ssl:
+  prometheus_data:
+  grafana_data:

@@ -4,11 +4,16 @@ Todo API 라우터.
 
 from datetime import datetime
 from typing import List, Optional, Dict, Any
+import logging  # 로깅 임포트를 try-except 밖으로 이동
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Path
+from fastapi import APIRouter, Depends, HTTPException, Query, Path, Body
 from fastapi.responses import JSONResponse
 
-from ..models.schemas import Todo, TodoCreate, TodoUpdate, TodoStatus, TodoPriority
+from ..models.schemas import Todo, TodoCreate, TodoUpdate, TodoStatus, TodoPriority, ApiResponse
+from ..core.logging import get_logger
+from ..core.cache_decorators import cache_response
+
+logger = get_logger("todos")
 
 # 문자열 상수 정의
 SKIP_DESC = "건너뛸 레코드 수"
@@ -21,37 +26,37 @@ USER_ID_DESC = "사용자 ID"
 
 # 서비스 객체 임포트 시 오류 방지
 try:
-    from ..modules.todo.service import TodoService
+    from ..modules.todo import TodoService
     todo_service = TodoService()
-except ImportError:
-    import logging
-    from ..models.schemas import ApiResponse
-    from datetime import datetime, timezone
+    logger.info("TodoService가 성공적으로 로드되었습니다.")
+except ImportError as e:
+    from datetime import timezone
     
-    logging.warning("TodoService를 임포트할 수 없습니다. 더미 서비스를 생성합니다.")
+    logger.error(f"TodoService 임포트 오류: {str(e)}")
+    logger.warning("TodoService를 임포트할 수 없습니다. 더미 서비스를 생성합니다.")
     
     # 더미 TodoService 클래스 생성
     class DummyTodoService:
         def __init__(self):
             self.todos = []
-            logging.warning("더미 TodoService가 초기화되었습니다. 실제 데이터베이스 연동이 필요합니다.")
+            logger.warning("더미 TodoService가 초기화되었습니다. 실제 데이터베이스 연동이 필요합니다.")
         
         def get_todos(self, skip=0, limit=100, filters=None):
-            logging.warning(f"더미 get_todos 호출됨: skip={skip}, limit={limit}, filters={filters}")
+            logger.warning(f"더미 get_todos 호출됨: skip={skip}, limit={limit}, filters={filters}")
             return ApiResponse.success_response(
                 data={"items": self.todos, "total": len(self.todos)},
                 message="더미 Todo 목록 조회 (실제 DB 연동 필요)"
             )
             
         def get_todo_by_id(self, todo_id):
-            logging.warning(f"더미 get_todo_by_id 호출됨: todo_id={todo_id}")
+            logger.warning(f"더미 get_todo_by_id 호출됨: todo_id={todo_id}")
             todo = next((t for t in self.todos if t.get("id") == todo_id), None)
             if not todo:
                 return ApiResponse.error_response(f"Todo ID {todo_id}를 찾을 수 없습니다.")
             return ApiResponse.success_response(data=todo, message="더미 Todo 조회 (실제 DB 연동 필요)")
             
         def create_todo(self, todo_data):
-            logging.warning(f"더미 create_todo 호출됨: {todo_data}")
+            logger.warning(f"더미 create_todo 호출됨: {todo_data}")
             todo_id = f"dummy-{len(self.todos) + 1}"
             now = datetime.now(timezone.utc).isoformat()
             
@@ -70,7 +75,7 @@ except ImportError:
             return ApiResponse.success_response(data=todo, message="더미 Todo 생성 (실제 DB 연동 필요)")
             
         def update_todo(self, todo_id, todo_update):
-            logging.warning(f"더미 update_todo 호출됨: todo_id={todo_id}, updates={todo_update}")
+            logger.warning(f"더미 update_todo 호출됨: todo_id={todo_id}, updates={todo_update}")
             for i, todo in enumerate(self.todos):
                 if todo.get("id") == todo_id:
                     update_data = {k: v for k, v in todo_update.model_dump(exclude_unset=True).items()}
@@ -80,7 +85,7 @@ except ImportError:
             return ApiResponse.error_response(f"Todo ID {todo_id}를 찾을 수 없습니다.")
             
         def delete_todo(self, todo_id):
-            logging.warning(f"더미 delete_todo 호출됨: todo_id={todo_id}")
+            logger.warning(f"더미 delete_todo 호출됨: todo_id={todo_id}")
             for i, todo in enumerate(self.todos):
                 if todo.get("id") == todo_id:
                     self.todos.pop(i)
@@ -89,15 +94,15 @@ except ImportError:
             return ApiResponse.error_response(f"Todo ID {todo_id}를 찾을 수 없습니다.")
             
         def update_todo_status(self, todo_id, status):
-            logging.warning(f"더미 update_todo_status 호출됨: todo_id={todo_id}, status={status}")
+            logger.warning(f"더미 update_todo_status 호출됨: todo_id={todo_id}, status={status}")
             return self.update_todo(todo_id, TodoUpdate(status=status))
             
         def complete_todo(self, todo_id):
-            logging.warning(f"더미 complete_todo 호출됨: todo_id={todo_id}")
+            logger.warning(f"더미 complete_todo 호출됨: todo_id={todo_id}")
             return self.update_todo(todo_id, TodoUpdate(status=TodoStatus.COMPLETED, completed=True))
             
         def get_overdue_todos(self, user_id=None):
-            logging.warning(f"더미 get_overdue_todos 호출됨: user_id={user_id}")
+            logger.warning(f"더미 get_overdue_todos 호출됨: user_id={user_id}")
             now = datetime.now(timezone.utc)
             overdue = [t for t in self.todos if t.get("due_date") and t.get("due_date") < now.isoformat()]
             
@@ -107,7 +112,7 @@ except ImportError:
             return ApiResponse.success_response(data=overdue, message="더미 기한 초과 Todo 조회 (실제 DB 연동 필요)")
             
         def get_upcoming_todos(self, days=7, user_id=None):
-            logging.warning(f"더미 get_upcoming_todos 호출됨: days={days}, user_id={user_id}")
+            logger.warning(f"더미 get_upcoming_todos 호출됨: days={days}, user_id={user_id}")
             now = datetime.now(timezone.utc)
             upcoming = []
             
@@ -124,6 +129,12 @@ router = APIRouter(
 
 
 @router.get("/", response_model=Dict[str, Any])
+@cache_response(
+    expire=60,  # 60초 캐시
+    prefix="todos_list",
+    include_query_params=True,
+    user_specific=True
+)
 async def get_todos(
     skip: int = Query(0, description=SKIP_DESC),
     limit: int = Query(100, description=LIMIT_DESC),
@@ -161,6 +172,12 @@ async def get_todos(
 
 
 @router.get("/{todo_id}", response_model=Dict[str, Any])
+@cache_response(
+    expire=120,  # 2분 캐시
+    prefix="todo_detail",
+    include_path_params=True,
+    user_specific=True
+)
 async def get_todo_by_id(
     todo_id: str = Path(..., description="조회할 Todo ID"),
 ):
@@ -191,7 +208,7 @@ async def create_todo(
 @router.put("/{todo_id}", response_model=Dict[str, Any])
 async def update_todo(
     todo_id: str = Path(..., description="업데이트할 Todo ID"),
-    todo_data: TodoUpdate = ...,
+    todo_data: TodoUpdate = Body(..., description="업데이트할 Todo 데이터"),
 ):
     """
     Todo를 업데이트합니다.
@@ -204,7 +221,7 @@ async def update_todo(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.delete("/{todo_id}", response_model=Dict[str, bool])
+@router.delete("/{todo_id}", response_model=Dict[str, Any])
 async def delete_todo(
     todo_id: str = Path(..., description="삭제할 Todo ID"),
 ):
@@ -212,8 +229,7 @@ async def delete_todo(
     Todo를 삭제합니다.
     """
     try:
-        success = todo_service.delete_todo(todo_id)
-        return {"success": success}
+        return todo_service.delete_todo(todo_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
@@ -223,10 +239,10 @@ async def delete_todo(
 @router.patch("/{todo_id}/status", response_model=Dict[str, Any])
 async def update_todo_status(
     todo_id: str = Path(..., description="상태를 변경할 Todo ID"),
-    status: TodoStatus = ...,
+    status: TodoStatus = Body(..., description="변경할 상태"),
 ):
     """
-    Todo 상태를 업데이트합니다.
+    Todo의 상태를 업데이트합니다.
     """
     try:
         return todo_service.update_todo_status(todo_id, status)
@@ -251,7 +267,13 @@ async def complete_todo(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.get("/overdue", response_model=List[Dict[str, Any]])
+@router.get("/overdue", response_model=Dict[str, Any])
+@cache_response(
+    expire=300,  # 5분 캐시
+    prefix="todos_overdue",
+    include_query_params=True,
+    user_specific=True
+)
 async def get_overdue_todos(
     user_id: Optional[str] = Query(None, description=USER_ID_DESC),
 ):
@@ -264,7 +286,13 @@ async def get_overdue_todos(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.get("/upcoming", response_model=List[Dict[str, Any]])
+@router.get("/upcoming", response_model=Dict[str, Any])
+@cache_response(
+    expire=300,  # 5분 캐시
+    prefix="todos_upcoming",
+    include_query_params=True,
+    user_specific=True
+)
 async def get_upcoming_todos(
     days: int = Query(7, description="몇 일 이내의 Todo를 조회할지 지정"),
     user_id: Optional[str] = Query(None, description=USER_ID_DESC),
@@ -279,6 +307,13 @@ async def get_upcoming_todos(
 
 
 @router.get("/user/{user_id}", response_model=Dict[str, Any])
+@cache_response(
+    expire=60,  # 60초 캐시
+    prefix="todos_by_user",
+    include_path_params=True,
+    include_query_params=True,
+    user_specific=True
+)
 async def get_user_todos(
     user_id: str = Path(..., description=USER_ID_DESC),
     skip: int = Query(0, description=SKIP_DESC),
@@ -308,6 +343,13 @@ async def get_user_todos(
 
 
 @router.get("/assignee/{assignee_id}", response_model=Dict[str, Any])
+@cache_response(
+    expire=60,  # 60초 캐시
+    prefix="todos_by_assignee",
+    include_path_params=True,
+    include_query_params=True,
+    user_specific=True
+)
 async def get_assignee_todos(
     assignee_id: str = Path(..., description="할당자 ID"),
     skip: int = Query(0, description=SKIP_DESC),
@@ -337,6 +379,13 @@ async def get_assignee_todos(
 
 
 @router.get("/vehicle/{vehicle_id}", response_model=Dict[str, Any])
+@cache_response(
+    expire=60,  # 60초 캐시
+    prefix="todos_by_vehicle",
+    include_path_params=True,
+    include_query_params=True,
+    user_specific=True
+)
 async def get_vehicle_todos(
     vehicle_id: str = Path(..., description="차량 ID"),
     skip: int = Query(0, description=SKIP_DESC),
@@ -347,7 +396,7 @@ async def get_vehicle_todos(
     due_date_to: Optional[datetime] = Query(None, description=DUE_DATE_TO_DESC),
 ):
     """
-    특정 차량의 Todo 목록을 조회합니다.
+    특정 차량에 대한 Todo 목록을 조회합니다.
     """
     try:
         filters = {

@@ -1,6 +1,7 @@
-import { notificationService } from './notificationService';
+import { notification } from 'antd';
 import { ApiClient } from '../../../api-client/src/client';
 import { NotificationCreate, NotificationType } from '../types/notification';
+import { notificationService } from './notificationService';
 
 /**
  * 지도 이벤트 타입 열거형
@@ -293,7 +294,6 @@ export class MapService {
   private lastGeofenceEvents: Record<string, Record<string, GeofenceEventDetails>> = {};
   private activeBoundaries: MapBoundary[] = [];
   private lastBoundaryEvents: Record<string, Record<string, MapBoundaryEventDetails>> = {};
-  private readonly notificationService = notificationService;
 
   // 지오펜스 모니터링 활성화 상태
   private monitoringActive: boolean = false;
@@ -380,7 +380,11 @@ export class MapService {
       const response = await this.apiClient.get<VehicleLocation>(`${this.basePath}/vehicles/${vehicleId}/location`);
       return response;
     } catch (error) {
-      console.error(`차량 ID ${vehicleId} 위치 조회 중 오류 발생:`, error);
+      console.error(`[mapService] 차량 ID ${vehicleId} 위치 조회 중 오류 발생:`, error);
+      notification.error({
+        message: '차량 위치 조회 실패',
+        description: `차량 ID ${vehicleId}의 위치를 가져올 수 없습니다.`
+      });
       return null;
     }
   }
@@ -602,6 +606,10 @@ export class MapService {
       return response;
     } catch (error) {
       console.error(`[mapService] 지오펜스 ID ${geofenceId} 업데이트 중 오류 발생:`, error);
+      notification.error({
+        message: '지오펜스 업데이트 실패',
+        description: `지오펜스 ID ${geofenceId}를 업데이트하는 중 문제가 발생했습니다.`
+      });
       return null;
     }
   }
@@ -1009,49 +1017,36 @@ export class MapService {
     channels: Array<'EMAIL' | 'SMS' | 'PUSH' | 'SYSTEM'> = ['SYSTEM']
   ): Promise<boolean> {
     try {
-      // 지오펜스 및 차량 정보 가져오기
-      const geofence = await this.getGeofence(eventDetails.geofenceId);
-      const vehicleResponse = await this.apiClient.get<{ id: string; name?: string }>(`/vehicles/${eventDetails.vehicleId}`);
-      const vehicle = vehicleResponse;
+      // 알림 생성 데이터 준비
+      const notificationData: NotificationCreate = {
+        type: NotificationType.GEOFENCE_ALERT,
+        title: `지오펜스 알림: ${eventDetails.eventType}`,
+        message: `차량(${eventDetails.vehicleId})이 지오펜스(${eventDetails.geofenceId})를 ${
+          eventDetails.eventType === 'ENTER' ? '진입' : eventDetails.eventType === 'EXIT' ? '이탈' : '체류'
+        }했습니다.`,
+        severity: 'medium',
+        data: {
+          geofenceId: eventDetails.geofenceId,
+          vehicleId: eventDetails.vehicleId,
+          location: eventDetails.location,
+          eventType: eventDetails.eventType,
+          timestamp: eventDetails.timestamp
+        },
+        channels
+      };
 
-      if (!geofence || !vehicle) {
-        console.error(
-          '[mapService] 지오펜스 알림 전송 실패: 지오펜스 또는 차량 정보를 찾을 수 없습니다.'
-        );
-        return false;
+      // 실제 알림 생성 요청
+      const result = await notificationService.createNotification(notificationData);
+
+      // UI 알림 표시 (SYSTEM 채널인 경우)
+      if (channels.includes('SYSTEM')) {
+        notification.info({
+          message: notificationData.title,
+          description: notificationData.message
+        });
       }
 
-      // 이벤트 타입에 따른 메시지 생성
-      let message = '';
-      switch (eventDetails.eventType) {
-        case 'ENTER':
-          message = `차량 ${vehicle.name || vehicle.id}이(가) 지오펜스 ${geofence.name}에 진입했습니다.`;
-          break;
-        case 'EXIT':
-          message = `차량 ${vehicle.name || vehicle.id}이(가) 지오펜스 ${geofence.name}에서 이탈했습니다.`;
-          break;
-        case 'DWELL':
-          message = `차량 ${vehicle.name || vehicle.id}이(가) 지오펜스 ${geofence.name}에 장기간 체류 중입니다.`;
-          break;
-      }
-
-      // 각 채널별 알림 전송
-      const notificationPromises = channels.map(channel => {
-        const notificationData = {
-          type: 'GEOFENCE_ALERT',
-          title: `지오펜스 알림: ${geofence.name}`,
-          message,
-          data: eventDetails,
-          channel,
-          priority: 'HIGH',
-          userId: geofence.userId || 'system' // 지오펜스 소유자에게 알림
-        };
-
-        return this.apiClient.post('/notifications', notificationData);
-      });
-
-      await Promise.all(notificationPromises);
-      return true;
+      return !!result;
     } catch (error) {
       console.error('[mapService] 지오펜스 알림 전송 실패:', error);
       return false;
@@ -1369,9 +1364,17 @@ export class MapService {
   async updateMapBoundary(id: string, updates: Partial<MapBoundary>): Promise<boolean> {
     try {
       await this.apiClient.put(`${this.basePath}/map/boundaries/${id}`, updates);
+      notification.success({
+        message: '지도 경계 업데이트',
+        description: '경계가 성공적으로 업데이트되었습니다.'
+      });
       return true;
     } catch (error) {
       console.error(`[mapService] 지도 경계 ID ${id} 업데이트 실패:`, error);
+      notification.error({
+        message: '지도 경계 업데이트 실패',
+        description: `경계 ID ${id}를 업데이트하는 중 문제가 발생했습니다.`
+      });
       return false;
     }
   }

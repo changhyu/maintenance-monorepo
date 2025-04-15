@@ -4,7 +4,7 @@ import { FileTextOutlined, HomeOutlined } from '@ant-design/icons';
 import { Typography, Breadcrumb } from 'antd';
 import { Link } from 'react-router-dom';
 
-import ReportDashboard from '../components/reports/ReportDashboard';
+import ReportDashboard from '../components/ReportDashboard';
 import '../components/reports/styles.css';
 
 const { Title } = Typography;

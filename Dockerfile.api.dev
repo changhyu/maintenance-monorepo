@@ -1,0 +1,44 @@
+# Development environment
+FROM python:3.9-slim
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies and Node.js
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    libpq-dev \
+    postgresql-client \
+    curl \
+    && curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+    && apt-get install -y nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first for better caching
+COPY packages/api/requirements.txt /app/packages/api/requirements.txt
+
+# Install Python dependencies globally (without virtualenv)
+RUN pip install --no-cache-dir -r /app/packages/api/requirements.txt
+
+# Install Node.js dependencies
+COPY package*.json ./
+COPY packages/api/package*.json ./packages/api/
+RUN npm install
+
+# Set environment variables
+ENV PYTHONPATH=/app/packages/api
+ENV PORT=8000
+ENV HOST=0.0.0.0
+ENV PYTHONUNBUFFERED=1
+ENV NODE_ENV=development
+ENV DEBUG=true
+ENV PATH="/app/node_modules/.bin:${PATH}"
+
+# Copy application code
+COPY packages/api /app/packages/api
+
+# Expose development port
+EXPOSE 8000
+
+# Start development server with hot-reload
+CMD ["python", "-m", "uvicorn", "packages.api.src.main:app", "--reload", "--host", "0.0.0.0", "--port", "8000"] 

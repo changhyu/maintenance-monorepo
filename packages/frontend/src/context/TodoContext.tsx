@@ -24,6 +24,7 @@ import { formatDate, isPastDate } from '../utils/dateUtils';
 import logger from '../utils/logger';
 import useNetwork from '../hooks/useNetwork';
 import useLocalStorage from '../hooks/useLocalStorage';
+import { SyncStatus, PendingChange as PendingChangeType, OfflineOperation } from '../types/todoTypes';
 
 // 로컬 스토리지 키
 const TODOS_STORAGE_KEY = 'vehicle_maintenance_todos';
@@ -84,6 +85,7 @@ export interface TodoContextType {
   syncStatus: SyncStatus;
   hasPendingChanges: boolean;
   lastSyncTime: Date | null;
+  isPending: boolean;
 
   // 기본 CRUD 작업
   fetchTodos: (filter?: TodoFilterType) => Promise<void>;
@@ -122,6 +124,7 @@ const initialContext: TodoContextType = {
   syncStatus: 'idle',
   hasPendingChanges: false,
   lastSyncTime: null,
+  isPending: false,
   fetchTodos: async () => {},
   createTodo: async () => null,
   updateTodo: async () => null,
@@ -153,6 +156,7 @@ export const TodoProvider = ({ children, initialTodos = [] }: TodoProviderProps)
   // useTodoService 훅 활용
   const todoServiceHook = useTodoService();
   const { isOnline } = useNetwork();
+  const [isTransitionPending, setIsTransitionPending] = useState(false);
 
   // 로컬 스토리지 훅 활용
   const [localTodos, setLocalTodos] = useLocalStorage<Todo[]>(TODOS_STORAGE_KEY, []);
@@ -193,8 +197,19 @@ export const TodoProvider = ({ children, initialTodos = [] }: TodoProviderProps)
       }
 
       // 마감일 필터
-      if (filter.dueDate === 'today' && (!todo.dueDate || !formatDate(todo.dueDate).isToday)) {
-        return false;
+      if (filter.dueDate === 'today') {
+        // isToday 대신 직접 날짜 비교
+        if (!todo.dueDate) return false;
+        
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const dueDate = new Date(todo.dueDate);
+        dueDate.setHours(0, 0, 0, 0);
+        
+        if (today.getTime() !== dueDate.getTime()) {
+          return false;
+        }
       }
 
       if (filter.dueDate === 'overdue' && (!todo.dueDate || !isPastDate(todo.dueDate))) {
@@ -245,6 +260,7 @@ export const TodoProvider = ({ children, initialTodos = [] }: TodoProviderProps)
 
       try {
         const fetchedTodos = await todoServiceHook.fetchTodos(newFilter);
+        
         setTodos(fetchedTodos);
         setLastSyncTime(new Date().toISOString());
       } catch (err) {
@@ -269,16 +285,9 @@ export const TodoProvider = ({ children, initialTodos = [] }: TodoProviderProps)
   }, [fetchTodos, filter]);
 
   /**
-   * 대기 중인 변경사항 동기화
+   * 대기 중인 변경사항 처리
    */
-  const syncPendingChanges = useCallback(async (): Promise<boolean> => {
-    if (!isOnline || pendingChanges.length === 0 || syncStatus === 'syncing') {
-      return false;
-    }
-
-    setSyncStatus('syncing');
-    setLoading(true);
-
+  const processPendingChanges = useCallback(async (): Promise<boolean> => {
     try {
       // 변경사항을 생성 시간 순으로 정렬
       const sortedChanges = [...pendingChanges].sort((a, b) => a.timestamp - b.timestamp);
@@ -306,19 +315,39 @@ export const TodoProvider = ({ children, initialTodos = [] }: TodoProviderProps)
       // 동기화 완료 후 데이터 새로고침
       await fetchTodos();
       
+      return failedChanges.length === 0;
+    } catch (error) {
+      logger.error('변경사항 처리 중 오류 발생:', error);
+      return false;
+    }
+  }, [pendingChanges, todoServiceHook, setPendingChanges, fetchTodos]);
+
+  /**
+   * 대기 중인 변경사항 동기화
+   */
+  const syncPendingChanges = useCallback(async (): Promise<boolean> => {
+    if (!isOnline || pendingChanges.length === 0 || isTransitionPending || syncStatus === 'syncing') {
+      return false;
+    }
+
+    // 전환 시작
+    setIsTransitionPending(true);
+    setSyncStatus('syncing');
+
+    try {
+      logger.info(`동기화 시작: ${pendingChanges.length}개 변경사항 처리 중...`);
+      const syncResult = await processPendingChanges();
       setLastSyncTime(new Date().toISOString());
       setSyncStatus('idle');
-      return failedChanges.length === 0;
-    } catch (err) {
-      const error = err instanceof Error ? err : new Error('동기화 실패');
-      setError(error);
-      logger.error('동기화 실패:', error);
+      return syncResult;
+    } catch (error) {
+      logger.error('동기화 중 오류 발생:', error);
       setSyncStatus('error');
       return false;
     } finally {
-      setLoading(false);
+      setIsTransitionPending(false);
     }
-  }, [isOnline, pendingChanges, syncStatus, todoServiceHook, setPendingChanges, fetchTodos, setLastSyncTime]);
+  }, [isOnline, pendingChanges, syncStatus, isTransitionPending, processPendingChanges, setLastSyncTime]);
 
   // 온라인 상태 변경 시 자동 동기화
   useEffect(() => {
@@ -568,7 +597,7 @@ export const TodoProvider = ({ children, initialTodos = [] }: TodoProviderProps)
         setLoading(false);
       }
     },
-    [isOnline, todos, todoServiceHook, addPendingChange, setPendingChanges]
+    [isOnline, todos, todoServiceHook, addPendingChange]
   );
 
   /**
@@ -697,51 +726,29 @@ export const TodoProvider = ({ children, initialTodos = [] }: TodoProviderProps)
     }
   }, [fetchTodos, todos.length, localTodos.length]);
 
-  // useMemo로 컨텍스트 값 메모이제이션
-  const contextValue = useMemo(
-    () => ({
-      todos: filteredTodos,
-      loading,
-      error,
-      filter,
-      isOffline: !isOnline,
-      syncStatus,
-      hasPendingChanges: pendingChanges.length > 0,
-      lastSyncTime: lastSyncTime ? new Date(lastSyncTime) : null,
-      fetchTodos,
-      createTodo,
-      updateTodo,
-      deleteTodo,
-      toggleComplete,
-      createTodosFromTemplate,
-      setFilter,
-      clearFilter,
-      syncPendingChanges,
-      refreshTodos,
-      requestNotificationPermission
-    }),
-    [
-      filteredTodos,
-      loading,
-      error,
-      filter,
-      isOnline,
-      syncStatus,
-      pendingChanges.length,
-      lastSyncTime,
-      fetchTodos,
-      createTodo,
-      updateTodo,
-      deleteTodo,
-      toggleComplete,
-      createTodosFromTemplate,
-      setFilter,
-      clearFilter,
-      syncPendingChanges,
-      refreshTodos,
-      requestNotificationPermission
-    ]
-  );
+  // 컨텍스트 값
+  const contextValue: TodoContextType = {
+    todos: filteredTodos,
+    loading,
+    error,
+    filter,
+    isOffline: !isOnline,
+    syncStatus,
+    hasPendingChanges: pendingChanges.length > 0,
+    lastSyncTime: lastSyncTime ? new Date(lastSyncTime) : null,
+    isPending: isTransitionPending,
+    fetchTodos,
+    createTodo,
+    updateTodo,
+    deleteTodo,
+    toggleComplete,
+    createTodosFromTemplate,
+    setFilter,
+    clearFilter,
+    syncPendingChanges,
+    refreshTodos,
+    requestNotificationPermission
+  };
 
   return (
     <TodoContext.Provider value={contextValue}>

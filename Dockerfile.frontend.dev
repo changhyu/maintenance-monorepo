@@ -1,0 +1,40 @@
+# Node.js Debian 기반 이미지 사용
+FROM node:18-slim
+
+WORKDIR /app
+
+# 시스템 의존성 설치
+RUN apt-get update && apt-get install -y \
+    python3 \
+    make \
+    g++ \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# 의존성 파일 복사
+COPY package*.json ./
+COPY packages/frontend/package*.json ./packages/frontend/
+COPY packages/shared/package*.json ./packages/shared/
+COPY packages/api-client/package*.json ./packages/api-client/
+
+# 플랫폼 특정 설정 제거 및 의존성 설치
+ENV VITE_PLATFORM=linux
+ENV VITE_ARCH=x64
+RUN npm install --no-optional
+
+# 소스 코드 복사
+COPY tsconfig.json ./
+COPY packages/frontend ./packages/frontend
+COPY packages/shared ./packages/shared
+COPY packages/api-client ./packages/api-client
+
+# Vite 설정
+COPY vite.config.ts ./
+
+# 개발 서버 실행 포트
+EXPOSE 3000
+
+# 개발 서버 시작
+WORKDIR /app/packages/frontend
+ENV NODE_OPTIONS=--max-old-space-size=4096
+CMD ["npm", "run", "dev"] 

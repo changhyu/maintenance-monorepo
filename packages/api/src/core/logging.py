@@ -5,7 +5,7 @@ import logging
 import os
 import sys
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Union
 
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
 LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -18,6 +18,22 @@ if not os.path.exists(LOG_DIR):
 
 # 로그 파일명 포맷
 LOG_FILENAME_FORMAT = "{date}_{name}.log"
+
+
+def _create_handler(handler: Union[logging.StreamHandler, logging.FileHandler], level: int) -> logging.Handler:
+    """
+    로그 핸들러를 생성하고 설정합니다.
+    
+    Args:
+        handler: 설정할 로그 핸들러
+        level: 로그 레벨
+        
+    Returns:
+        설정된 핸들러
+    """
+    handler.setLevel(level)
+    handler.setFormatter(logging.Formatter(LOG_FORMAT, LOG_DATE_FORMAT))
+    return handler
 
 
 def setup_logger(name: str, log_level: Optional[str] = None) -> logging.Logger:
@@ -43,9 +59,7 @@ def setup_logger(name: str, log_level: Optional[str] = None) -> logging.Logger:
         logger.removeHandler(handler)
     
     # 콘솔 핸들러 설정
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setLevel(level)
-    console_handler.setFormatter(logging.Formatter(LOG_FORMAT, LOG_DATE_FORMAT))
+    console_handler = _create_handler(logging.StreamHandler(sys.stdout), level)
     logger.addHandler(console_handler)
     
     # 파일 핸들러 설정
@@ -55,9 +69,7 @@ def setup_logger(name: str, log_level: Optional[str] = None) -> logging.Logger:
     )
     log_path = os.path.join(LOG_DIR, log_filename)
     
-    file_handler = logging.FileHandler(log_path)
-    file_handler.setLevel(level)
-    file_handler.setFormatter(logging.Formatter(LOG_FORMAT, LOG_DATE_FORMAT))
+    file_handler = _create_handler(logging.FileHandler(log_path), level)
     logger.addHandler(file_handler)
     
     # 전파 설정 (상위 로거로 이벤트 전파 방지)
@@ -73,6 +85,8 @@ vehicle_logger = setup_logger("vehicle")
 maintenance_logger = setup_logger("maintenance")
 db_logger = setup_logger("db")
 auth_logger = setup_logger("auth")
+
+logger = app_logger
 
 
 def get_logger(name: str) -> logging.Logger:

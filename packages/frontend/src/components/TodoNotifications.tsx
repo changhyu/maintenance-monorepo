@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-import { BellOutlined, CheckOutlined, DeleteOutlined, FilterOutlined } from '@ant-design/icons';
+import { BellOutlined, DeleteOutlined, FilterOutlined } from '@ant-design/icons';
 import { Badge, Dropdown, Button, List, Space, Typography, Tag, Tabs, Empty } from 'antd';
 
 import todoNotificationService, {
@@ -34,6 +34,186 @@ const typeNameMap = {
   [NotificationType.STATUS_CHANGE]: '상태 변경',
   [NotificationType.PRIORITY_HIGH]: '높은 우선순위',
   [NotificationType.GENERAL]: '일반'
+};
+
+// NotificationItem 컴포넌트를 외부로 이동
+const NotificationItem: React.FC<{
+  notification: TodoNotification;
+  onDelete: (notification: TodoNotification, e: React.MouseEvent<HTMLElement>) => void;
+  onClick: (notification: TodoNotification) => void;
+}> = ({ notification, onDelete, onClick }) => (
+  <List.Item
+    key={notification.id}
+    onClick={() => onClick(notification)}
+    actions={[
+      <Button
+        key="delete"
+        type="text"
+        size="small"
+        icon={<DeleteOutlined />}
+        onClick={(e: React.MouseEvent<HTMLElement, MouseEvent>) => onDelete(notification, e)}
+      />
+    ]}
+  >
+    <List.Item.Meta
+      title={notification.title}
+      description={
+        <Space direction="vertical" size={2}>
+          <Typography.Text type="secondary">
+            {formatRelativeTime(notification.createdAt)}
+          </Typography.Text>
+          <Tag color={typeColorMap[notification.type]}>
+            {typeNameMap[notification.type]}
+          </Tag>
+        </Space>
+      }
+    />
+  </List.Item>
+);
+
+interface NotificationDropdownContentProps {
+  notifications: TodoNotification[];
+  activeTabKey: string;
+  sortByPriority: boolean;
+  onTabChange: (key: string) => void;
+  onSort: () => void;
+  onClearAll: () => void;
+  onClearByType: (type: string) => void;
+  onDelete: (notification: TodoNotification, e: React.MouseEvent<HTMLElement>) => void;
+  onNotificationClick: (notification: TodoNotification) => void;
+}
+
+const NotificationDropdownContent: React.FC<NotificationDropdownContentProps> = ({
+  notifications,
+  activeTabKey,
+  sortByPriority,
+  onTabChange,
+  onSort,
+  onClearAll,
+  onClearByType,
+  onDelete,
+  onNotificationClick
+}) => {
+  // 현재 탭에 맞는 알림 필터링
+  const getFilteredNotifications = () => {
+    if (activeTabKey === 'all') {
+      return notifications;
+    }
+    return notifications.filter(notification => notification.type === activeTabKey);
+  };
+
+  // 알림 목록 렌더링
+  const renderNotifications = () => {
+    const filteredNotifications = getFilteredNotifications();
+    
+    if (filteredNotifications.length === 0) {
+      return [];
+    }
+
+    return filteredNotifications.map(notification => (
+      <NotificationItem
+        key={notification.id}
+        notification={notification}
+        onDelete={onDelete}
+        onClick={onNotificationClick}
+      />
+    ));
+  };
+
+  // 탭 아이템 생성
+  const tabItems = [
+    {
+      key: 'all',
+      label: (
+        <span>
+          전체
+          <Badge
+            count={notifications.length}
+            size="small"
+            style={{ marginLeft: 5 }}
+            overflowCount={99}
+          />
+        </span>
+      )
+    },
+    ...Object.values(NotificationType).map(type => {
+      const count = todoNotificationService.getUnreadCountByType(type);
+      return {
+        key: type,
+        label: (
+          <span>
+            {typeNameMap[type]}
+            <Badge count={count} size="small" style={{ marginLeft: 5 }} overflowCount={99} />
+          </span>
+        )
+      };
+    })
+  ];
+
+  return (
+    <div className="notification-dropdown" style={{ width: 350, maxHeight: 400, overflow: 'auto' }}>
+      <div
+        className="notification-header"
+        style={{
+          padding: '10px',
+          borderBottom: '1px solid #f0f0f0',
+          display: 'flex',
+          justifyContent: 'space-between'
+        }}
+      >
+        <Typography.Title level={5} style={{ margin: 0 }}>
+          알림
+        </Typography.Title>
+        <Space>
+          <Button
+            type="text"
+            size="small"
+            icon={<FilterOutlined />}
+            onClick={onSort}
+            title={sortByPriority ? '시간순 정렬' : '우선순위순 정렬'}
+          />
+          <Button
+            type="text"
+            size="small"
+            icon={<DeleteOutlined />}
+            onClick={onClearAll}
+            title="모든 알림 삭제"
+          />
+        </Space>
+      </div>
+
+      <Tabs
+        activeKey={activeTabKey}
+        onChange={onTabChange}
+        tabBarStyle={{ padding: '0 10px' }}
+        tabBarExtraContent={
+          <Button
+            type="text"
+            size="small"
+            onClick={() => onClearByType(activeTabKey)}
+            title="현재 탭의 알림 삭제"
+          >
+            지우기
+          </Button>
+        }
+        items={tabItems}
+      />
+
+      <List
+        dataSource={renderNotifications()}
+        renderItem={(item) => item}
+        locale={{
+          emptyText: (
+            <Empty
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+              description="알림이 없습니다"
+              style={{ margin: '20px 0' }}
+            />
+          )
+        }}
+      />
+    </div>
+  );
 };
 
 /**
@@ -117,165 +297,31 @@ const TodoNotifications: React.FC<TodoNotificationsProps> = ({ className = '', o
     setActiveTabKey(key);
   };
 
-  // 현재 탭에 맞는 알림 필터링
-  const getFilteredNotifications = () => {
-    if (activeTabKey === 'all') {
-      return notifications;
-    }
-    return notifications.filter(notification => notification.type === activeTabKey);
-  };
-
-  // 탭 아이템 생성
-  const tabItems = [
-    {
-      key: 'all',
-      label: (
-        <span>
-          전체
-          <Badge
-            count={notifications.length}
-            size="small"
-            style={{ marginLeft: 5 }}
-            overflowCount={99}
-          />
-        </span>
-      )
-    },
-    ...Object.values(NotificationType).map(type => {
-      const count = todoNotificationService.getUnreadCountByType(type);
-      return {
-        key: type,
-        label: (
-          <span>
-            {typeNameMap[type]}
-            <Badge count={count} size="small" style={{ marginLeft: 5 }} overflowCount={99} />
-          </span>
-        )
-      };
-    })
-  ];
-
-  // 알림 드롭다운 내용
-  const notificationDropdownContent = (
-    <div className="notification-dropdown" style={{ width: 350, maxHeight: 400, overflow: 'auto' }}>
-      <div
-        className="notification-header"
-        style={{
-          padding: '10px',
-          borderBottom: '1px solid #f0f0f0',
-          display: 'flex',
-          justifyContent: 'space-between'
-        }}
-      >
-        <Typography.Title level={5} style={{ margin: 0 }}>
-          알림
-        </Typography.Title>
-        <Space>
-          <Button
-            type="text"
-            size="small"
-            icon={<FilterOutlined />}
-            onClick={toggleSort}
-            title={sortByPriority ? '시간순 정렬' : '우선순위순 정렬'}
-          />
-          <Button
-            type="text"
-            size="small"
-            icon={<DeleteOutlined />}
-            onClick={handleClearAll}
-            title="모든 알림 삭제"
-          />
-        </Space>
-      </div>
-
-      <Tabs
-        activeKey={activeTabKey}
-        onChange={handleTabChange}
-        tabBarStyle={{ padding: '0 10px' }}
-        tabBarExtraContent={
-          <Button
-            type="text"
-            size="small"
-            onClick={() => handleClearByType(activeTabKey)}
-            title="현재 탭의 알림 삭제"
-          >
-            지우기
-          </Button>
-        }
-        items={tabItems}
-      />
-
-      <List
-        dataSource={getFilteredNotifications()}
-        renderItem={notification => (
-          <List.Item
-            className={notification.read ? 'read' : 'unread'}
-            style={{
-              padding: '10px 15px',
-              borderBottom: '1px solid #f0f0f0',
-              backgroundColor: notification.read ? 'transparent' : '#f6f6f6',
-              cursor: 'pointer'
-            }}
-            onClick={() => handleNotificationClick(notification)}
-            actions={[
-              <Button
-                type="text"
-                size="small"
-                icon={<DeleteOutlined />}
-                onClick={e => handleDelete(notification, e)}
-              />
-            ]}
-          >
-            <List.Item.Meta
-              title={
-                <Space>
-                  <span>{notification.title}</span>
-                  <Tag color={typeColorMap[notification.type]}>
-                    {typeNameMap[notification.type]}
-                  </Tag>
-                </Space>
-              }
-              description={
-                <div>
-                  <div>{notification.message}</div>
-                  <div style={{ fontSize: '0.8em', color: '#999', marginTop: 5 }}>
-                    {formatRelativeTime(notification.createdAt)}
-                  </div>
-                </div>
-              }
-            />
-          </List.Item>
-        )}
-        locale={{
-          emptyText: (
-            <Empty
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-              description="알림이 없습니다"
-              style={{ margin: '20px 0' }}
-            />
-          )
-        }}
-      />
-    </div>
-  );
-
   return (
     <div className={`todo-notifications ${className}`}>
       <Dropdown
         open={visible}
-        onOpenChange={setVisible}
-        arrow
+        onOpenChange={toggleNotifications}
         trigger={['click']}
-        placement="bottomRight"
-        dropdownRender={() => notificationDropdownContent}
+        dropdownRender={() => (
+          <NotificationDropdownContent
+            notifications={notifications}
+            activeTabKey={activeTabKey}
+            sortByPriority={sortByPriority}
+            onTabChange={handleTabChange}
+            onSort={toggleSort}
+            onClearAll={handleClearAll}
+            onClearByType={handleClearByType}
+            onDelete={handleDelete}
+            onNotificationClick={handleNotificationClick}
+          />
+        )}
       >
-        <Badge count={unreadCount} overflowCount={99}>
+        <Badge count={unreadCount} size="small">
           <Button
             type="text"
             icon={<BellOutlined />}
-            onClick={toggleNotifications}
-            size="large"
-            className="notification-bell-button"
+            className="notification-button"
           />
         </Badge>
       </Dropdown>

@@ -1,0 +1,160 @@
+name: CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - 'v*'
+
+jobs:
+  build-and-publish:
+    name: Build and Publish Docker Images
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: yourorganization/maintenance-api,yourorganization/maintenance-frontend
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=ref,event=branch
+            type=sha,format=short
+      
+      - name: Build and push API image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.api
+          push: true
+          tags: yourorganization/maintenance-api:${{ steps.meta.outputs.version }},yourorganization/maintenance-api:latest
+          cache-from: type=registry,ref=yourorganization/maintenance-api:buildcache
+          cache-to: type=registry,ref=yourorganization/maintenance-api:buildcache,mode=max
+          build-args: |
+            ENVIRONMENT=production
+      
+      - name: Build and push Frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.frontend
+          push: true
+          tags: yourorganization/maintenance-frontend:${{ steps.meta.outputs.version }},yourorganization/maintenance-frontend:latest
+          cache-from: type=registry,ref=yourorganization/maintenance-frontend:buildcache
+          cache-to: type=registry,ref=yourorganization/maintenance-frontend:buildcache,mode=max
+          build-args: |
+            NODE_ENV=production
+
+  deploy-github-pages:
+    name: Deploy to GitHub Pages
+    needs: build-and-publish
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    env:
+      DEPLOY_ENV: production
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build static site
+        run: npm run build
+      
+      - name: Setup GitHub Pages
+        uses: actions/configure-pages@v4
+      
+      - name: Upload GitHub Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: 'packages/frontend/dist'
+      
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Configure custom domain
+        run: |
+          echo "www.car-goro.com" > packages/frontend/dist/CNAME
+  
+  deploy-staging:
+    name: Deploy to Staging
+    needs: build-and-publish
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    env:
+      DEPLOY_ENV: staging
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.STAGING_SSH_PRIVATE_KEY }}
+      
+      - name: Deploy to staging server
+        run: |
+          ssh ${{ secrets.STAGING_SSH_USER }}@${{ secrets.STAGING_SSH_HOST }} "cd /opt/maintenance-app && \
+          docker compose -f docker-compose.yml -f docker-compose.prod.yml pull && \
+          docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --force-recreate"
+
+  deploy-production:
+    name: Deploy to Production
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    env:
+      DEPLOY_ENV: production
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.PRODUCTION_SSH_PRIVATE_KEY }}
+      
+      - name: Deploy to production server
+        run: |
+          ssh ${{ secrets.PRODUCTION_SSH_USER }}@${{ secrets.PRODUCTION_SSH_HOST }} "cd /opt/maintenance-app && \
+          docker compose -f docker-compose.yml -f docker-compose.prod.yml pull && \
+          docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --force-recreate"
+      
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          generate_release_notes: true
+          files: |
+            README.md
+            CHANGELOG.md

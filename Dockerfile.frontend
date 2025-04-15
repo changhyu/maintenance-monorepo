@@ -1,0 +1,18 @@
+# Build stage
+FROM node:18-alpine as builder
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+WORKDIR /app
+# Install dependencies
+COPY package.json package-lock.json ./
+RUN npm install --production
+# Copy source code and build
+COPY . ./
+RUN npm run build
+
+# Production stage
+FROM nginx:1.23-alpine
+COPY --from=builder /app/build /usr/share/nginx/html
+# Expose port
+EXPOSE 80
+# Start nginx
+CMD ["nginx", "-g", "daemon off;"]

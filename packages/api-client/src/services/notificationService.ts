@@ -98,10 +98,10 @@ export interface NotificationCount {
 export type NotificationCallback = (notification: Notification) => void;
 
 export class NotificationService {
-  private client: ApiClient;
-  private basePath = '/notifications';
-  private socketConnection: unknown = null;
-  private socketListeners: Map<string, NotificationCallback> = new Map();
+  private readonly client: ApiClient;
+  private readonly basePath = '/notifications';
+  private readonly socketConnection: unknown = null;
+  private readonly socketListeners: Map<string, NotificationCallback> = new Map();
 
   constructor(apiClient: ApiClient) {
     this.client = apiClient;

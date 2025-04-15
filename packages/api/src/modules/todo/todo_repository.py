@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, desc, asc, func
 
 from ...core.logging import get_logger
-from ...models.schemas import TodoCreate, TodoUpdate, TodoStatus
+from ...models.schemas import TodoCreate, TodoUpdate, TodoStatus, TodoPriority
 from ...database.models import Todo
 from ...core.base_repository import BaseRepository
 
@@ -33,7 +33,9 @@ class TodoRepository(BaseRepository[Todo, TodoCreate]):
         limit: int = 100,
         filters: Optional[Dict[str, Any]] = None,
         sort_by: Optional[str] = None,
-        sort_order: str = "desc"
+        sort_order: str = "desc",
+        include_related: bool = False,
+        fields: Optional[List[str]] = None
     ) -> Tuple[List[Todo], int]:
         """
         필터링 조건에 맞는 할 일 목록 조회.
@@ -44,11 +46,35 @@ class TodoRepository(BaseRepository[Todo, TodoCreate]):
             filters: 필터링 조건
             sort_by: 정렬 기준 필드
             sort_order: 정렬 순서 (asc 또는 desc)
+            include_related: 관련 데이터 포함 여부 (JOIN 사용)
+            fields: 조회할 필드 목록 (None인 경우 모든 필드 조회)
 
         Returns:
             할 일 목록과 총 개수 튜플
         """
-        query = self.db.query(self.model)
+        # 필요한 필드만 선택적으로 쿼리 (성능 향상)
+        if fields:
+            # 항상 필요한 기본 필드 추가
+            required_fields = ["id", "created_at", "updated_at"]
+            select_fields = list(set(fields + required_fields))
+            
+            # 모델의 컬럼으로 변환
+            columns = [getattr(self.model, field) for field in select_fields if hasattr(self.model, field)]
+            query = self.db.query(*columns)
+        else:
+            query = self.db.query(self.model)
+        
+        # 관련 데이터 조인 처리
+        if include_related:
+            # 관련 엔티티와 조인 (필요한 경우)
+            if 'vehicle_id' in dir(self.model) and 'Vehicle' in globals():
+                query = query.outerjoin(Vehicle, self.model.vehicle_id == Vehicle.id)
+                
+            if 'user_id' in dir(self.model) and 'User' in globals():
+                query = query.outerjoin(User, self.model.user_id == User.id)
+                
+            if 'assignee_id' in dir(self.model) and 'User' in globals():
+                query = query.outerjoin(User, self.model.assignee_id == User.id, aliased=True)
         
         # 필터 적용
         if filters:
@@ -64,15 +90,49 @@ class TodoRepository(BaseRepository[Todo, TodoCreate]):
         else:
             # 기본 정렬: 업데이트 시간 기준 내림차순
             query = query.order_by(desc(self.model.updated_at))
-            
-        # 전체 개수 계산
-        total = query.count()
+        
+        # 성능 최적화: 카운트 쿼리와 데이터 쿼리 분리
+        # 카운트 쿼리는 컬럼 제한 없이 간소화하여 실행
+        count_query = self.db.query(func.count(self.model.id))
+        if filters:
+            count_query = self._apply_filters(count_query, filters)
+        
+        # 총 개수 계산 (서브쿼리 최적화)
+        total = count_query.scalar()
         
         # 페이지네이션 적용
         query = query.offset(skip).limit(limit)
         
-        return query.all(), total
+        # 결과 반환
+        if fields:
+            # 결과를 딕셔너리로 변환 (일관된 응답 형식 유지)
+            results = [self._convert_to_model(row, select_fields) for row in query.all()]
+            return results, total
+        else:
+            return query.all(), total
+            
+    def _convert_to_model(self, row, fields):
+        """
+        튜플 결과를 모델 객체로 변환
         
+        Args:
+            row: 쿼리 결과 튜플
+            fields: 필드 목록
+            
+        Returns:
+            Todo: 변환된 모델 객체
+        """
+        if isinstance(row, self.model):
+            return row
+            
+        # 튜플을 사전으로 변환
+        result = self.model()
+        for i, field in enumerate(fields):
+            if hasattr(result, field):
+                setattr(result, field, row[i])
+                
+        return result
+
     def _apply_filters(self, query, filters: Dict[str, Any]):
         """필터 조건을 쿼리에 적용"""
         for key, value in filters.items():
@@ -276,13 +336,13 @@ class TodoRepository(BaseRepository[Todo, TodoCreate]):
         self.db.commit()
         return result
         
-    def bulk_update_priority(self, todo_ids: List[str], priority: str) -> int:
+    def bulk_update_priority(self, todo_ids: List[str], priority: TodoPriority) -> int:
         """
         여러 할 일의 우선순위를 일괄 업데이트.
 
         Args:
             todo_ids: 업데이트할 할 일 ID 목록
-            priority: 새 우선순위
+            priority: 새 우선순위 (TodoPriority)
 
         Returns:
             업데이트된 항목 수

@@ -123,43 +123,48 @@ const TodoCalendar: React.FC<TodoCalendarProps> = ({ todos, onTodoClick, classNa
 
         {/* 날짜 그리드 */}
         <div className="grid grid-cols-7 gap-1 auto-rows-fr">
-          {calendarDays.map((day, index) => (
-            <div
-              key={index}
-              className={`calendar-day min-h-[100px] p-1 border ${
-                day.isCurrentMonth ? 'bg-white' : 'bg-gray-50'
-              } ${
-                day.date && new Date().toDateString() === day.date.toDateString()
-                  ? 'ring-2 ring-blue-500'
-                  : ''
-              }`}
-            >
-              {day.date && (
-                <>
-                  <div className="text-right text-sm font-medium p-1">{day.date.getDate()}</div>
-                  <div className="todo-items space-y-1 overflow-y-auto max-h-[80px]">
-                    {day.todos?.map(todo => (
-                      <div
-                        key={todo.id}
-                        onClick={() => onTodoClick(todo)}
-                        className={`text-xs p-1 rounded truncate cursor-pointer ${
-                          todo.completed
-                            ? 'bg-green-100 text-green-800'
-                            : todo.priority === 'high'
-                              ? 'bg-red-100 text-red-800'
-                              : todo.priority === 'medium'
-                                ? 'bg-yellow-100 text-yellow-800'
-                                : 'bg-blue-100 text-blue-800'
-                        }`}
-                      >
-                        {todo.title}
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-          ))}
+          {calendarDays.map((day) => {
+            const dateKey = day.date ? day.date.toISOString() : `empty-${Math.random()}`;
+            const getTodoClassName = (todo: Todo) => {
+              if (todo.completed) return 'bg-green-100 text-green-800';
+              switch (todo.priority) {
+                case 'high': return 'bg-red-100 text-red-800';
+                case 'medium': return 'bg-yellow-100 text-yellow-800';
+                default: return 'bg-blue-100 text-blue-800';
+              }
+            };
+
+            return (
+              <div
+                key={dateKey}
+                className={`calendar-day min-h-[100px] p-1 border ${
+                  day.isCurrentMonth ? 'bg-white' : 'bg-gray-50'
+                } ${
+                  day.date && new Date().toDateString() === day.date.toDateString()
+                    ? 'ring-2 ring-blue-500'
+                    : ''
+                }`}
+              >
+                {day.date && (
+                  <>
+                    <div className="text-right text-sm font-medium p-1">{day.date.getDate()}</div>
+                    <div className="todo-items space-y-1 overflow-y-auto max-h-[80px]">
+                      {day.todos?.map(todo => (
+                        <button
+                          key={todo.id}
+                          onClick={() => onTodoClick(todo)}
+                          className={`w-full text-left text-xs p-1 rounded truncate ${getTodoClassName(todo)}`}
+                          aria-label={`${todo.title} - ${todo.completed ? '완료됨' : `우선순위: ${todo.priority}`}`}
+                        >
+                          {todo.title}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
 

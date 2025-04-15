@@ -15,6 +15,7 @@ class Vehicle(BaseModel):
     """차량 데이터베이스 모델."""
 
     __tablename__ = "vehicles"
+    __table_args__ = {'extend_existing': True}
 
     vin = Column(String, unique=True, index=True, nullable=False)
     make = Column(String, nullable=False)

@@ -23,11 +23,53 @@ maintenance-monorepo/
 ### 필수 조건
 
 - Node.js v16 이상
-- pnpm v8 이상
+- npm v8 이상
 - Python 3.8 이상 (API 서비스용)
 - PostgreSQL 14 이상
+- Docker 및 Docker Compose (Docker 환경에서 실행 시)
 
-### 설치 및 개발 환경 설정
+### Docker 환경에서 실행하기
+
+프로젝트는 Docker를 통해 쉽게 실행할 수 있습니다. 다음은 Docker 환경에서 프로젝트를 설정하고 실행하는 방법입니다:
+
+1. Docker 환경 설정 스크립트 실행:
+```bash
+npm run docker:setup
+```
+
+2. 개발 환경 실행:
+```bash
+npm run docker:dev
+```
+
+3. 개발 환경 이미지 빌드 후 실행:
+```bash
+npm run docker:dev:build
+```
+
+4. 테스트 환경 실행:
+```bash
+npm run docker:test
+```
+
+5. 프로덕션 환경 실행:
+```bash
+npm run docker:prod
+```
+
+6. 컨테이너 중지:
+```bash
+npm run docker:down
+```
+
+7. 로그 확인:
+```bash
+npm run docker:logs
+```
+
+> 참고: 최신 Docker 버전(Docker Desktop)을 사용하고 있으므로 `docker compose` 명령어를 사용합니다.
+
+### 기존 방식으로 설치 및 개발 환경 설정
 
 1. 저장소 클론:
 ```bash
@@ -37,7 +79,7 @@ cd maintenance-monorepo
 
 2. 의존성 설치:
 ```bash
-pnpm install
+npm install
 ```
 
 3. 환경 변수 설정:
@@ -48,7 +90,7 @@ cp .env.example .env
 
 4. 개발 모드 실행:
 ```bash
-pnpm dev
+npm run dev
 ```
 
 ## 패키지 사용 방법
@@ -152,6 +194,40 @@ pnpm dev
 - `create_refresh_token`: 리프레시 토큰 생성
 - `get_current_user`: 현재 인증된 사용자 조회
 - `export_data`: 데이터 내보내기 기능
+
+## 최근 업데이트
+### TurboRepo 최적화
+- `turbo.json` 설정에서 캐싱 및 증분 빌드가 활성화되었습니다.
+- `build` 작업에 `outputs`가 정의되어 변경된 파일만 빌드하도록 최적화되었습니다.
+
+### Docker Compose 개선
+- 서비스별 Docker Compose 파일로 분리:
+  - `docker-compose.api.yml`: API 서비스
+  - `docker-compose.frontend.yml`: 프론트엔드 서비스
+  - `docker-compose.db.yml`: 데이터베이스 서비스
+  - `docker-compose.dev.yml`: 개발 환경
+  - `docker-compose.test.yml`: 테스트 환경
+- `version` 속성이 제거되어 최신 Docker Compose와 호환됩니다.
+
+### Dockerfile 개선
+- `Dockerfile.api`:
+  - 멀티스테이지 빌드 적용으로 이미지 크기 감소 및 빌드 효율성 향상.
+  - 프로덕션 단계에서 최소한의 종속성만 포함.
+- `Dockerfile.frontend`:
+  - `nginx`를 사용한 프로덕션 단계 추가.
+  - 멀티스테이지 빌드로 최적화.
+
+### `.env.db` 파일 추가
+- 데이터베이스 서비스에 필요한 환경 변수를 정의하는 `.env.db` 파일이 추가되었습니다.
+- 예시:
+  ```env
+  POSTGRES_USER=postgres
+  POSTGRES_PASSWORD=postgres
+  POSTGRES_DB=maintenance
+  ```
+
+### 실행 및 테스트 검증
+- `build-dev.sh`, `build-prod.sh`, `build-test.sh` 스크립트를 통해 개발, 프로덕션, 테스트 환경이 성공적으로 검증되었습니다.
 
 ## 라이선스
 
@@ -278,4 +354,18 @@ API 서버에 연결할 수 없는 경우 다음을 확인하세요:
 지도 기능이 작동하지 않는 경우:
 
 1. `.env` 파일에 유효한 Google Maps API 키가 설정되었는지 확인
-2. Google Cloud Console에서 API 키가 활성화되어 있는지 확인 
+2. Google Cloud Console에서 API 키가 활성화되어 있는지 확인
+
+## 도메인 설정
+
+이 프로젝트는 [www.car-goro.com](http://www.car-goro.com)에서 접근할 수 있습니다. 
+
+GitHub Pages에 도메인 설정을 위해 다음과 같은 방법이 사용되었습니다:
+
+1. 저장소의 루트에 CNAME 파일 생성 (`www.car-goro.com` 내용 포함)
+2. 빌드된 프론트엔드 디렉토리에 CNAME 파일 복사
+3. GitHub Actions 워크플로우 설정 (.github/workflows/cd.yml)에서 도메인 설정 자동화
+
+도메인 제공업체에서 다음의 DNS 설정이 필요합니다:
+- `www.car-goro.com`에 대한 CNAME 레코드를 `changhyu.github.io`로 설정
+- 또는 A 레코드를 GitHub Pages의 IP 주소로 설정 (185.199.108.153, 185.199.109.153, 185.199.110.153, 185.199.111.153)

@@ -15,7 +15,7 @@ model Vehicle {
   year              Int
   type              VehicleType
   color             String?
-  plate             String?
+  plate             String?             @unique
   mileage           Int?
   status            VehicleStatus       @default(AVAILABLE)
   ownerID           String?             @map("owner_id")
@@ -25,12 +25,17 @@ model Vehicle {
   updatedAt         DateTime            @updatedAt @map("updated_at")
   
   // 관계
-  owner             User?               @relation(fields: [ownerID], references: [id])
+  owner             User?               @relation(fields: [ownerID], references: [id], onDelete: SetNull)
   maintenanceRecords MaintenanceRecord[]
   documents         VehicleDocument[]
   telemetry         Telemetry?
 
   @@map("vehicles")
+  @@index([make, model])
+  @@index([status])
+  @@index([ownerID])
+  @@index([lastServiceDate])
+  @@index([nextServiceDate])
 }
 
 enum VehicleType {
@@ -64,11 +69,17 @@ model MaintenanceRecord {
   updatedAt   DateTime             @updatedAt @map("updated_at")
   
   // 관계
-  vehicle     Vehicle              @relation(fields: [vehicleID], references: [id])
+  vehicle     Vehicle              @relation(fields: [vehicleID], references: [id], onDelete: Cascade)
   parts       MaintenancePart[]
   documents   MaintenanceDocument[]
 
   @@map("maintenance_records")
+  @@index([vehicleID])
+  @@index([date])
+  @@index([status])
+  @@index([vehicleID, status])
+  @@index([vehicleID, date])
+  @@index([date, status])
 }
 
 enum MaintenanceStatus {
@@ -88,9 +99,11 @@ model MaintenancePart {
   totalCost       Float?            @map("total_cost")
   
   // 관계
-  maintenance     MaintenanceRecord @relation(fields: [maintenanceID], references: [id])
+  maintenance     MaintenanceRecord @relation(fields: [maintenanceID], references: [id], onDelete: Cascade)
 
   @@map("maintenance_parts")
+  @@index([maintenanceID])
+  @@index([partNumber])
 }
 
 model VehicleDocument {
@@ -104,9 +117,13 @@ model VehicleDocument {
   size        Int?
   
   // 관계
-  vehicle     Vehicle   @relation(fields: [vehicleID], references: [id])
+  vehicle     Vehicle   @relation(fields: [vehicleID], references: [id], onDelete: Cascade)
 
   @@map("vehicle_documents")
+  @@index([vehicleID])
+  @@index([uploadDate])
+  @@index([expiryDate])
+  @@index([type])
 }
 
 model MaintenanceDocument {
@@ -119,9 +136,12 @@ model MaintenanceDocument {
   size          Int?
   
   // 관계
-  maintenance   MaintenanceRecord @relation(fields: [maintenanceID], references: [id])
+  maintenance   MaintenanceRecord @relation(fields: [maintenanceID], references: [id], onDelete: Cascade)
 
   @@map("maintenance_documents")
+  @@index([maintenanceID])
+  @@index([uploadDate])
+  @@index([type])
 }
 
 model Telemetry {
@@ -139,9 +159,11 @@ model Telemetry {
   updatedAt       DateTime  @updatedAt @map("updated_at")
   
   // 관계
-  vehicle         Vehicle   @relation(fields: [vehicleID], references: [id])
+  vehicle         Vehicle   @relation(fields: [vehicleID], references: [id], onDelete: Cascade)
 
   @@map("telemetry")
+  @@index([connectionStatus])
+  @@index([lastPing])
 }
 
 model User {
@@ -155,10 +177,16 @@ model User {
   updatedAt DateTime    @updatedAt @map("updated_at")
   
   // 관계
-  vehicles   Vehicle[]
-  profile    UserProfile?
+  vehicles      Vehicle[]
+  profile       UserProfile?
+  todos         Todo[]
+  notifications Notification[]
+  todoTemplates TodoTemplate[]
 
   @@map("users")
+  @@index([email])
+  @@index([role])
+  @@index([isActive])
 }
 
 enum UserRole {
@@ -177,7 +205,97 @@ model UserProfile {
   avatarURL String?  @map("avatar_url")
   
   // 관계
-  user      User     @relation(fields: [userID], references: [id])
+  user      User     @relation(fields: [userID], references: [id], onDelete: Cascade)
 
   @@map("user_profiles")
+  @@index([userID])
+  @@index([phone])
+}
+
+model Todo {
+  id          String    @id @default(uuid())
+  title       String
+  description String?
+  completed   Boolean   @default(false)
+  dueDate     DateTime? @map("due_date")
+  priority    String    @default("medium")
+  status      String    @default("pending")
+  vehicleId   String?   @map("vehicle_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  userId      String?   @map("user_id")
+  
+  // 관계
+  vehicle     Vehicle?  @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  @@map("todos")
+  @@index([vehicleId])
+  @@index([userId])
+  @@index([dueDate])
+  @@index([priority])
+  @@index([status])
+  @@index([completed])
+  @@index([userId, completed])
+  @@index([vehicleId, completed])
+  @@index([userId, status])
+  @@index([dueDate, priority])
+  @@index([userId, vehicleId, completed])
+}
+
+// 알림 관련 모델
+model Notification {
+  id          String    @id @default(uuid())
+  userId      String    @map("user_id")
+  title       String
+  content     String
+  type        String    @default("info") // info, warning, error, success
+  isRead      Boolean   @default(false) @map("is_read")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  
+  // 관계
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("notifications")
+  @@index([userId])
+  @@index([type])
+  @@index([isRead])
+  @@index([createdAt])
+}
+
+// 템플릿 관련 모델
+model TodoTemplate {
+  id          String    @id @default(uuid())
+  name        String
+  description String?
+  category    String    @default("general")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  userId      String?   @map("user_id")
+  
+  // 관계
+  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  items       TodoTemplateItem[]
+  
+  @@map("todo_templates")
+  @@index([userId])
+  @@index([category])
+}
+
+model TodoTemplateItem {
+  id            String       @id @default(uuid())
+  templateId    String       @map("template_id")
+  title         String
+  description   String?
+  priority      String       @default("medium")
+  status        String?
+  dueDate       String?      @map("due_date")
+  order         Int          @default(0)
+  
+  // 관계
+  template      TodoTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  
+  @@map("todo_template_items")
+  @@index([templateId])
+  @@index([priority])
 } 

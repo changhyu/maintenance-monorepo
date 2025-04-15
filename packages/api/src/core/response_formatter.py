@@ -16,6 +16,14 @@ from typing import Any, Callable, Dict, Generic, List, Optional, Set, Tuple, Typ
 
 from ..models.schemas import ApiResponse, Pagination, PaginatedResponse
 from .config import settings
+from fastapi import status
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
+import traceback
+
+from .logging import get_logger
+
+logger = get_logger("response")
 
 T = TypeVar('T')
 U = TypeVar('U')
@@ -139,6 +147,342 @@ class ThreadSafeCache:
 
 # 전역 캐시 인스턴스 생성
 response_cache = ThreadSafeCache()
+
+class ApiResponseMetadata(BaseModel):
+    """API 응답 메타데이터 모델"""
+    
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    request_id: Optional[str] = None
+    pagination: Optional[Dict[str, Any]] = None
+    execution_time: Optional[float] = None
+    debug_info: Optional[Dict[str, Any]] = None
+
+class ApiResponse(BaseModel, Generic[T]):
+    """표준 API 응답 형식"""
+    
+    success: bool = True
+    data: Optional[T] = None
+    message: Optional[str] = None
+    errors: Optional[List[Dict[str, Any]]] = None
+    metadata: Optional[ApiResponseMetadata] = None
+    code: Optional[str] = None
+
+    @classmethod
+    def success(
+        cls, 
+        data: Optional[T] = None, 
+        message: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        status_code: int = status.HTTP_200_OK
+    ) -> JSONResponse:
+        """
+        성공 응답 생성
+        
+        Args:
+            data: 응답 데이터
+            message: 성공 메시지
+            metadata: 메타데이터
+            status_code: HTTP 상태 코드
+            
+        Returns:
+            JSONResponse: 표준화된 JSONResponse
+        """
+        response_metadata = ApiResponseMetadata()
+        if metadata:
+            if "pagination" in metadata:
+                response_metadata.pagination = metadata.pop("pagination")
+            if "request_id" in metadata:
+                response_metadata.request_id = metadata.pop("request_id")
+            if "execution_time" in metadata:
+                response_metadata.execution_time = metadata.pop("execution_time")
+        
+        response = cls(
+            success=True,
+            data=data,
+            message=message,
+            metadata=response_metadata
+        )
+        
+        return JSONResponse(
+            status_code=status_code,
+            content=response.dict(exclude_none=True)
+        )
+    
+    @classmethod
+    def error(
+        cls,
+        message: str,
+        errors: Optional[List[Dict[str, Any]]] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        status_code: int = status.HTTP_400_BAD_REQUEST,
+        error_code: Optional[str] = None,
+        exception: Optional[Exception] = None,
+        log_traceback: bool = True
+    ) -> JSONResponse:
+        """
+        오류 응답 생성
+        
+        Args:
+            message: 오류 메시지
+            errors: 상세 오류 목록
+            metadata: 메타데이터
+            status_code: HTTP 상태 코드
+            error_code: 오류 코드
+            exception: 예외 객체
+            log_traceback: 스택트레이스 로깅 여부
+            
+        Returns:
+            JSONResponse: 표준화된 오류 JSONResponse
+        """
+        response_metadata = ApiResponseMetadata()
+        if metadata:
+            if "request_id" in metadata:
+                response_metadata.request_id = metadata.pop("request_id")
+        
+        # 예외 처리
+        if exception and log_traceback:
+            logger.error(f"API 오류 응답: {message}", exc_info=exception)
+            
+            # 디버그 정보 추가 (프로덕션에서는 출력되지 않음)
+            if settings.DEBUG:
+                response_metadata.debug_info = {
+                    "exception_type": type(exception).__name__,
+                    "exception_msg": str(exception),
+                    "traceback": traceback.format_exc()
+                }
+        
+        response = cls(
+            success=False,
+            message=message,
+            errors=errors,
+            metadata=response_metadata,
+            code=error_code
+        )
+        
+        return JSONResponse(
+            status_code=status_code,
+            content=response.dict(exclude_none=True)
+        )
+    
+    @classmethod
+    def from_exception(
+        cls,
+        exception: Exception,
+        status_code: int = status.HTTP_500_INTERNAL_SERVER_ERROR,
+        error_code: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> JSONResponse:
+        """
+        예외로부터 오류 응답 생성
+        
+        Args:
+            exception: 예외 객체
+            status_code: HTTP 상태 코드
+            error_code: 오류 코드
+            metadata: 메타데이터
+            
+        Returns:
+            JSONResponse: 표준화된 오류 JSONResponse
+        """
+        message = str(exception)
+        
+        # 상세 오류 정보 추출
+        errors = None
+        if hasattr(exception, 'errors') and callable(getattr(exception, 'errors', None)):
+            try:
+                errors = exception.errors()
+            except:
+                pass
+        
+        return cls.error(
+            message=message,
+            errors=errors,
+            metadata=metadata,
+            status_code=status_code,
+            error_code=error_code,
+            exception=exception
+        )
+    
+    @classmethod
+    def pagination(
+        cls,
+        items: List[T],
+        total: int,
+        page: int = 1,
+        page_size: int = 10,
+        message: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> JSONResponse:
+        """
+        페이지네이션 응답 생성
+        
+        Args:
+            items: 페이지 항목 목록
+            total: 전체 항목 수
+            page: 현재 페이지 번호
+            page_size: 페이지당 항목 수
+            message: 응답 메시지
+            metadata: 추가 메타데이터
+            
+        Returns:
+            JSONResponse: 표준화된 페이지네이션 JSONResponse
+        """
+        # 페이지네이션 메타데이터 계산
+        total_pages = (total + page_size - 1) // page_size if page_size > 0 else 1
+        
+        pagination_metadata = {
+            "page": page,
+            "page_size": page_size,
+            "total_items": total,
+            "total_pages": total_pages,
+            "has_next": page < total_pages,
+            "has_prev": page > 1
+        }
+        
+        # 기존 메타데이터가 없으면 생성
+        response_metadata = metadata or {}
+        
+        # 페이지네이션 정보 추가
+        response_metadata["pagination"] = pagination_metadata
+        
+        return cls.success(
+            data=items,
+            message=message,
+            metadata=response_metadata
+        )
+    
+    @classmethod
+    def no_content(cls) -> JSONResponse:
+        """
+        204 No Content 응답 생성
+        
+        Returns:
+            JSONResponse: 204 상태 코드와 빈 본문의 응답
+        """
+        return JSONResponse(
+            status_code=status.HTTP_204_NO_CONTENT,
+            content=None
+        )
+    
+    @classmethod
+    def unauthorized(
+        cls,
+        message: str = "인증이 필요합니다.",
+        error_code: str = "unauthorized",
+    ) -> JSONResponse:
+        """
+        401 Unauthorized 응답 생성
+        
+        Args:
+            message: 오류 메시지
+            error_code: 오류 코드
+            
+        Returns:
+            JSONResponse: 401 오류 응답
+        """
+        return cls.error(
+            message=message,
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            error_code=error_code
+        )
+    
+    @classmethod
+    def forbidden(
+        cls,
+        message: str = "접근 권한이 없습니다.",
+        error_code: str = "forbidden",
+    ) -> JSONResponse:
+        """
+        403 Forbidden 응답 생성
+        
+        Args:
+            message: 오류 메시지
+            error_code: 오류 코드
+            
+        Returns:
+            JSONResponse: 403 오류 응답
+        """
+        return cls.error(
+            message=message,
+            status_code=status.HTTP_403_FORBIDDEN,
+            error_code=error_code
+        )
+    
+    @classmethod
+    def not_found(
+        cls,
+        message: str = "요청한 리소스를 찾을 수 없습니다.",
+        error_code: str = "not_found",
+    ) -> JSONResponse:
+        """
+        404 Not Found 응답 생성
+        
+        Args:
+            message: 오류 메시지
+            error_code: 오류 코드
+            
+        Returns:
+            JSONResponse: 404 오류 응답
+        """
+        return cls.error(
+            message=message,
+            status_code=status.HTTP_404_NOT_FOUND,
+            error_code=error_code
+        )
+    
+    @classmethod
+    def validation_error(
+        cls,
+        errors: List[Dict[str, Any]],
+        message: str = "요청 데이터 검증 실패",
+        error_code: str = "validation_error",
+    ) -> JSONResponse:
+        """
+        422 Validation Error 응답 생성
+        
+        Args:
+            errors: 검증 오류 목록
+            message: 오류 메시지
+            error_code: 오류 코드
+            
+        Returns:
+            JSONResponse: 422 오류 응답
+        """
+        return cls.error(
+            message=message,
+            errors=errors,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            error_code=error_code
+        )
+    
+    @classmethod
+    def server_error(
+        cls,
+        message: str = "서버 내부 오류가 발생했습니다.",
+        exception: Optional[Exception] = None,
+        error_code: str = "server_error",
+    ) -> JSONResponse:
+        """
+        500 Server Error 응답 생성
+        
+        Args:
+            message: 오류 메시지
+            exception: 예외 객체
+            error_code: 오류 코드
+            
+        Returns:
+            JSONResponse: 500 오류 응답
+        """
+        return cls.error(
+            message=message,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            error_code=error_code,
+            exception=exception,
+            log_traceback=True
+        )
+
+# 전역 응답 포매터
+response_formatter = ApiResponse
 
 async def api_response(
     data: Optional[T] = None, 

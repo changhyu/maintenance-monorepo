@@ -7,7 +7,9 @@ import logger from '../utils/logger';
  * 날짜 형식화 함수
  */
 function formatDate(dateString: string): string {
-  if (!dateString) return '';
+  if (!dateString) {
+    return '';
+  }
   
   try {
     const date = new Date(dateString);
@@ -66,7 +68,7 @@ interface Notification {
   message: string;
   timestamp: number;
   read: boolean;
-  type: 'due' | 'status' | 'priority';
+  type: 'due' | 'status' | 'priority' | 'general';
   todoId?: string;
   expiry?: number; // 만료 시간 (타임스탬프)
 }
@@ -83,7 +85,7 @@ const PERMISSION_REQUESTED_KEY = 'notification-permission-requested';
 class TodoNotificationService {
   private notifications: Notification[] = [];
   private hasPermission: boolean = false;
-  private sentNotifications: Set<string> = new Set();
+  private readonly sentNotifications: Set<string> = new Set();
 
   constructor() {
     this.loadNotifications();
@@ -204,7 +206,7 @@ class TodoNotificationService {
     notification: Omit<Notification, 'id' | 'timestamp' | 'read'>
   ): Notification {
     // 중복 방지를 위한 ID 생성
-    const id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
     const newNotification: Notification = {
       ...notification,
@@ -301,11 +303,15 @@ class TodoNotificationService {
    */
   public checkAndNotifyUpcomingDue(todos: Todo[]): void {
     try {
-      if (!Array.isArray(todos) || todos.length === 0) return;
+      if (!Array.isArray(todos) || todos.length === 0) {
+        return;
+      }
 
       const today = new Date();
       const upcoming = todos.filter(todo => {
-        if (!todo.dueDate || todo.completed) return false;
+        if (!todo.dueDate || todo.completed) {
+          return false;
+        }
 
         // ISO 문자열에서 날짜 부분만 추출
         const dueDateStr = todo.dueDate.split('T')[0];
@@ -326,7 +332,7 @@ class TodoNotificationService {
         if (!notificationSent) {
           this.addNotification({
             title: '마감일 임박',
-            message: `작업 "${todo.title}"의 마감일이 ${formatDate(todo.dueDate || '')}로 임박했습니다.`,
+            message: `작업 "${todo.title}"의 마감일이 ${formatDate(todo.dueDate ?? '')}로 임박했습니다.`,
             type: 'due',
             todoId: todo.id,
             expiry: Date.now() + 2 * 24 * 60 * 60 * 1000 // 2일 후 만료
@@ -338,7 +344,7 @@ class TodoNotificationService {
           // 데스크톱 알림 표시
           this.showDesktopNotification(
             '마감일 임박',
-            `작업 "${todo.title}"의 마감일이 ${formatDate(todo.dueDate || '')}로 임박했습니다.`
+            `작업 "${todo.title}"의 마감일이 ${formatDate(todo.dueDate ?? '')}로 임박했습니다.`
           );
         }
       });
@@ -353,10 +359,14 @@ class TodoNotificationService {
    */
   public checkAndNotifyOverdue(todos: Todo[]): void {
     try {
-      if (!Array.isArray(todos) || todos.length === 0) return;
+      if (!Array.isArray(todos) || todos.length === 0) {
+        return;
+      }
 
       const overdue = todos.filter(todo => {
-        if (!todo.dueDate || todo.completed || todo.status === 'completed') return false;
+        if (!todo.dueDate || todo.completed || todo.status === 'completed') {
+          return false;
+        }
         return isPastDate(todo.dueDate);
       });
 
@@ -368,7 +378,7 @@ class TodoNotificationService {
         if (!notificationSent) {
           this.addNotification({
             title: '마감일 초과',
-            message: `작업 "${todo.title}"의 마감일(${formatDate(todo.dueDate || '')})이 지났습니다.`,
+            message: `작업 "${todo.title}"의 마감일(${formatDate(todo.dueDate ?? '')})이 지났습니다.`,
             type: 'due',
             todoId: todo.id,
             expiry: Date.now() + 5 * 24 * 60 * 60 * 1000 // 5일 후 만료
@@ -380,7 +390,7 @@ class TodoNotificationService {
           // 데스크톱 알림 표시
           this.showDesktopNotification(
             '마감일 초과',
-            `작업 "${todo.title}"의 마감일(${formatDate(todo.dueDate || '')})이 지났습니다.`
+            `작업 "${todo.title}"의 마감일(${formatDate(todo.dueDate ?? '')})이 지났습니다.`
           );
         }
       });
@@ -473,7 +483,9 @@ class TodoNotificationService {
    */
   public clearNotificationsByType(type: NotificationType): void {
     const mappedNotifications = this.mapNotificationsArray(this.notifications);
-    const idsToDelete = mappedNotifications.filter(n => n.type === type).map(n => n.id);
+    const idsToDelete = mappedNotifications
+      .filter(n => n.type === type)
+      .map(n => n.id);
 
     this.notifications = this.notifications.filter(n => !idsToDelete.includes(n.id));
     this.saveNotifications();
@@ -516,23 +528,10 @@ class TodoNotificationService {
    * 내부 Notification을 외부 TodoNotification으로 변환
    */
   private mapNotification(notification: Notification): TodoNotification {
-    // 알림 타입 매핑
-    let notificationType: NotificationType;
-    switch (notification.type) {
-      case 'due':
-        // 메시지 내용으로 임박/초과 구분
-        notificationType = notification.message.includes('지났습니다')
-          ? NotificationType.OVERDUE
-          : NotificationType.UPCOMING_DUE;
-        break;
-      case 'status':
-        notificationType = NotificationType.STATUS_CHANGE;
-        break;
-      case 'priority':
-        notificationType = NotificationType.PRIORITY_HIGH;
-        break;
-      default:
-        notificationType = NotificationType.GENERAL;
+    // 알림 타입 결정
+    let type = this.mapNotificationType(notification.type);
+    if (type === NotificationType.UPCOMING_DUE && notification.message.includes('지났습니다')) {
+      type = NotificationType.OVERDUE;
     }
 
     return {
@@ -541,8 +540,8 @@ class TodoNotificationService {
       message: notification.message,
       createdAt: notification.timestamp,
       read: notification.read,
-      type: notificationType,
-      todoId: notification.todoId || '',
+      type,
+      todoId: notification.todoId ?? '',
       expiry: notification.expiry
     };
   }
@@ -552,6 +551,38 @@ class TodoNotificationService {
    */
   private mapNotificationsArray(notifications: Notification[]): TodoNotification[] {
     return notifications.map(notification => this.mapNotification(notification));
+  }
+
+  /**
+   * 에러 알림 표시
+   */
+  public notifyError(message: string): void {
+    const notification = this.addNotification({
+      title: '오류 발생',
+      message,
+      type: 'general',
+      expiry: Date.now() + 24 * 60 * 60 * 1000 // 1일 후 만료
+    });
+
+    if (this.hasPermission) {
+      this.showDesktopNotification(notification.title, notification.message);
+    }
+  }
+
+  private mapNotificationType(type: 'due' | 'status' | 'priority' | 'general'): NotificationType {
+    switch (type) {
+      case 'due':
+        // 메시지 내용으로 임박/초과 구분은 호출하는 쪽에서 처리
+        return NotificationType.UPCOMING_DUE;
+      case 'status':
+        return NotificationType.STATUS_CHANGE;
+      case 'priority':
+        return NotificationType.PRIORITY_HIGH;
+      case 'general':
+        return NotificationType.GENERAL;
+      default:
+        return NotificationType.GENERAL;
+    }
   }
 }
 

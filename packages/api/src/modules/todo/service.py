@@ -5,6 +5,8 @@ Todo 서비스 모듈.
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Any, Union, TypeVar
 import uuid
+import logging
+import time
 
 from sqlalchemy import and_, or_
 
@@ -13,7 +15,43 @@ from ...core.logging import get_logger
 from ...database.models import Todo
 from ...models.schemas import TodoCreate, TodoUpdate, TodoPriority, TodoStatus, TodoResponse, TodoListResponse, TodoDetailResponse, ApiResponse
 from ...repositories.todo_repository import TodoRepository
-from ...core.offline_manager import offline_manager, PendingOperationType
+from ...core.decorators import cache_response
+
+# offline_manager 임포트 오류 방지
+try:
+    from ...core.offline_manager import offline_manager, PendingOperationType
+    has_offline_manager = True
+    logging.info("오프라인 매니저가 성공적으로 로드되었습니다.")
+except ImportError as e:
+    # 오프라인 매니저가 없는 경우 대체 구현
+    has_offline_manager = False
+    
+    class DummyOfflineManager:
+        """오프라인 매니저 없을 때 대체용 더미 클래스"""
+        is_offline = False
+        
+        def set_offline_mode(self, mode: bool):
+            self.is_offline = mode
+            logging.info(f"더미 오프라인 모드 설정: {mode}")
+            
+        def get_offline_data(self, key: str) -> List[Dict]:
+            logging.info(f"더미 오프라인 데이터 조회: {key}")
+            return []
+            
+        def sync_to_offline(self, key: str, data: List[Dict]):
+            logging.debug(f"더미 오프라인 데이터 동기화: {key}, {len(data)}개 항목")
+            pass
+    
+    # 더미 인스턴스 생성
+    offline_manager = DummyOfflineManager()
+    
+    class PendingOperationType:
+        """오프라인 작업 유형 더미 구현"""
+        CREATE = "create"
+        UPDATE = "update"
+        DELETE = "delete"
+    
+    logging.warning(f"오프라인 매니저를 임포트할 수 없습니다. 더미 구현을 사용합니다. 오류: {str(e)}")
 
 
 logger = get_logger("todo.service")
@@ -24,13 +62,21 @@ T = TypeVar('T')  # 제네릭 타입 정의
 class TodoService:
     """Todo 서비스 클래스."""
 
+    @cache_response(
+        expire=300,  # 5분 캐싱
+        user_specific=True,
+        exclude_query_params=["page", "per_page"],
+        compress=True,
+    )
     def get_todos(
         self,
         skip: int = 0,
         limit: int = 100,
         filters: Dict = None,
         sort_by: Optional[str] = None,
-        sort_order: str = "desc"
+        sort_order: str = "desc",
+        include_related: bool = False,  # 관련 데이터 포함 여부
+        fields: Optional[List[str]] = None,  # 필요한 필드만 선택 (필드 필터링)
     ) -> ApiResponse[List[TodoResponse]]:
         """
         Todo 목록을 조회합니다.
@@ -41,10 +87,15 @@ class TodoService:
             filters: 필터 조건
             sort_by: 정렬 기준 필드
             sort_order: 정렬 순서 (asc 또는 desc)
+            include_related: 관련 데이터 포함 여부 (True인 경우 JOIN 쿼리 실행)
+            fields: 응답에 포함할 필드 목록 (None인 경우 모든 필드 포함)
         
         Returns:
             ApiResponse[List[TodoResponse]]: Todo 목록 및 메타데이터
         """
+        # 메트릭 타이머 시작
+        start_time = time.time()
+        
         # 오프라인 모드 확인
         if offline_manager.is_offline:
             logger.info("오프라인 모드에서 Todo 목록 조회")
@@ -55,14 +106,28 @@ class TodoService:
             repo = TodoRepository(db)
             
             # 리포지토리에서 데이터 조회 (정렬 기능 추가)
-            todos, total = repo.get_todo_list(skip=skip, limit=limit, filters=filters, 
-                                              sort_by=sort_by, sort_order=sort_order)
+            todos, total = repo.get_todo_list(
+                skip=skip, 
+                limit=limit, 
+                filters=filters, 
+                sort_by=sort_by, 
+                sort_order=sort_order,
+                include_related=include_related,
+                fields=fields
+            )
             
             # 데이터 캐싱 (오프라인 모드를 위해)
-            self._sync_todos_to_offline(todos)
+            # 필요한 경우만 오프라인 동기화 (데이터가 일정 수준 이상 변경된 경우)
+            if self._should_sync_to_offline(todos):
+                self._sync_todos_to_offline(todos)
             
-            # 응답 모델로 변환
-            todo_responses = [TodoResponse.model_validate(todo) for todo in todos]
+            # 응답 모델로 변환 (필드 필터링 지원)
+            if fields:
+                # 필요한 필드만 선택적으로 변환
+                todo_responses = [self._filter_fields(TodoResponse.model_validate(todo), fields) for todo in todos]
+            else:
+                # 전체 필드 변환
+                todo_responses = [TodoResponse.model_validate(todo) for todo in todos]
             
             # 메타데이터 구성
             metadata = {
@@ -71,8 +136,11 @@ class TodoService:
                 "limit": limit,
                 "page": skip // limit + 1 if limit > 0 else 1,
                 "pages": (total + limit - 1) // limit if limit > 0 else 1,
-                "todos": todo_responses
+                "execution_time_ms": round((time.time() - start_time) * 1000, 2)
             }
+            
+            # 실행 시간 메트릭 기록
+            metrics_collector.track_db_query(time.time() - start_time)
             
             # 표준 응답 반환
             return ApiResponse.success_response(
@@ -85,6 +153,70 @@ class TodoService:
             logger.info("오프라인 데이터로 대체")
             offline_manager.set_offline_mode(True)
             return self._get_todos_offline(skip, limit, filters, sort_by, sort_order)
+            
+    def _should_sync_to_offline(self, todos: List[Todo]) -> bool:
+        """
+        오프라인 데이터 동기화 필요 여부 확인
+        
+        최적화: 매번 전체 데이터를 동기화하지 않고 필요한 경우만 동기화
+        
+        Args:
+            todos: 동기화할 Todo 목록
+            
+        Returns:
+            bool: 동기화 필요 여부
+        """
+        # 1. 오프라인 데이터가 없는 경우
+        offline_todos = offline_manager.get_offline_data("todos")
+        if not offline_todos:
+            return True
+            
+        # 2. 오프라인 데이터와 현재 데이터의 개수가 다른 경우
+        if len(offline_todos) != len(todos):
+            return True
+            
+        # 3. 마지막 동기화 시간이 너무 오래된 경우 (1시간 이상)
+        last_sync_time = offline_manager.get_last_sync_time("todos")
+        if not last_sync_time or (time.time() - last_sync_time) > 3600:
+            return True
+            
+        # 4. 변경된 항목이 일정 비율 이상인 경우 (10% 이상)
+        # (실제 구현은 변경 감지 로직에 따라 달라질 수 있음)
+        changed_count = 0
+        for i, todo in enumerate(todos):
+            if i >= len(offline_todos):
+                break
+                
+            offline_todo = offline_todos[i]
+            # ID와 업데이트 시간 비교
+            if str(todo.id) == str(offline_todo.get('id')) and \
+               todo.updated_at and offline_todo.get('updated_at') and \
+               todo.updated_at.isoformat() != offline_todo.get('updated_at'):
+                changed_count += 1
+                
+        # 변경 비율 계산
+        change_ratio = changed_count / len(todos) if todos else 0
+        return change_ratio >= 0.1  # 10% 이상 변경된 경우
+            
+    def _filter_fields(self, response_model: TodoResponse, fields: List[str]) -> Dict:
+        """
+        응답 모델에서 필요한 필드만 추출
+        
+        Args:
+            response_model: 전체 응답 모델
+            fields: 추출할 필드 목록
+            
+        Returns:
+            Dict: 필요한 필드만 포함된 사전
+        """
+        response_dict = response_model.model_dump()
+        filtered_dict = {}
+        
+        for field in fields:
+            if field in response_dict:
+                filtered_dict[field] = response_dict[field]
+                
+        return filtered_dict
 
     def _get_todos_offline(self, skip: int = 0, limit: int = 100, filters: Dict = None, 
                            sort_by: Optional[str] = None, sort_order: str = "desc") -> ApiResponse[List[TodoResponse]]:
@@ -516,7 +648,7 @@ class TodoService:
         logger.info(f"기한 지난 Todo 목록 조회 시작: user_id={user_id or '모든 사용자'}")
         
         # 리포지토리를 통해 기한이 지난 Todo 조회
-        todos = repo.find_overdue_todos(user_id=user_id)
+        todos = repo.get_overdue_todos(user_id=user_id)
         
         # 응답 모델로 변환
         todo_responses = [TodoResponse.model_validate(todo) for todo in todos]
@@ -556,7 +688,7 @@ class TodoService:
         logger.info(f"다가오는 Todo 목록 조회 시작: days={days}, user_id={user_id or '모든 사용자'}")
         
         # 리포지토리를 통해 다가오는 Todo 조회
-        todos = repo.find_upcoming_todos(days=days, user_id=user_id)
+        todos = repo.get_upcoming_todos(days=days, user_id=user_id)
         
         # 응답 모델로 변환
         todo_responses = [TodoResponse.model_validate(todo) for todo in todos]
@@ -581,9 +713,20 @@ class TodoService:
         마감일 유효성을 검증합니다.
         마감일이 과거인 경우 경고처리합니다.
         """
-        if due_date and due_date < datetime.now(timezone.utc):
-            logger.warning(f"마감일이 현재 시간보다 이전으로 설정되었습니다: {due_date}")
-    
+        if due_date is None:
+            return
+            
+        # 현재 시간을 UTC로 변환
+        now = datetime.now(timezone.utc)
+        
+        # due_date에 타임존 정보가 없는 경우 UTC로 간주
+        if due_date.tzinfo is None:
+            due_date = due_date.replace(tzinfo=timezone.utc)
+            
+        # 마감일이 과거인지 확인
+        if due_date < now:
+            logger.warning(f"마감일이 현재 시간보다 이전으로 설정되었습니다: {due_date.isoformat()}")
+
     def _validate_related_entities(self, db_session, data: TodoCreate):
         """관련 엔티티 존재 여부를 검증합니다."""
         # 사용자 ID 검증

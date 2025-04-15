@@ -2,6 +2,7 @@
 Database models for SQLAlchemy.
 """
 
+from __future__ import annotations
 from datetime import datetime
 import logging
 import json
@@ -17,7 +18,7 @@ from typing import Optional, List, Dict, Any
 from . import Base
 
 from ..models.base import BaseModel
-from ..modules.vehicle.models import Vehicle  # Vehicle 모델 직접 임포트
+from ..models.vehicle import VehicleModel as Vehicle  # Vehicle 모델 통일
 
 # 로거 설정
 logger = logging.getLogger(__name__)
@@ -57,6 +58,7 @@ class Shop(BaseModel):
     reviews = relationship("ShopReview", back_populates="shop")
     images = relationship("ShopImage", back_populates="shop")
     technicians = relationship("Technician", back_populates="shop")
+    schedules = relationship("ScheduleModel", back_populates="shop", cascade="all, delete-orphan")
 
     @property
     def location(self):
@@ -191,7 +193,7 @@ class Todo(BaseModel):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     completed_at = Column(DateTime, nullable=True)
     tags = Column(JSON, nullable=True)
-    metadata = Column(JSON, nullable=True)
+    extra_metadata = Column(JSON, nullable=True)
     category = Column(String(100), nullable=True)
 
     # Relationships

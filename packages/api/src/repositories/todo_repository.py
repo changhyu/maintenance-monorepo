@@ -13,6 +13,7 @@ from ..core.logging import get_logger
 from ..database.models import Todo
 from ..models.schemas import TodoCreate, TodoUpdate, TodoStatus, TodoResponse, TodoPriority
 from ..core.base_repository import BaseRepository
+from ..core.metrics import track_db_query_time
 
 
 logger = get_logger("todo.repository")
@@ -35,6 +36,7 @@ class TodoRepository(BaseRepository[Todo, TodoCreate]):
         """초기화"""
         super().__init__(db_session, Todo)
 
+    @track_db_query_time
     def find_all(self, skip: int = 0, limit: int = 100, filters: Dict = None) -> Tuple[List[Todo], int]:
         """
         모든 Todo 항목 조회
@@ -209,6 +211,7 @@ class TodoRepository(BaseRepository[Todo, TodoCreate]):
         todo.updated_at = datetime.now(timezone.utc)
         todo.completed_at = datetime.now(timezone.utc)
 
+    @track_db_query_time
     def find_overdue_todos(self, user_id: Optional[str] = None) -> List[Todo]:
         """
         기한이 지난 Todo 조회
@@ -236,6 +239,7 @@ class TodoRepository(BaseRepository[Todo, TodoCreate]):
             logger.error(f"기한 지난 Todo 조회 중 오류 발생: {str(e)}")
             raise
 
+    @track_db_query_time
     def find_upcoming_todos(self, days: int = 7, user_id: Optional[str] = None) -> List[Todo]:
         """
         다가오는 Todo 조회
@@ -343,6 +347,7 @@ class TodoRepository(BaseRepository[Todo, TodoCreate]):
                 
         return query
 
+    @track_db_query_time
     def batch_update_status(self, todo_ids: List[str], status: str) -> int:
         # sourcery skip: extract-method
         """
@@ -381,6 +386,7 @@ class TodoRepository(BaseRepository[Todo, TodoCreate]):
         except Exception as e:
             self._handle_db_error('Todo 일괄 상태 업데이트 중 오류 발생: ', e)
             
+    @track_db_query_time
     def get_scheduled_todos(self, days: int = 30) -> List[Todo]:
         """
         특정 기간 이내에 예정된 Todo 항목을 조회합니다.
@@ -462,6 +468,7 @@ class TodoRepository(BaseRepository[Todo, TodoCreate]):
         except Exception as e:
             self._handle_db_error('Todo 일괄 생성 중 오류 발생: ', e)
             
+    @track_db_query_time
     def get_todo_statistics(self) -> Dict[str, Any]:
         """
         Todo 항목의 통계 정보를 조회합니다.
@@ -575,6 +582,7 @@ class TodoRepository(BaseRepository[Todo, TodoCreate]):
         except Exception as e:
             self._handle_db_error('Todo에서 태그 제거 중 오류 발생: ', e)
             
+    @track_db_query_time
     def find_todos_by_tags(self, tags: List[str], match_all: bool = False) -> List[Todo]:
         # sourcery skip: for-append-to-extend, list-comprehension
         """
@@ -1139,8 +1147,7 @@ class TodoRepository(BaseRepository[Todo, TodoCreate]):
             logger.debug(f"카테고리 통계 조회 완료: {len(result)}개 카테고리")
             return result
         except Exception as e:
-            logger.error(f"카테고리 통계 조회 중 오류 발생: {str(e)}")
-            raise
+            self._handle_db_error("카테고리 통계 조회 중 오류 발생: ", e)
 
     def _handle_db_error(self, error_message_prefix: str, e: Exception):
         """
@@ -1153,54 +1160,6 @@ class TodoRepository(BaseRepository[Todo, TodoCreate]):
         self.db.rollback()
         logger.error(f"{error_message_prefix}{str(e)}")
         raise
-            
-    def get_category_statistics(self) -> List[Dict[str, Any]]:
-        """
-        카테고리별 Todo 통계를 조회합니다.
-        
-        Returns:
-            List[Dict[str, Any]]: 카테고리별 통계 정보
-        """
-        try:
-            logger.debug("카테고리 통계 조회 시작")
-            
-            # 카테고리별 Todo 수 집계
-            result = []
-            categories = self.db.query(Todo.category, func.count(Todo.id)).filter(
-                Todo.category.isnot(None)
-            ).group_by(Todo.category).all()
-            
-            for category, count in categories:
-                # 카테고리별 상태 분포
-                status_counts = {}
-                for status in TodoStatus:
-                    status_count = self.db.query(func.count(Todo.id)).filter(
-                        Todo.category == category,
-                        Todo.status == status
-                    ).scalar()
-                    status_counts[status.value] = status_count
-                
-                # 카테고리별 완료율
-                completion_rate = 0
-                if count > 0:
-                    completed = status_counts.get(TodoStatus.COMPLETED, 0)
-                    completion_rate = round((completed / count) * 100, 2)
-                
-                result.append({
-                    'category': category,
-                    'total': count,
-                    'status_distribution': status_counts,
-                    'completion_rate': completion_rate
-                })
-            
-            # 카테고리별 총 Todo 수 기준 내림차순 정렬
-            result.sort(key=lambda x: x['total'], reverse=True)
-            
-            logger.debug(f"카테고리 통계 조회 완료: {len(result)}개 카테고리")
-            return result
-        except Exception as e:
-            logger.error(f"카테고리 통계 조회 중 오류 발생: {str(e)}")
-            raise
 
 
 def _apply_todo_filters(query, filters: Dict[str, Any]) -> Query:

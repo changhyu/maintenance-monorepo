@@ -4,19 +4,37 @@
   "tasks": {
     "dev": {
       "dependsOn": ["^build"],
-      "cache": false,
+      "cache": true,
       "persistent": true
     },
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**", "build/**"]
+      "outputs": ["dist/**"],
+      "cache": true
     },
     "test": {
-      "dependsOn": ["build"]
+      "dependsOn": ["build"],
+      "outputs": ["coverage/**"],
+      "cache": true
     },
-    "lint": {},
+    "lint": {
+      "outputs": [],
+      "cache": true
+    },
+    "lint:fix": {
+      "outputs": [],
+      "cache": false
+    },
     "clean": {
+      "cache": false
+    },
+    "start": {
+      "dependsOn": ["build"],
+      "cache": false
+    },
+    "e2e": {
+      "dependsOn": ["build", "start"],
       "cache": false
     }
   }
-} 
+}

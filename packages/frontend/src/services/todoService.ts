@@ -40,6 +40,7 @@ export interface Todo {
   vehicleId?: string;
   assignedTo?: string;
   category?: string;
+  _pending?: 'create' | 'update' | 'delete'; // 오프라인 작업 상태 표시
 }
 
 /**
@@ -317,7 +318,7 @@ export class TodoService {
    */
   async updateTodo(id: string, todoData: TodoUpdateRequest): Promise<Todo> {
     try {
-      const response = await apiClient.patch<Todo>(`${this.basePath}/${id}`, todoData);
+      const response = await apiClient.put<Todo>(`${this.basePath}/${id}`, todoData);
       logger.info(`할 일 ID ${id}가 업데이트되었습니다`);
       return response.data;
     } catch (error) {
@@ -345,8 +346,18 @@ export class TodoService {
    */
   async toggleComplete(id: string, completed: boolean): Promise<Todo> {
     try {
-      const status = completed ? TodoStatus.COMPLETED : TodoStatus.PENDING;
-      return await this.updateTodo(id, { completed, status });
+      if (completed) {
+        // 완료 상태로 변경
+        const response = await apiClient.patch<Todo>(`${this.basePath}/${id}/complete`, {});
+        logger.info(`할 일 ID ${id}가 완료 상태로 변경되었습니다`);
+        return response.data;
+      } else {
+        // 미완료 상태로 변경 (상태 업데이트 사용)
+        const status = TodoStatus.PENDING;
+        const response = await apiClient.patch<Todo>(`${this.basePath}/${id}/status`, { status });
+        logger.info(`할 일 ID ${id}가 미완료 상태로 변경되었습니다`);
+        return response.data;
+      }
     } catch (error) {
       logger.error(`할 일 ID ${id} 완료 상태 토글 실패:`, error);
       throw new Error('할 일 상태를 변경하는 데 실패했습니다.');

@@ -12,6 +12,7 @@ from ..models.schemas import (
 )
 from ..modules.vehicle.service import vehicle_service
 from ..core.cache import cache, CacheKey
+from ..core.cache_decorators import cache_response
 from ..core.utils import get_etag, check_etag
 
 
@@ -23,6 +24,13 @@ router = APIRouter(prefix="/vehicles", tags=["vehicles"])
 
 
 @router.get("/", response_model=PaginatedResponse[Vehicle])
+@cache_response(
+    expire=60,  # 60초 캐시
+    prefix="vehicle_list",
+    include_query_params=True,
+    user_specific=True,
+    vary_headers=["Accept-Language"]
+)
 async def list_vehicles(
     response: Response,
     skip: int = Query(0, ge=0, description="건너뛸 레코드 수"),
@@ -43,21 +51,6 @@ async def list_vehicles(
     쿼리 결과는 캐싱되며, 성능이 최적화되었습니다.
     페이지네이션 정보와 함께 응답을 반환합니다.
     """
-    # 캐시 키 생성
-    cache_key = CacheKey.VEHICLE_LIST.format(
-        skip=skip, limit=limit, make=make, model=model, 
-        year=year, status=status, type=type,
-        sort_by=sort_by, sort_order=sort_order
-    )
-    
-    # 캐시에서 결과 조회
-    if (cached_result := cache.get(cache_key)):
-        etag = get_etag(cached_result)
-        if check_etag(response, etag):
-            return Response(status_code=304)  # Not Modified
-        response.headers["ETag"] = etag
-        return cached_result
-    
     # 필터 구성
     filters = {}
     if make:
@@ -80,9 +73,6 @@ async def list_vehicles(
         sort_order=sort_order
     )
     
-    # 결과 캐싱 (60초)
-    cache.set(cache_key, result, expire=60)
-    
     # ETag 설정
     etag = get_etag(result)
     response.headers["ETag"] = etag
@@ -91,6 +81,12 @@ async def list_vehicles(
 
 
 @router.get("/{vehicle_id}", response_model=Vehicle)
+@cache_response(
+    expire=120,  # 2분 캐시
+    prefix="vehicle_detail",
+    include_path_params=True,
+    user_specific=True
+)
 async def get_vehicle(
     response: Response,
     vehicle_id: str = Path(..., description=VEHICLE_ID_DESC),
@@ -102,22 +98,8 @@ async def get_vehicle(
     
     결과는 캐싱되어 빠른 응답을 제공합니다.
     """
-    # 캐시 키 생성
-    cache_key = CacheKey.VEHICLE_DETAIL.format(id=vehicle_id)
-    
-    # 캐시에서 결과 조회
-    if (cached_vehicle := cache.get(cache_key)):
-        etag = get_etag(cached_vehicle)
-        if check_etag(response, etag):
-            return Response(status_code=304)  # Not Modified
-        response.headers["ETag"] = etag
-        return cached_vehicle
-    
     # 차량 정보 조회
     vehicle = vehicle_service.get_vehicle_by_id(vehicle_id)
-    
-    # 결과 캐싱 (2분)
-    cache.set(cache_key, vehicle, expire=120)
     
     # ETag 설정
     etag = get_etag(vehicle)
@@ -181,6 +163,13 @@ async def delete_vehicle(
 
 
 @router.get("/{vehicle_id}/maintenance", response_model=PaginatedResponse[Dict[str, Any]])
+@cache_response(
+    expire=60,  # 1분 캐시
+    prefix="vehicle_maintenance",
+    include_path_params=True,
+    include_query_params=True,
+    user_specific=True
+)
 async def get_maintenance_history(
     response: Response,
     vehicle_id: str = Path(..., description=VEHICLE_ID_DESC),
@@ -193,24 +182,10 @@ async def get_maintenance_history(
     차량의 정비 이력을 조회합니다.
     페이지네이션을 지원합니다.
     """
-    # 캐시 키 생성
-    cache_key = CacheKey.VEHICLE_MAINTENANCE.format(id=vehicle_id, skip=skip, limit=limit)
-    
-    # 캐시에서 결과 조회
-    if (cached_result := cache.get(cache_key)):
-        etag = get_etag(cached_result)
-        if check_etag(response, etag):
-            return Response(status_code=304)  # Not Modified
-        response.headers["ETag"] = etag
-        return cached_result
-    
     # 정비 이력 조회 (페이지네이션 적용)
     result = vehicle_service.get_vehicle_maintenance_history_paginated(
         vehicle_id, skip=skip, limit=limit
     )
-    
-    # 결과 캐싱 (1분)
-    cache.set(cache_key, result, expire=60)
     
     # ETag 설정
     etag = get_etag(result)
@@ -238,6 +213,13 @@ async def perform_diagnostics(
 
 
 @router.get("/{vehicle_id}/telemetry", response_model=Dict[str, Any])
+@cache_response(
+    expire=1800,  # 30분 캐시 (기본값, 실제로는 아래 로직에서 해상도에 따라 조정)
+    prefix="vehicle_telemetry",
+    include_path_params=True,
+    include_query_params=True,
+    user_specific=True
+)
 async def get_telemetry(
     response: Response,
     vehicle_id: str = Path(..., description=VEHICLE_ID_DESC),
@@ -251,19 +233,6 @@ async def get_telemetry(
     차량의 원격 측정 데이터를 조회합니다.
     시계열 데이터 최적화 및 집계가 적용되었습니다.
     """
-    # 캐시 키 생성
-    cache_key = CacheKey.VEHICLE_TELEMETRY.format(
-        id=vehicle_id, start_date=start_date, end_date=end_date, resolution=resolution
-    )
-    
-    # 캐시에서 결과 조회 
-    if (cached_result := cache.get(cache_key)):
-        etag = get_etag(cached_result)
-        if check_etag(response, etag):
-            return Response(status_code=304)  # Not Modified
-        response.headers["ETag"] = etag
-        return cached_result
-    
     # 텔레메트리 데이터 조회 (집계 및 최적화 적용)
     result = vehicle_service.get_telemetry_data_optimized(
         vehicle_id,
@@ -271,16 +240,6 @@ async def get_telemetry(
         end_date,
         resolution
     )
-    
-    # 결과 캐싱 (해상도에 따라 캐시 시간 조정)
-    cache_time = {
-        "hour": 10 * 60,  # 10분
-        "day": 30 * 60,   # 30분
-        "week": 2 * 60 * 60,  # 2시간
-        "month": 6 * 60 * 60  # 6시간
-    }.get(resolution, 30 * 60)
-    
-    cache.set(cache_key, result, expire=cache_time)
     
     # ETag 설정
     etag = get_etag(result)
