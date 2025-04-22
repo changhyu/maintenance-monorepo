@@ -21,6 +21,14 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
+    // 서버에서 설정한 CSRF 토큰 가져오기
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    // CSRF 토큰 헤더 추가
+    if (csrfToken) {
+      config.headers['X-CSRF-Token'] = csrfToken;
+    }
+
     return config;
   },
   error => {
@@ -33,6 +41,19 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   response => {
     // 응답 데이터 처리
+
+    // 서버에서 새 CSRF 토큰을 받았을 경우 메타 태그 업데이트
+    const newCsrfToken = response.headers['x-csrf-token'];
+    if (newCsrfToken) {
+      let metaTag = document.querySelector('meta[name="csrf-token"]');
+      if (!metaTag) {
+        metaTag = document.createElement('meta');
+        metaTag.name = 'csrf-token';
+        document.head.appendChild(metaTag);
+      }
+      metaTag.setAttribute('content', newCsrfToken);
+    }
+
     return response;
   },
   error => {

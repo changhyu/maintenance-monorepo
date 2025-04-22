@@ -1,15 +1,14 @@
 #!/bin/bash
 
-echo "Waiting for PostgreSQL..."
-while ! pg_isready -h db -p 5432 -U postgres; do
-  sleep 1
-done
-echo "PostgreSQL is ready!"
+# API 서버 시작 스크립트
+echo "API 서버를 시작합니다..."
 
-echo "Running migrations..."
-if [ -f "/app/alembic.ini" ]; then
-  alembic upgrade head || echo "Migration failed but continuing..."
-fi
+# 이전 프로세스 종료
+echo "이전 API 서버 프로세스를 종료합니다..."
+pkill -f "python src/main.py" || true
 
-echo "Starting API server..."
-exec uvicorn src.main:app --host 0.0.0.0 --port 8000 "$@" 
+# 포트 설정
+export PORT=8081
+
+# 직접 실행 (포그라운드 모드)
+python src/main.py 

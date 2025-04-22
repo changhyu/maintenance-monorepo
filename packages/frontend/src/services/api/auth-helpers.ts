@@ -1,80 +1,43 @@
-/**
- * 인증 관련 헬퍼 함수
- */
 import { jwtDecode } from 'jwt-decode';
-import type { JwtPayload } from 'jwt-decode';
+import { UserInfo } from './types';
+import { notifyError } from './notifications';
 
-// 토큰 저장 키
-const TOKEN_STORAGE_KEY = 'authToken';
-const REFRESH_TOKEN_STORAGE_KEY = 'refreshToken';
-
-// 사용자 정보 저장 키
-const USER_STORAGE_KEY = 'user';
-
-/**
- * 사용자 정보 인터페이스
- */
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-  role: string;
-  [key: string]: any;
-}
-
-/**
- * 확장된 JWT 페이로드 인터페이스
- */
-interface AuthTokenPayload extends JwtPayload {
-  userId?: string;
-  email?: string;
-  name?: string;
-  role?: string;
-}
+// 로컬 스토리지 키 상수
+const TOKEN_KEY = 'auth_token';
+const REFRESH_TOKEN_KEY = 'auth_refresh_token';
+const USER_INFO_KEY = 'auth_user_info';
 
 /**
  * 토큰을 로컬 스토리지에 저장
  * @param token JWT 토큰
+ * @param refreshToken 리프레시 토큰
+ * @param userInfo 사용자 정보
  */
-export function storeToken(token: string): void {
-  localStorage.setItem(TOKEN_STORAGE_KEY, token);
+export function saveToken(token: string, refreshToken: string, userInfo?: UserInfo): void {
+  localStorage.setItem(TOKEN_KEY, token);
+  localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
   
-  // 토큰으로부터 사용자 정보 추출하여 저장
-  try {
-    const decodedToken = jwtDecode<AuthTokenPayload>(token);
-    
-    if (!decodedToken) {
-      return;
+  if (userInfo) {
+    localStorage.setItem(USER_INFO_KEY, JSON.stringify(userInfo));
+  } else {
+    try {
+      // 토큰에서 사용자 정보 추출
+      const decodedToken = jwtDecode<{ user: UserInfo }>(token);
+      if (decodedToken.user) {
+        localStorage.setItem(USER_INFO_KEY, JSON.stringify(decodedToken.user));
+      }
+    } catch (error) {
+      console.error('토큰에서 사용자 정보를 추출하는데 실패했습니다:', error);
     }
-    
-    const user: User = {
-      id: decodedToken.userId || decodedToken.sub || '',
-      email: decodedToken.email || '',
-      name: decodedToken.name || '',
-      role: decodedToken.role || 'user',
-      exp: decodedToken.exp
-    };
-    
-    storeUser(user);
-  } catch (error) {
-    console.error('토큰 디코딩 중 오류 발생:', error);
   }
 }
 
 /**
- * 리프레시 토큰을 로컬 스토리지에 저장
- * @param token 리프레시 토큰
- */
-export function storeRefreshToken(token: string): void {
-  localStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, token);
-}
-
-/**
- * 로컬 스토리지에서 토큰 가져오기
+ * 로컬 스토리지에서 인증 토큰 가져오기
  * @returns 저장된 토큰 또는 null
  */
 export function getStoredToken(): string | null {
-  return localStorage.getItem(TOKEN_STORAGE_KEY);
+  return localStorage.getItem(TOKEN_KEY);
 }
 
 /**
@@ -82,39 +45,22 @@ export function getStoredToken(): string | null {
  * @returns 저장된 리프레시 토큰 또는 null
  */
 export function getStoredRefreshToken(): string | null {
-  return localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY);
+  return localStorage.getItem(REFRESH_TOKEN_KEY);
 }
 
 /**
- * 모든 인증 관련 데이터 삭제
+ * 로컬 스토리지에서 사용자 정보 가져오기
+ * @returns 저장된 사용자 정보 또는 null
  */
-export function removeToken(): void {
-  localStorage.removeItem(TOKEN_STORAGE_KEY);
-  localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
-  localStorage.removeItem(USER_STORAGE_KEY);
-}
-
-/**
- * 사용자 정보 저장
- * @param user 사용자 정보 객체
- */
-export function storeUser(user: User): void {
-  localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
-}
-
-/**
- * 저장된 사용자 정보 가져오기
- * @returns 사용자 정보 또는 null
- */
-export function getStoredUser(): User | null {
-  const userData = localStorage.getItem(USER_STORAGE_KEY);
+export function getStoredUserInfo(): UserInfo | null {
+  const userInfoString = localStorage.getItem(USER_INFO_KEY);
   
-  if (!userData) {
+  if (!userInfoString) {
     return null;
   }
   
   try {
-    return JSON.parse(userData) as User;
+    return JSON.parse(userInfoString);
   } catch (error) {
     console.error('사용자 정보 파싱 중 오류 발생:', error);
     return null;
@@ -122,38 +68,40 @@ export function getStoredUser(): User | null {
 }
 
 /**
- * 토큰 만료 여부 확인
- * @param token JWT 토큰 (없으면 저장된 토큰 사용)
- * @returns 토큰 만료 여부
+ * 로컬 스토리지에서 인증 관련 정보 제거
  */
-export function isTokenExpired(token?: string): boolean {
+export function removeToken(): void {
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
+  localStorage.removeItem(USER_INFO_KEY);
+}
+
+/**
+ * 토큰이 만료되었는지 확인
+ * @param token JWT 토큰
+ * @returns 만료 여부
+ */
+export function isTokenExpired(token: string): boolean {
   try {
-    const tokenToCheck = token || getStoredToken();
+    const decoded = jwtDecode<{ exp: number }>(token);
+    const currentTime = Date.now() / 1000;
     
-    if (!tokenToCheck) {
+    // 만료 시간이 없거나 현재 시간이 만료 시간을 지났으면 만료된 것으로 처리
+    if (!decoded.exp || currentTime >= decoded.exp) {
       return true;
     }
     
-    const decodedToken = jwtDecode<JwtPayload>(tokenToCheck);
-    
-    if (!decodedToken.exp) {
-      return false;
-    }
-    
-    // 현재 시간 (초 단위)
-    const currentTime = Math.floor(Date.now() / 1000);
-    
-    // 토큰이 만료됐는지 확인 (5분 안전 마진 적용)
-    return decodedToken.exp <= currentTime + 300;
+    // 만료 10분 전인 경우에도 리프레시 필요로 처리
+    return currentTime >= decoded.exp - 600;
   } catch (error) {
-    console.error('토큰 만료 확인 중 오류 발생:', error);
+    console.error('토큰 디코딩 중 오류 발생:', error);
     return true;
   }
 }
 
 /**
- * 사용자 로그인 여부 확인
- * @returns 로그인 여부
+ * 현재 사용자의 로그인 상태 확인
+ * @returns 로그인 상태
  */
 export function isLoggedIn(): boolean {
   const token = getStoredToken();
@@ -161,28 +109,69 @@ export function isLoggedIn(): boolean {
 }
 
 /**
- * 사용자 권한 확인
- * @param requiredRole 필요한 권한
- * @returns 권한 보유 여부
+ * 토큰 리프레시 함수
+ * @returns 새 토큰 또는 null (실패 시)
  */
-export function hasRole(requiredRole: string): boolean {
-  const user = getStoredUser();
+export async function refreshToken(): Promise<string | null> {
+  const refreshToken = getStoredRefreshToken();
   
-  if (!user || !isLoggedIn()) {
+  if (!refreshToken) {
+    console.error('리프레시 토큰이 없습니다.');
+    return null;
+  }
+  
+  try {
+    const response = await fetch('/api/auth/refresh', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ refreshToken }),
+    });
+    
+    if (!response.ok) {
+      throw new Error(`리프레시 요청 실패: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    if (!data.token || !data.refreshToken) {
+      throw new Error('응답에 토큰이 포함되어 있지 않습니다.');
+    }
+    
+    // 새 토큰 저장
+    saveToken(data.token, data.refreshToken, data.user);
+    
+    return data.token;
+  } catch (error) {
+    console.error('토큰 리프레시 중 오류 발생:', error);
+    notifyError('인증 오류', '세션이 만료되었습니다. 다시 로그인해 주세요.');
+    return null;
+  }
+}
+
+/**
+ * 사용자 역할 확인
+ * @param requiredRole 필요한 역할
+ * @returns 역할 충족 여부
+ */
+export function hasRole(requiredRole: string | string[]): boolean {
+  const userInfo = getStoredUserInfo();
+  
+  if (!userInfo || !userInfo.role) {
     return false;
   }
   
-  if (requiredRole === 'admin' && user.role === 'admin') {
+  // 관리자는 모든 권한 가짐
+  if (userInfo.role === 'admin') {
     return true;
   }
   
-  if (requiredRole === 'manager' && ['admin', 'manager'].includes(user.role)) {
-    return true;
+  // 단일 역할 체크
+  if (typeof requiredRole === 'string') {
+    return userInfo.role === requiredRole;
   }
   
-  if (requiredRole === 'user') {
-    return true;
-  }
-  
-  return false;
-} 
+  // 여러 역할 중 하나라도 충족하는지 체크
+  return requiredRole.includes(userInfo.role);
+}

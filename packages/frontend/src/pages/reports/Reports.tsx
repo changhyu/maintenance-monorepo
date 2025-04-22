@@ -20,6 +20,12 @@ import {
 } from '@mui/icons-material';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
+// 타입 호환을 위한 확장 인터페이스 정의
+declare module 'jspdf' {
+  interface jsPDF {
+    autoTable: (options: any) => jsPDF;
+  }
+}
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -131,7 +137,8 @@ const Reports: React.FC = () => {
         ['리콜', sampleVehicleReport.recalled]
       ];
       
-      (doc as any).autoTable({
+      // autoTable 메서드에 타입 적용
+      doc.autoTable({
         head: [['구분', '수량']],
         body: vehicleData,
         startY: 50
@@ -139,7 +146,7 @@ const Reports: React.FC = () => {
       
       const typeData = Object.entries(sampleVehicleReport.byType).map(([type, count]) => [type, count]);
       
-      (doc as any).autoTable({
+      doc.autoTable({
         head: [['차종', '수량']],
         body: typeData,
         startY: 110
@@ -155,7 +162,7 @@ const Reports: React.FC = () => {
         ['평균 정비 비용', `${sampleMaintenanceReport.averageCost.toLocaleString()}원`]
       ];
       
-      (doc as any).autoTable({
+      doc.autoTable({
         head: [['구분', '수량/금액']],
         body: maintenanceData,
         startY: 50
@@ -163,7 +170,7 @@ const Reports: React.FC = () => {
       
       const monthlyData = Object.entries(sampleMaintenanceReport.byMonth).map(([month, count]) => [month, count]);
       
-      (doc as any).autoTable({
+      doc.autoTable({
         head: [['월별', '정비 건수']],
         body: monthlyData,
         startY: 110

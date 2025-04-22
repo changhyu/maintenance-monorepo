@@ -1,18 +1,27 @@
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from typing import List, Optional
-from pydantic import EmailStr
 
-from .models.notification import Notification, NotificationType
-from .services.notification_service import NotificationService
-from .schemas.requests import CreateNotificationRequest
-from .schemas.responses import NotificationResponse, NotificationListResponse
 from core.dependencies import get_current_user
 from core.schemas import PaginationParams
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from pydantic import EmailStr
 
-router = APIRouter(
-    prefix="/notifications",
-    tags=["알림"]
+from packages.api.src.modules.notificationmodels.notification import (
+    Notification,
+    NotificationType,
 )
+from packages.api.src.modules.notificationschemas.requests import (
+    CreateNotificationRequest,
+)
+from packages.api.src.modules.notificationschemas.responses import (
+    NotificationListResponse,
+    NotificationResponse,
+)
+from packages.api.src.modules.notificationservices.notification_service import (
+    NotificationService,
+)
+
+router = APIRouter(prefix="/notifications", tags=["알림"])
+
 
 @router.post(
     "",
@@ -33,13 +42,13 @@ router = APIRouter(
     - 201: 알림 생성 성공
     - 400: 잘못된 요청
     - 401: 인증 실패
-    """
+    """,
 )
 async def create_notification(
     request: CreateNotificationRequest,
     background_tasks: BackgroundTasks,
     notification_service: NotificationService = Depends(),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user),
 ) -> NotificationResponse:
     notification = await notification_service.create_notification(
         user_id=current_user["id"],
@@ -47,9 +56,10 @@ async def create_notification(
         message=request.message,
         notification_type=request.type,
         email=request.email,
-        device_token=request.device_token
+        device_token=request.device_token,
     )
     return NotificationResponse.from_model(notification)
+
 
 @router.get(
     "",
@@ -68,22 +78,21 @@ async def create_notification(
     ## 응답
     - 200: 조회 성공
     - 401: 인증 실패
-    """
+    """,
 )
 async def get_notifications(
     pagination: PaginationParams = Depends(),
     notification_service: NotificationService = Depends(),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user),
 ) -> NotificationListResponse:
     notifications = await notification_service.get_user_notifications(
-        user_id=current_user["id"],
-        skip=pagination.skip,
-        limit=pagination.limit
+        user_id=current_user["id"], skip=pagination.skip, limit=pagination.limit
     )
     return NotificationListResponse(
         items=[NotificationResponse.from_model(n) for n in notifications],
-        total=len(notifications)
+        total=len(notifications),
     )
+
 
 @router.patch(
     "/{notification_id}/read",
@@ -101,25 +110,25 @@ async def get_notifications(
     - 401: 인증 실패
     - 403: 권한 없음
     - 404: 알림 없음
-    """
+    """,
 )
 async def mark_notification_as_read(
     notification_id: str,
     notification_service: NotificationService = Depends(),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user),
 ) -> NotificationResponse:
     notification = await notification_service.mark_as_read(notification_id)
     if not notification:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="알림을 찾을 수 없습니다"
+            status_code=status.HTTP_404_NOT_FOUND, detail="알림을 찾을 수 없습니다"
         )
     if notification.user_id != current_user["id"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="이 알림에 대한 권한이 없습니다"
+            detail="이 알림에 대한 권한이 없습니다",
         )
     return NotificationResponse.from_model(notification)
+
 
 @router.get(
     "/unread-count",
@@ -134,10 +143,10 @@ async def mark_notification_as_read(
     ## 응답
     - 200: 조회 성공
     - 401: 인증 실패
-    """
+    """,
 )
 async def get_unread_count(
     notification_service: NotificationService = Depends(),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user),
 ) -> int:
-    return await notification_service.get_unread_count(current_user["id"]) 
+    return await notification_service.get_unread_count(current_user["id"])

@@ -136,11 +136,7 @@ const Todo: React.FC<TodoProps> = memo(({
     setIsSyncing(true);
     try {
       logger.info(`동기화 시작: ${pendingChanges.length}개 작업 처리 중...`);
-      message.loading({
-        content: `오프라인 변경사항 동기화 중... (${pendingChanges.length}개)`,
-        key: 'syncOperation',
-        duration: 0
-      });
+      message.loading('오프라인 변경사항 동기화 중...');
 
       // 작업 타입별로 그룹화
       const deleteChanges = pendingChanges.filter(todo => todo._pending === 'delete');
@@ -174,8 +170,8 @@ const Todo: React.FC<TodoProps> = memo(({
           const createdTodo = await createTodo({
             title,
             description: description ?? '',
-            dueDate: dueDate ?? undefined,
-            priority: priority as TodoPriority ?? 'medium',
+            dueDate: dueDate ? new Date(dueDate).toISOString() : (undefined as unknown as string | undefined),
+            priority: priority ?? 'medium',
             vehicleId: todoVehicleId ?? '',
             status: status ?? 'pending'
           });
@@ -202,8 +198,8 @@ const Todo: React.FC<TodoProps> = memo(({
           const updatedTodo = await updateTodo(actualId, {
             title: todo.title,
             description: todo.description ?? '',
-            dueDate: todo.dueDate ?? undefined,
-            priority: todo.priority as TodoPriority ?? 'medium',
+            dueDate: todo.dueDate ? new Date(todo.dueDate).toISOString() : (undefined as unknown as string | undefined),
+            priority: todo.priority ?? 'medium',
             completed: todo.completed,
             status: todo.status ?? 'pending'
           });
@@ -224,11 +220,7 @@ const Todo: React.FC<TodoProps> = memo(({
         setPendingChanges(prev => prev.filter(change => !successfulChanges.includes(change.id)));
       }
       
-      message.success({
-        content: `동기화 완료: ${successfulChanges.length}개 성공, ${failedChanges.length}개 실패`,
-        key: 'syncOperation',
-        duration: 3
-      });
+      message.success('동기화 완료: ${successfulChanges.length}개 성공, ${failedChanges.length}개 실패');
       
       // 실패한 작업이 있으면 사용자에게 알림
       if (failedChanges.length > 0) {
@@ -245,10 +237,7 @@ const Todo: React.FC<TodoProps> = memo(({
       }));
     } catch (error) {
       logger.error('변경사항 동기화 중 오류 발생:', error);
-      message.error({
-        content: '변경사항 동기화 중 오류가 발생했습니다.',
-        key: 'syncOperation'
-      });
+      message.error('변경사항 동기화 중 오류가 발생했습니다.');
       
       // 이벤트 발생 - 동기화 실패
       window.dispatchEvent(new CustomEvent('todo:sync-error'));
@@ -519,7 +508,6 @@ const Todo: React.FC<TodoProps> = memo(({
   );
 });
 
-// 디스플레이 이름 설정
 Todo.displayName = 'Todo';
 
 export default Todo;

@@ -4,19 +4,29 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
 # 데이터베이스 연결
-engine = create_engine('postgresql://gongchanghyeon@localhost:5432/maintenance')
+engine = create_engine("postgresql://gongchanghyeon@localhost:5432/maintenance")
 Session = sessionmaker(bind=engine)
 session = Session()
 
+
 def print_separator():
-    print("\n" + "="*50 + "\n")
+    print("\n" + "=" * 50 + "\n")
+
 
 try:
     # 각 테이블의 레코드 수 확인
     tables = [
-        'users', 'vehicles', 'shops', 'shop_services', 'shop_reviews',
-        'shop_images', 'technicians', 'maintenance', 'maintenance_documents',
-        'maintenance_parts', 'todos'
+        "users",
+        "vehicles",
+        "shops",
+        "shop_services",
+        "shop_reviews",
+        "shop_images",
+        "technicians",
+        "maintenance",
+        "maintenance_documents",
+        "maintenance_parts",
+        "todos",
     ]
 
     print("테이블 별 레코드 수:")
@@ -39,9 +49,15 @@ try:
 
     # 차량 정보 확인
     print("차량 목록:")
-    vehicles = session.execute(text("SELECT v.make, v.model, v.plate, u.name as owner FROM vehicles v JOIN users u ON v.owner_id = u.id"))
+    vehicles = session.execute(
+        text(
+            "SELECT v.make, v.model, v.plate, u.name as owner FROM vehicles v JOIN users u ON v.owner_id = u.id"
+        )
+    )
     for vehicle in vehicles:
-        print(f"- {vehicle.make} {vehicle.model} ({vehicle.plate}), 소유자: {vehicle.owner}")
+        print(
+            f"- {vehicle.make} {vehicle.model} ({vehicle.plate}), 소유자: {vehicle.owner}"
+        )
 
     print_separator()
 
@@ -57,12 +73,16 @@ try:
 
     # 정비 기록 확인
     print("정비 기록:")
-    maintenance = session.execute(text("""
+    maintenance = session.execute(
+        text(
+            """
         SELECT m.description, m.date, m.status, m.cost, v.make, v.model
         FROM maintenance m
         JOIN vehicles v ON m.vehicle_id = v.id
         ORDER BY m.date DESC
-    """))
+    """
+        )
+    )
     for record in maintenance:
         print(f"- {record.make} {record.model}")
         print(f"  작업: {record.description}")
@@ -75,7 +95,9 @@ try:
 
     # Todo 목록 확인
     print("할 일 목록:")
-    todos = session.execute(text("""
+    todos = session.execute(
+        text(
+            """
         SELECT t.title, t.status, t.priority, t.due_date,
                u1.name as creator, u2.name as assignee,
                v.make, v.model
@@ -84,7 +106,9 @@ try:
         LEFT JOIN users u2 ON t.assignee_id = u2.id
         LEFT JOIN vehicles v ON t.vehicle_id = v.id
         ORDER BY t.due_date
-    """))
+    """
+        )
+    )
     for todo in todos:
         print(f"- {todo.title}")
         print(f"  상태: {todo.status}, 우선순위: {todo.priority}")
@@ -97,4 +121,4 @@ try:
 except Exception as e:
     print(f"오류 발생: {e}")
 finally:
-    session.close() 
+    session.close()

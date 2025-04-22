@@ -58,6 +58,92 @@ services:
     networks:
       - maintenance-network
 
+  # 새 서비스 추가
+  api-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile.gateway
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    env_file: .env.gateway
+    depends_on:
+      - api
+      - ml-service
+      - document-service
+    networks:
+      - maintenance-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  ml-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.ml
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    env_file: .env.ml
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - ml_models:/app/models
+      - ml_logs:/app/logs
+    networks:
+      - maintenance-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  document-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.docs
+    restart: unless-stopped
+    ports:
+      - "8004:8004"
+    env_file: .env.docs
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - document_storage:/app/storage
+      - document_logs:/app/logs
+    networks:
+      - maintenance-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8004/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  mobile-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.mobile-api
+    restart: unless-stopped
+    ports:
+      - "8002:8002"
+    env_file: .env.mobile
+    depends_on:
+      - api
+      - redis
+    volumes:
+      - mobile_api_logs:/app/logs
+    networks:
+      - maintenance-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
 # 공통 네트워크 설정
 networks:
   maintenance-network:
@@ -68,3 +154,8 @@ volumes:
   postgres_data:
   api_logs:
   redis_data:
+  ml_models:
+  ml_logs:
+  document_storage:
+  document_logs:
+  mobile_api_logs:

@@ -2,6 +2,8 @@
  * 형식 관련 유틸리티 함수 모음
  */
 
+import { errorLogger } from './errorLogger';
+
 /**
  * 숫자를 통화 형식으로 변환 (원화)
  */
@@ -15,7 +17,7 @@ export function formatCurrency(value: number | undefined | null): string {
       maximumFractionDigits: 0
     }).format(value);
   } catch (error) {
-    console.error('통화 형식 변환 오류:', error);
+    errorLogger.error('통화 형식 변환 오류', { value }, error);
     return `${value.toLocaleString('ko-KR')}원`;
   }
 }
@@ -29,7 +31,7 @@ export function formatNumber(value: number | undefined | null): string {
   try {
     return value.toLocaleString('ko-KR');
   } catch (error) {
-    console.error('숫자 형식 변환 오류:', error);
+    errorLogger.error('숫자 형식 변환 오류', { value }, error);
     return value.toString();
   }
 }

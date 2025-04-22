@@ -1,19 +1,14 @@
 {
   "$schema": "https://turbo.build/schema.json",
-  "globalDependencies": ["**/.env"],
+  "globalDependencies": ["tsconfig.json", ".env.local", ".env"],
   "tasks": {
-    "dev": {
-      "dependsOn": ["^build"],
-      "cache": true,
-      "persistent": true
-    },
     "build": {
-      "dependsOn": ["^build"],
-      "outputs": ["dist/**"],
+      "dependsOn": ["^build", "security:check"],
+      "outputs": ["dist/**", ".next/**", "build/**"],
       "cache": true
     },
     "test": {
-      "dependsOn": ["build"],
+      "dependsOn": ["^build"],
       "outputs": ["coverage/**"],
       "cache": true
     },
@@ -23,18 +18,35 @@
     },
     "lint:fix": {
       "outputs": [],
-      "cache": false
+      "cache": true
     },
     "clean": {
       "cache": false
     },
-    "start": {
-      "dependsOn": ["build"],
-      "cache": false
+    "dev": {
+      "cache": false,
+      "persistent": true
     },
-    "e2e": {
-      "dependsOn": ["build", "start"],
+    "security:check": {
+      "cache": false,
+      "outputs": ["security_test_results.log"]
+    },
+    "security:fix": {
       "cache": false
     }
-  }
+  },
+  "globalEnv": [
+    "NODE_ENV",
+    "DATABASE_URL",
+    "PORT",
+    "DEBUG",
+    "JWT_SECRET",
+    "API_SERVICE_URL",
+    "ML_SERVICE_URL",
+    "MOBILE_API_URL",
+    "DOCUMENT_SERVICE_URL",
+    "REDIS_HOST",
+    "REDIS_PORT",
+    "SESSION_SECRET"
+  ]
 }

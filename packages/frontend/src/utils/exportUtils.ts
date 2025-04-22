@@ -4,7 +4,8 @@
 
 import FileSaver from 'file-saver';
 import jsPDF from 'jspdf';
-import * as XLSX from 'xlsx';
+// XLSX 라이브러리를 ExcelJS로 교체
+import ExcelJS from 'exceljs';
 
 import 'jspdf-autotable';
 import logger from './logger';
@@ -216,17 +217,62 @@ const exportToCsv = (data: any[], filename: string): void => {
 };
 
 /**
- * 데이터를 Excel 형식으로 내보내는 함수
+ * 데이터를 Excel 형식으로 내보내는 함수 (ExcelJS 사용)
  * @param data 내보낼 데이터 (객체 배열)
  * @param filename 파일 이름
  */
-const exportToExcel = (data: any[], filename: string): void => {
-  const worksheet = XLSX.utils.json_to_sheet(data);
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
+const exportToExcel = async (data: any[], filename: string): Promise<void> => {
+  try {
+    // 새 워크북 생성
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = '차량 관리 시스템';
+    workbook.lastModifiedBy = '차량 관리 시스템';
+    workbook.created = new Date();
+    workbook.modified = new Date();
 
-  // Excel 파일 생성 및 다운로드
-  XLSX.writeFile(workbook, `${filename}.xlsx`);
+    // 워크시트 생성
+    const worksheet = workbook.addWorksheet('Sheet1');
+
+    if (data.length > 0) {
+      // 헤더 추가
+      const headers = Object.keys(data[0]);
+      worksheet.addRow(headers);
+
+      // 헤더 스타일 지정
+      const headerRow = worksheet.getRow(1);
+      headerRow.font = { bold: true };
+      headerRow.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FF4F81BD' }
+      };
+      headerRow.font = {
+        name: 'Arial',
+        size: 12,
+        bold: true,
+        color: { argb: 'FFFFFFFF' }
+      };
+
+      // 데이터 행 추가
+      data.forEach(item => {
+        worksheet.addRow(Object.values(item));
+      });
+
+      // 컬럼 너비 설정
+      worksheet.columns.forEach((column) => {
+        column.width = 15;
+      });
+    }
+
+    // 엑셀 파일 생성 및 저장
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    FileSaver.saveAs(blob, `${filename}.xlsx`);
+    logger.info(`Excel 내보내기 완료: ${filename}.xlsx`);
+  } catch (error) {
+    logger.error('Excel 내보내기 중 오류 발생:', error);
+    throw error;
+  }
 };
 
 /**

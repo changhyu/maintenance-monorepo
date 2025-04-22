@@ -7,25 +7,42 @@ Git 작업 과정에서 발생할 수 있는 다양한 예외 상황을 처리�
 from typing import Any, Dict, List, Optional
 
 
-class GitOperationException(Exception):
-    """
-    Git 작업 관련 모든 예외의 기본 클래스
+class GitException(Exception):
+    """Git 관련 모든 예외의 기본 클래스"""
+    
+    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
+        super().__init__(message)
+        self.message = message
+        self.details = details or {}
 
-    Git 작업 중 발생하는 모든 예외는 이 클래스를 상속받습니다.
-    """
+    def __str__(self) -> str:
+        if self.details:
+            return f"{self.message} (세부 정보: {self.details})"
+        return self.message
 
-    def __init__(self, message: str) -> None:
+# 하위 호환성을 위한 별칭
+GitOperationException = GitException
+"""Git 작업 중 발생한 예외를 나타내는 기본 클래스 (GitException과 동일)"""
+
+
+class GitNotInstalledError(GitException):
+    """
+    Git이 시스템에 설치되어 있지 않은 경우 발생하는 예외
+    
+    Git 작업을 수행하기 전에 Git이 시스템에 설치되어 있는지 확인할 때 사용됩니다.
+    """
+    
+    def __init__(self, message: str = "Git이 설치되어 있지 않습니다.") -> None:
         """
-        GitOperationException 초기화
-
+        GitNotInstalledError 초기화
+        
         Args:
             message: 예외 메시지
         """
         super().__init__(message)
-        self.message = message
 
 
-class GitAuthenticationException(GitOperationException):
+class GitAuthenticationException(GitException):
     """
     Git 인증 관련 예외
 
@@ -35,7 +52,7 @@ class GitAuthenticationException(GitOperationException):
     pass
 
 
-class GitRemoteException(GitOperationException):
+class GitRemoteException(GitException):
     """Git 원격 저장소 관련 예외
 
     원격 저장소 추가, 조회, 동기화 등의 과정에서 발생하는 예외
@@ -44,7 +61,7 @@ class GitRemoteException(GitOperationException):
     pass
 
 
-class GitCommitException(GitOperationException):
+class GitCommitException(GitException):
     """Git 커밋 관련 예외
 
     커밋 생성, 조회, 수정 등의 과정에서 발생하는 예외
@@ -53,7 +70,7 @@ class GitCommitException(GitOperationException):
     pass
 
 
-class GitMergeException(GitOperationException):
+class GitMergeException(GitException):
     """
     Git 병합 작업 중 발생한 예외
 
@@ -63,7 +80,7 @@ class GitMergeException(GitOperationException):
     pass
 
 
-class GitPushPullException(GitOperationException):
+class GitPushPullException(GitException):
     """
     Git push/pull 작업 중 발생한 예외
 
@@ -73,7 +90,7 @@ class GitPushPullException(GitOperationException):
     pass
 
 
-class GitBranchException(GitOperationException):
+class GitBranchException(GitException):
     """Git 브랜치 관련 예외
 
     브랜치 생성, 전환, 삭제 등의 과정에서 발생하는 예외
@@ -82,7 +99,7 @@ class GitBranchException(GitOperationException):
     pass
 
 
-class GitTagException(GitOperationException):
+class GitTagException(GitException):
     """Git 태그 관련 예외
 
     태그 생성, 조회, 삭제 등의 과정에서 발생하는 예외
@@ -91,7 +108,7 @@ class GitTagException(GitOperationException):
     pass
 
 
-class GitRepositoryException(GitOperationException):
+class GitRepositoryException(GitException):
     """Git 저장소 관련 예외
 
     저장소 초기화, 접근, 검색 등의 과정에서 발생하는 예외
@@ -100,7 +117,7 @@ class GitRepositoryException(GitOperationException):
     pass
 
 
-class GitConfigException(GitOperationException):
+class GitConfigException(GitException):
     """Git 설정 관련 예외
 
     설정 조회, 변경 등의 과정에서 발생하는 예외
@@ -109,36 +126,21 @@ class GitConfigException(GitOperationException):
     pass
 
 
-class GitCommandException(GitOperationException):
-    """
-    Git 명령어 실행 중 발생한 예외
-
-    Git 명령어가 실패하거나 오류 코드를 반환할 때 발생합니다.
-    """
-
-    def __init__(
-        self,
-        message: str,
-        command: Optional[str] = None,
-        exit_code: int = -1,
-        stderr: str = "",
-        stdout: str = "",
-    ) -> None:
-        """
-        GitCommandException 초기화
-
-        Args:
-            message: 예외 메시지
-            command: 실행된 Git 명령어
-            exit_code: 명령어의 종료 코드
-            stderr: 명령어의 표준 오류 출력
-            stdout: 명령어의 표준 출력
-        """
-        super().__init__(message)
+class GitCommandException(GitException):
+    """Git 명령어 실행 중 발생한 예외"""
+    
+    def __init__(self, message: str, command: str = "", exit_code: int = -1, stderr: str = "", details: Optional[Dict[str, Any]] = None):
+        super().__init__(message, details)
         self.command = command
         self.exit_code = exit_code
         self.stderr = stderr
-        self.stdout = stdout
+        
+        # 기본 세부 정보에 명령어 관련 정보 추가
+        self.details.update({
+            "command": command,
+            "exit_code": exit_code,
+            "stderr": stderr
+        })
 
     def __str__(self) -> str:
         """예외 객체를 문자열로 변환"""
@@ -156,11 +158,10 @@ class GitCommandException(GitOperationException):
             "command": self.command,
             "exit_code": self.exit_code,
             "stderr": self.stderr,
-            "stdout": self.stdout,
         }
 
 
-class GitConflictException(GitOperationException):
+class GitConflictException(GitException):
     """Git 충돌 관련 예외
 
     병합 충돌, 충돌 해결 등의 과정에서 발생하는 예외
@@ -228,3 +229,47 @@ class GitMergeConflictException(GitConflictException):
             "conflicted_files": self.conflicted_files,
             "conflict_count": len(self.conflicted_files),
         }
+
+
+class GitNetworkException(GitException):
+    """Git 네트워크 작업 관련 예외 (pull, push, fetch 등)"""
+    pass
+
+
+class GitCacheException(GitException):
+    """Git 서비스 캐시 관련 예외"""
+    pass
+
+
+def create_git_exception(ex_type: str, message: str, details: Optional[Dict[str, Any]] = None) -> GitException:
+    """
+    예외 유형에 따라 적절한 GitException 인스턴스를 생성합니다.
+    
+    Args:
+        ex_type: 예외 유형 ("command", "repository", "config", "network", "merge", "cache")
+        message: 예외 메시지
+        details: 추가 세부 정보
+        
+    Returns:
+        GitException: 적절한 GitException 하위 클래스 인스턴스
+    """
+    exception_map = {
+        "command": GitCommandException,
+        "repository": GitRepositoryException,
+        "config": GitConfigException,
+        "network": GitNetworkException,
+        "merge": GitMergeException,
+        "cache": GitCacheException
+    }
+    
+    exception_class = exception_map.get(ex_type, GitException)
+    
+    if ex_type == "command" and details and "command" in details:
+        return GitCommandException(
+            message, 
+            command=details.get("command", ""),
+            exit_code=details.get("exit_code", -1),
+            stderr=details.get("stderr", ""),
+        )
+    
+    return exception_class(message, details)

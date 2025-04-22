@@ -1,5 +1,5 @@
-import { errorLogger } from '../utils/errorLogger';
 import { getCache, setCache } from '../utils/cacheUtils';
+import { errorLogger } from '../utils/errorLogger';
 import { securityUtils } from '../utils/securityUtils';
 
 export interface ServiceOptions {
@@ -44,20 +44,20 @@ export abstract class BaseService {
   /**
    * 입력값 검증 및 정제
    */
-  protected validateAndSanitize<T extends Record<string, any>>(
+  protected validateAndSanitize<T extends Record<string, unknown>>(
     data: T,
     schema: Record<keyof T, {
       type: 'string' | 'number' | 'boolean' | 'object' | 'array';
       required?: boolean;
       pattern?: RegExp;
-      validate?: (value: any) => boolean;
+      validate?: (value: unknown) => boolean;
     }>
   ): { isValid: boolean; sanitized: Partial<T>; errors: string[] } {
     const errors: string[] = [];
     const sanitized: Partial<T> = {};
 
     for (const [key, value] of Object.entries(data)) {
-      const rules = schema[key];
+      const rules = schema[key as keyof T];
       
       if (!rules) {
         continue;
@@ -70,7 +70,7 @@ export abstract class BaseService {
         continue;
       }
       
-      sanitized[key as keyof T] = this.sanitizeValue(key, value, rules);
+      sanitized[key as keyof T] = this.sanitizeValue(key, value, rules) as T[keyof T];
     }
 
     return {
@@ -85,12 +85,12 @@ export abstract class BaseService {
    */
   private validateField(
     key: string, 
-    value: any, 
+    value: unknown, 
     rules: {
       type: 'string' | 'number' | 'boolean' | 'object' | 'array';
       required?: boolean;
       pattern?: RegExp;
-      validate?: (value: any) => boolean;
+      validate?: (value: unknown) => boolean;
     }
   ): { hasError: boolean; errorMessage: string } {
     // 필수값 검증
@@ -120,7 +120,7 @@ export abstract class BaseService {
   /**
    * 값 정제
    */
-  private sanitizeValue(key: string, value: any, rules: any): any {
+  private sanitizeValue(key: string, value: unknown, _rules: unknown): unknown {
     if (typeof value === 'string' && this.options.securityOptions.sanitizeOutput) {
       return securityUtils.escapeHtml(value);
     }
@@ -130,12 +130,12 @@ export abstract class BaseService {
   /**
    * 타입 검증 헬퍼
    */
-  private validateType(value: any, type: string): boolean {
+  private validateType(value: unknown, type: string): boolean {
     switch (type) {
       case 'string':
         return typeof value === 'string';
       case 'number':
-        return typeof value === 'number' && !isNaN(value);
+        return typeof value === 'number' && !isNaN(value as number);
       case 'boolean':
         return typeof value === 'boolean';
       case 'object':
@@ -150,14 +150,14 @@ export abstract class BaseService {
   /**
    * 에러 로깅 및 처리
    */
-  protected handleError(error: Error, context?: Record<string, any>): void {
+  protected handleError(error: Error, context?: Record<string, unknown>): void {
     if (!this.options.enableLogging) { return; }
 
     errorLogger.error(error.message, {
       ...context,
       stack: error.stack,
       service: this.constructor.name
-    });
+    }, error);
   }
 
   /**
@@ -167,7 +167,7 @@ export abstract class BaseService {
     operation: () => Promise<T>,
     options: {
       cacheKey?: string;
-      context?: Record<string, any>;
+      context?: Record<string, unknown>;
       errorMessage?: string;
     } = {}
   ): Promise<T> {
@@ -176,9 +176,12 @@ export abstract class BaseService {
         return await this.getCached(options.cacheKey, operation);
       }
       return await operation();
-    } catch (error) {
-      this.handleError(error as Error, options.context);
-      throw new Error(options.errorMessage ??'Operation failed');
+    } catch (error: unknown) {
+      this.handleError(
+        error instanceof Error ? error : new Error(String(error)),
+        options.context
+      );
+      throw new Error(options.errorMessage ?? 'Operation failed');
     }
   }
 }

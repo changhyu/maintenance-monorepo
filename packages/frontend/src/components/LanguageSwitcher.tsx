@@ -1,67 +1,111 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { supportedLanguages, changeLanguage } from '../i18n';
 import { 
-  Button, 
+  IconButton, 
   Menu, 
   MenuItem, 
-  ListItemIcon, 
-  ListItemText 
+  Typography,
+  ListItemIcon,
+  ListItemText,
+  Tooltip
 } from '@mui/material';
-import { useTranslation } from 'react-i18next';
-import { useLanguage } from '../context/AppContext';
-import TranslateIcon from '@mui/icons-material/Translate';
-import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
-import CheckIcon from '@mui/icons-material/Check';
+import { Language as LanguageIcon } from '@mui/icons-material';
 
-// 지원 언어 설정
-const languages = [
-  { code: 'ko', label: '한국어', flag: '🇰🇷' },
-  { code: 'en', label: 'English', flag: '🇺🇸' }
-];
+interface LanguageSwitcherProps {
+  variant?: 'icon' | 'text' | 'full';
+  size?: 'small' | 'medium' | 'large';
+}
 
 /**
  * 언어 전환 컴포넌트
- * 사용자가 애플리케이션 언어를 변경할 수 있게 합니다.
+ * 사용자가 애플리케이션 언어를 변경할 수 있는 드롭다운 메뉴 제공
  */
-const LanguageSwitcher: React.FC = () => {
-  const { t, i18n } = useTranslation();
-  const { language, setLanguage } = useLanguage();
+const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({ 
+  variant = 'icon',
+  size = 'medium'
+}) => {
+  const { i18n } = useTranslation();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
-
-  // 메뉴 열기 핸들러
-  const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+  
+  const handleClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
   };
-
-  // 메뉴 닫기 핸들러
+  
   const handleClose = () => {
     setAnchorEl(null);
   };
-
-  // 언어 변경 핸들러
+  
   const handleLanguageChange = (langCode: string) => {
-    i18n.changeLanguage(langCode);
-    setLanguage(langCode);
+    changeLanguage(langCode);
     handleClose();
   };
-
+  
   // 현재 선택된 언어 정보
-  const currentLanguage = languages.find(lang => lang.code === language) || languages[0];
-
+  const currentLanguage = supportedLanguages.find(
+    lang => lang.code === i18n.language
+  ) || supportedLanguages[0];
+  
   return (
     <>
-      <Button
-        color="inherit"
-        onClick={handleClick}
-        startIcon={<TranslateIcon />}
-        endIcon={<KeyboardArrowDownIcon />}
-        aria-controls={open ? 'language-menu' : undefined}
-        aria-haspopup="true"
-        aria-expanded={open ? 'true' : undefined}
-        size="small"
-      >
-        {currentLanguage.flag} {currentLanguage.label}
-      </Button>
+      {variant === 'icon' && (
+        <Tooltip title="언어 선택">
+          <IconButton
+            onClick={handleClick}
+            size={size}
+            aria-controls={open ? 'language-menu' : undefined}
+            aria-haspopup="true"
+            aria-expanded={open ? 'true' : undefined}
+            aria-label="언어 선택"
+          >
+            <LanguageIcon />
+          </IconButton>
+        </Tooltip>
+      )}
+      
+      {variant === 'text' && (
+        <Typography
+          component="button"
+          onClick={handleClick}
+          sx={{ 
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            padding: '6px',
+            borderRadius: '4px',
+            '&:hover': {
+              backgroundColor: 'rgba(0, 0, 0, 0.04)'
+            }
+          }}
+        >
+          {currentLanguage.flag} {currentLanguage.code.toUpperCase()}
+        </Typography>
+      )}
+      
+      {variant === 'full' && (
+        <Typography
+          component="button"
+          onClick={handleClick}
+          sx={{ 
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            padding: '6px 12px',
+            borderRadius: '4px',
+            '&:hover': {
+              backgroundColor: 'rgba(0, 0, 0, 0.04)'
+            }
+          }}
+        >
+          <LanguageIcon sx={{ mr: 1 }} />
+          {currentLanguage.flag} {currentLanguage.name}
+        </Typography>
+      )}
 
       <Menu
         id="language-menu"
@@ -71,20 +115,26 @@ const LanguageSwitcher: React.FC = () => {
         MenuListProps={{
           'aria-labelledby': 'language-button',
         }}
+        PaperProps={{
+          elevation: 3,
+          sx: {
+            minWidth: 180,
+            maxHeight: '300px',
+            overflow: 'auto'
+          }
+        }}
       >
-        {languages.map((lang) => (
+        {supportedLanguages.map((language) => (
           <MenuItem
-            key={lang.code}
-            onClick={() => handleLanguageChange(lang.code)}
-            selected={lang.code === language}
+            key={language.code}
+            onClick={() => handleLanguageChange(language.code)}
+            selected={i18n.language === language.code}
+            dense
           >
-            <ListItemIcon sx={{ fontSize: '1.25rem' }}>
-              {lang.flag}
+            <ListItemIcon sx={{ minWidth: 36 }}>
+              {language.flag}
             </ListItemIcon>
-            <ListItemText>{lang.label}</ListItemText>
-            {lang.code === language && (
-              <CheckIcon fontSize="small" color="primary" />
-            )}
+            <ListItemText>{language.name}</ListItemText>
           </MenuItem>
         ))}
       </Menu>
@@ -92,4 +142,4 @@ const LanguageSwitcher: React.FC = () => {
   );
 };
 
-export default LanguageSwitcher; 
+export default LanguageSwitcher;

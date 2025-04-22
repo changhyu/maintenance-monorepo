@@ -1,28 +1,71 @@
-# 기본적으로 모든 파일은 개발팀이 담당
-* @maintenance-monorepo/developers
+# 코드 소유권 정의 파일
+# 자세한 정보: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
 
-# API 관련 파일
-packages/api/ @maintenance-monorepo/backend-team
-packages/api/src/core/ @maintenance-monorepo/senior-backend-team
-packages/api/src/database/ @maintenance-monorepo/database-team
+# 이 파일의 우선순위는 아래에서 위 방향으로 적용됩니다.
+# 더 구체적인 규칙이 더 일반적인 규칙보다 우선합니다.
 
-# 프론트엔드 관련 파일
-packages/frontend/ @maintenance-monorepo/frontend-team
-packages/frontend/src/components/ @maintenance-monorepo/ui-team
+# 기본 소유자 - 모든 파일에 적용됨
+* @maintenance-monorepo/core-team
 
-# 설정 파일
-*.yml @maintenance-monorepo/devops-team
-docker/ @maintenance-monorepo/devops-team
-Dockerfile* @maintenance-monorepo/devops-team
+#----------------------------------------------------------------------
+# 프론트엔드 관련
+#----------------------------------------------------------------------
+/packages/frontend/                       @maintenance-monorepo/frontend-team
+/packages/frontend/src/components/        @maintenance-monorepo/ui-team
+/packages/frontend/src/hooks/             @maintenance-monorepo/frontend-team
+/packages/frontend/src/context/           @maintenance-monorepo/frontend-team
+/packages/frontend/src/services/          @maintenance-monorepo/frontend-team @maintenance-monorepo/backend-team
+/packages/frontend/src/types/             @maintenance-monorepo/frontend-team @maintenance-monorepo/type-maintainers
+/packages/frontend/src/utils/             @maintenance-monorepo/frontend-team
 
-# 문서
-*.md @maintenance-monorepo/docs-team
-docs/ @maintenance-monorepo/docs-team
+# 테스트 코드
+/packages/frontend/tests/                 @maintenance-monorepo/qa-team @maintenance-monorepo/frontend-team
+/packages/frontend/__tests__/             @maintenance-monorepo/qa-team @maintenance-monorepo/frontend-team
 
-# 테스트
-packages/api/tests/ @maintenance-monorepo/qa-team
-packages/frontend/tests/ @maintenance-monorepo/qa-team
+#----------------------------------------------------------------------
+# 백엔드 관련
+#----------------------------------------------------------------------
+/packages/api/                            @maintenance-monorepo/backend-team
+/packages/api/src/core/                   @maintenance-monorepo/senior-backend-team
+/packages/api/src/database/               @maintenance-monorepo/database-team
+/packages/api/src/auth/                   @maintenance-monorepo/security-team
+/packages/api/src/core/security/          @maintenance-monorepo/security-team
+/packages/api/tests/                      @maintenance-monorepo/qa-team @maintenance-monorepo/backend-team
 
+#----------------------------------------------------------------------
+# 공통 관련
+#----------------------------------------------------------------------
+/packages/shared/                         @maintenance-monorepo/core-team
+
+#----------------------------------------------------------------------
+# 인프라 & 배포 관련
+#----------------------------------------------------------------------
+/docker/                                  @maintenance-monorepo/devops-team
+/Dockerfile*                              @maintenance-monorepo/devops-team
+/docker-compose*.yml                      @maintenance-monorepo/devops-team
+/.github/workflows/                       @maintenance-monorepo/devops-team @maintenance-monorepo/security-team
+/scripts/                                 @maintenance-monorepo/devops-team
+/.husky/                                  @maintenance-monorepo/devops-team
+
+#----------------------------------------------------------------------
+# 문서 관련
+#----------------------------------------------------------------------
+/docs/                                    @maintenance-monorepo/docs-team
+/*.md                                     @maintenance-monorepo/docs-team
+/packages/*/README.md                     @maintenance-monorepo/docs-team
+
+#----------------------------------------------------------------------
 # 보안 관련
-packages/api/src/core/security/ @maintenance-monorepo/security-team
-packages/api/src/auth/ @maintenance-monorepo/security-team 
+#----------------------------------------------------------------------
+/packages/security/                       @maintenance-monorepo/security-team
+/.github/security-exceptions.json         @maintenance-monorepo/security-team
+
+#----------------------------------------------------------------------
+# 프로젝트 설정 파일
+#----------------------------------------------------------------------
+/package.json                             @maintenance-monorepo/core-team
+/package-lock.json                        @maintenance-monorepo/core-team
+/tsconfig.json                            @maintenance-monorepo/core-team @maintenance-monorepo/frontend-team
+/.gitignore                               @maintenance-monorepo/core-team
+/.eslintrc*                               @maintenance-monorepo/core-team @maintenance-monorepo/frontend-team
+/.prettierrc*                             @maintenance-monorepo/core-team @maintenance-monorepo/frontend-team

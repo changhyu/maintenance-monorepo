@@ -1,173 +1,132 @@
 """
 Main application entry point for the API service.
+모듈화된 FastAPI 애플리케이션 진입점
 """
-import logging
+
 import os
 import sys
 from typing import Any, Dict
-from datetime import datetime, timezone
+
+import uvicorn
 
 # 현재 디렉토리를 파이썬 시스템 경로에 추가
 sys.path.insert(0, os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
 
-from fastapi import FastAPI, Request, APIRouter, Depends, status, WebSocket, WebSocketDisconnect
-from fastapi.responses import JSONResponse
+from app import create_app
 
-# 내부 모듈 import
-from .core.config import settings
-from .core.exceptions import setup_exception_handlers
-from .core.metrics import init_metrics
-from .core.versioning import setup_versioning, ApiVersion
-from .core.rate_limiter import RateLimiter
-from .core.documentation import setup_api_documentation
-from .core.monitoring.middleware import MonitoringMiddleware
-from .core.monitoring.metrics import metrics_collector
-from .core.logging_setup import setup_logging
-from .core.router_loader import import_router, load_routers
-from .core.cache import setup_cache, CacheSettings, CacheBackendType
-from .core.cache_manager import CacheManager
-from .core.security import SecurityMiddleware
-from .core.websocket_manager import WebSocketManager
-from .core.background_tasks import start_background_tasks, cancel_background_tasks
-from .core.metrics_collector import initialize_metrics
-from .core.cache_optimizer import initialize_cache_optimizer
-from .core.middleware import setup_middlewares
-from .core.lifespan import configure_lifespan
-from .core.env_validator import validate_env_variables
+# 내부 모듈 imports
+from fastapi import Depends, FastAPI, Request
+from maintenance_shared_python.config import BaseAppSettings
+
+# 공유 패키지 임포트
+from maintenance_shared_python.fastapi_app import create_fastapi_app
+from maintenance_shared_python.logging import get_logger, setup_logging
+from middleware import configure_middleware
+from routing import configure_routes
+from src.dependencies import get_settings_dependency, lifespan_dependencies
+from src.docs import setup_docs
+from src.utils.concurrency import timed_operation
+
+from packages.api.srccore.config import Settings, get_settings
+from packages.api.srccore.exceptions import setup_exception_handlers
 
 # 로깅 설정 적용
-logger = setup_logging()
-logger.info("로깅 시스템이 초기화되었습니다")
+logger = setup_logging("api_service")
+logger.info("API 서비스 초기화 시작")
 
-def create_app() -> FastAPI:
-    """
-    FastAPI 애플리케이션 생성 및 설정
-    """
-    # FastAPI 앱 인스턴스 생성
-    app = FastAPI(
-        title=settings.PROJECT_NAME,
-        description=settings.PROJECT_DESCRIPTION,
-        version=settings.VERSION,
-        docs_url="/docs" if settings.SHOW_DOCS else None,
-        redoc_url="/redoc" if settings.SHOW_DOCS else None,
-        lifespan=configure_lifespan()
-    )
-    
-    # API 문서 설정
-    setup_api_documentation(app)
-    
-    # 버전 관리 설정
-    setup_versioning(app)
-    
-    # 미들웨어 설정
-    setup_middlewares(app)
-    
-    # 예외 핸들러 설정
-    setup_exception_handlers(app)
-    
-    # 보안 헤더 설정
-    if hasattr(settings, 'SECURE_SSL_REDIRECT') and settings.SECURE_SSL_REDIRECT:
-        from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
-        app.add_middleware(HTTPSRedirectMiddleware)
-    
-    if hasattr(settings, 'SECURE_HSTS_SECONDS') and settings.SECURE_HSTS_SECONDS > 0:
-        from fastapi.middleware.trustedhost import TrustedHostMiddleware
-        app.add_middleware(
-            TrustedHostMiddleware, 
-            allowed_hosts=[
-                "api.car-goro.com", 
-                "test-api.car-goro.com", 
-                "api.car-goro.kr",
-                "test-api.car-goro.kr",
-                "localhost", 
-                "127.0.0.1"
-            ]
-        )
-    
-    # 라우터 로드
-    routers = load_routers()
-    for router in routers:
-        app.include_router(router)
-    
-    # 메트릭 엔드포인트 추가
-    try:
-        from .core import test_metrics
-        app.include_router(test_metrics.router)
-    except ImportError:
-        logger.warning("메트릭 라우터를 로드할 수 없습니다.")
-    
-    # 정상 작동 확인용 엔드포인트
-    @app.get("/", tags=["상태"])
-    @app.get("/health", tags=["상태"])
-    async def health_check() -> Dict[str, Any]:
-        """
-        서비스 상태 확인 엔드포인트
-        """
-        return {
-            "status": "active",
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "version": settings.VERSION,
-            "environment": settings.ENVIRONMENT,
-            "domain": os.getenv("API_DOMAIN", "localhost")
-        }
-    
-    # 도메인별 상태 확인 엔드포인트
-    @app.get("/domain-status", tags=["상태"])
-    async def domain_status() -> Dict[str, Any]:
-        """
-        현재 도메인 정보와 CORS 설정 확인 엔드포인트
-        """
-        return {
-            "api_domain": os.getenv("API_DOMAIN", "localhost"),
-            "cors_origins": settings.CORS_ORIGINS if hasattr(settings, "CORS_ORIGINS") else settings.BACKEND_CORS_ORIGINS,
-            "environment": settings.ENVIRONMENT,
-            "ssl_enabled": settings.SSL_REDIRECT if hasattr(settings, "SSL_REDIRECT") else False
-        }
-    
-    # WebSocket 엔드포인트
-    websocket_manager = WebSocketManager()
-    
-    @app.websocket("/ws/{client_id}")
-    async def websocket_endpoint(websocket: WebSocket, client_id: str):
-        await websocket_manager.connect(websocket, client_id)
-        try:
-            while True:
-                data = await websocket.receive_text()
-                await websocket_manager.process_message(client_id, data)
-        except WebSocketDisconnect:
-            websocket_manager.disconnect(client_id)
-    
-    return app
+# 설정 로드
+settings = get_settings()
 
-# FastAPI 애플리케이션 생성
-app = create_app()
+
+# API 시작/종료 이벤트 핸들러
+async def startup_event():
+    """서비스 시작 시 초기화 작업"""
+    logger.info("API 서비스 시작 이벤트 처리")
+    # 여기에 추가 초기화 코드 작성
+
+
+async def shutdown_event():
+    """서비스 종료 시 리소스 정리"""
+    logger.info("API 서비스 종료 이벤트 처리")
+    # 여기에 리소스 정리 코드 작성
+
+
+# FastAPI 애플리케이션 생성 및 설정
+app = create_fastapi_app(
+    settings=settings,
+    title="차량 정비 관리 API",
+    description="모듈화된 FastAPI 기반 차량 정비 관리 API 서비스",
+    version=settings.VERSION if hasattr(settings, "VERSION") else "1.0.0",
+    on_startup=[startup_event],
+    on_shutdown=[shutdown_event],
+    configure_middleware_func=configure_middleware,
+    configure_routes_func=configure_routes,
+    configure_exception_handlers_func=setup_exception_handlers,
+    logger=logger,
+    openapi_url="/api/openapi.json",
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+)
+
+# API 문서화 설정
+setup_docs(app)
+
+
+# 미들웨어 추가: 요청별 의존성 설정
+@app.middleware("http")
+async def dependencies_middleware(request: Request, call_next):
+    """
+    요청별 의존성 주입 미들웨어
+    각 요청에 대한 의존성(DB 세션, 서비스 등)을 설정
+    """
+    async with timed_operation(f"{request.method} {request.url.path}"):
+        async with lifespan_dependencies(request):
+            # 다음 미들웨어 또는 엔드포인트 핸들러 호출
+            response = await call_next(request)
+            return response
+
+
+# 상태 확인 엔드포인트 (공통 모듈의 기본 엔드포인트 대신 사용자 지정)
+@app.get("/api/health")
+async def health_check(settings: Settings = Depends(get_settings_dependency)):
+    """
+    서비스 헬스 체크 엔드포인트
+    """
+    return {
+        "status": "ok",
+        "version": settings.VERSION,
+        "environment": settings.ENVIRONMENT,
+        "service": "api",
+    }
+
+
+logger.info("API 문서화 설정이 완료되었습니다")
+logger.info("API 애플리케이션이 성공적으로 초기화되었습니다")
 
 # 직접 실행될 경우 개발 서버 시작
 if __name__ == "__main__":
-    import uvicorn
-    
     try:
-        # 필수 환경 변수 검증
-        validate_env_variables()
-        
         # 환경 변수나 설정에서 포트 가져오기
-        port = int(os.getenv("PORT", settings.PORT if hasattr(settings, "PORT") else 8000))
-        
+        port = int(
+            os.getenv("PORT", settings.PORT if hasattr(settings, "PORT") else 8000)
+        )
+
         # 로거에 기록
-        logger.info(f"API 서버 시작: 포트 {port}, 디버그 모드: {settings.DEBUG}, 환경: {settings.ENVIRONMENT}")
-        
+        logger.info(
+            f"API 서버 시작: 포트 {port}, 디버그 모드: {settings.DEBUG}, 환경: {settings.ENVIRONMENT}"
+        )
+
         # 서버 설정
         uvicorn_config = {
-            "app": "src.main:app",  # 절대 경로로 수정
+            "app": "src.main:app",
             "host": "0.0.0.0",
             "port": port,
             "reload": settings.DEBUG,
             "log_level": "info" if not settings.DEBUG else "debug",
             "workers": settings.WORKERS if hasattr(settings, "WORKERS") else 1,
-            "timeout_keep_alive": 120,  # 연결 유지 타임아웃 설정
-            "access_log": True
+            "timeout_keep_alive": 120,
         }
-        
+
         # 서버 실행
         logger.info("API 서버를 시작합니다...")
         uvicorn.run(**uvicorn_config)

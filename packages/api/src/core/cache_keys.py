@@ -3,6 +3,7 @@
 
 API 요청 및 응답 캐싱을 위한 키 생성 함수 제공
 """
+
 import hashlib
 import json
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -150,7 +151,9 @@ def create_model_cache_key(
     return f"model_cache:{':'.join(key_parts)}"
 
 
-def get_cache_namespace_for_user(user_id: Optional[Union[str, int]] = None) -> Optional[str]:
+def get_cache_namespace_for_user(
+    user_id: Optional[Union[str, int]] = None,
+) -> Optional[str]:
     """
     사용자별 캐시 네임스페이스 생성
 
@@ -189,6 +192,19 @@ def get_invalidation_pattern(
         return f"{prefix}*"
 
 
+def create_cache_namespace(cache_name: str) -> str:
+    """
+    캐시 네임스페이스 생성
+
+    Args:
+        cache_name: 캐시 이름
+
+    Returns:
+        str: 생성된 캐시 네임스페이스
+    """
+    return f"namespace:{cache_name}"
+
+
 def _serialize_object(obj: Any) -> Any:
     """
     객체를 JSON 직렬화 가능한 형태로 변환
@@ -204,4 +220,4 @@ def _serialize_object(obj: Any) -> Any:
     if hasattr(obj, "__dict__"):
         return obj.__dict__
     # UUID, datetime 등 기타 특수 객체 처리
-    return str(obj) 
+    return str(obj)

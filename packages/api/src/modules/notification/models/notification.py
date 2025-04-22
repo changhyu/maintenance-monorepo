@@ -1,24 +1,29 @@
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
-from pydantic import BaseModel, Field
+
 from bson import ObjectId
+from pydantic import BaseModel, Field
+
 
 class NotificationType(str, Enum):
     EMAIL = "email"
     PUSH = "push"
     IN_APP = "in_app"
 
+
 class NotificationPriority(str, Enum):
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
+
 
 class NotificationStatus(str, Enum):
     PENDING = "pending"
     SENT = "sent"
     FAILED = "failed"
     READ = "read"
+
 
 class Notification(BaseModel):
     id: str = Field(default_factory=lambda: str(ObjectId()))
@@ -37,9 +42,7 @@ class Notification(BaseModel):
 
     class Config:
         allow_population_by_field_name = True
-        json_encoders = {
-            ObjectId: str
-        }
+        json_encoders = {ObjectId: str}
 
     def mark_as_sent(self):
         self.status = NotificationStatus.SENT
@@ -54,4 +57,4 @@ class Notification(BaseModel):
         self.status = NotificationStatus.READ
         self.is_read = True
         self.read_at = datetime.now(timezone.UTC)
-        self.updated_at = datetime.now(timezone.UTC) 
+        self.updated_at = datetime.now(timezone.UTC)

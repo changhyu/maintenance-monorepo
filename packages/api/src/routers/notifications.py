@@ -1,135 +1,153 @@
 """
-알림 API 라우터
-"""
-from typing import Dict, Any, List
-import logging
-from fastapi import APIRouter, Depends, HTTPException, status, Body
-from pydantic import BaseModel, Field
+푸시 알림 API
 
-# 웹 푸시 관련 모듈
-from pywebpush import webpush, WebPushException
+웹 푸시 알림 구독 및 전송을 위한 API 엔드포인트
+"""
+
 import json
 import os
+from typing import Any, Dict, List, Optional, Union
 
-# 로거 설정
-logger = logging.getLogger(__name__)
+from fastapi import APIRouter, Body, Depends, Header, HTTPException
+from packagescore.logger import logger
+from packagescore.versioning import ApiVersion
+from pydantic import BaseModel, Field
+from pywebpush import WebPushException, webpush
 
-# 라우터 정의
-router = APIRouter(tags=["notifications"])
+# 상수
+VAPID_PRIVATE_KEY = os.getenv("VAPID_PRIVATE_KEY", "YOUR_VAPID_PRIVATE_KEY_HERE")
+VAPID_PUBLIC_KEY = os.getenv("VAPID_PUBLIC_KEY", "YOUR_VAPID_PUBLIC_KEY_HERE")
+VAPID_CLAIMS = {"sub": "mailto:example@example.com"}
+
+# 구독 정보를 저장할 리스트 (실제 구현에서는 데이터베이스 사용)
+subscriptions: List[Dict[str, Any]] = []
+
+# 라우터 설정
+router = APIRouter(prefix="/notifications", tags=["notifications"])
+
 
 # 모델 정의
 class PushSubscription(BaseModel):
-    """웹 푸시 구독 정보 모델"""
+    """웹 푸시 구독 정보"""
+
     endpoint: str
-    keys: dict = Field(..., example={"p256dh": "string", "auth": "string"})
+    keys: Dict[str, str] = Field(..., description="p256dh 및 auth 키")
+
+
+class NotificationAction(BaseModel):
+    """알림 액션 정보"""
+
+    action: str
+    title: str
+    icon: Optional[str] = None
+
 
 class NotificationData(BaseModel):
-    """알림 데이터 모델"""
+    """알림 데이터"""
+
     title: str
-    body: str
-    icon: str = "/logo192.png"
-    badge: str = "/notification-badge.png"
-    url: str = "/"
-    tag: str = None
-    actions: List[Dict[str, str]] = []
+    body: Optional[str] = None
+    icon: Optional[str] = None
+    badge: Optional[str] = None
+    url: Optional[str] = None
+    tag: Optional[str] = None
+    actions: Optional[List[NotificationAction]] = None
 
-# 환경 변수에서 VAPID 키 가져오기 (설정되지 않은 경우 기본값 사용)
-VAPID_PRIVATE_KEY = os.getenv("VAPID_PRIVATE_KEY", "uXCQ8FvpmPzYc7HaNEUC_bJ-1b0xDwAZ81q8qEf16AE")
-VAPID_PUBLIC_KEY = os.getenv("VAPID_PUBLIC_KEY", "BDzZ-AE5Kg9vpjvDrJJgfr1f_0aZLlsUf1FHgvEmP04VC2uAdnPa06PxdnqIHv7ANE_hVB0sZJSZ1i6npZX4dSo")
-VAPID_CLAIMS = {
-    "sub": "mailto:admin@car-goro.com"
-}
 
-# 구독 정보 저장소 (실제 구현에서는 데이터베이스 사용)
-subscriptions = []
+class NotificationResponse(BaseModel):
+    """알림 응답"""
 
-@router.post("/subscribe", status_code=status.HTTP_201_CREATED)
-async def subscribe_to_push(subscription: PushSubscription):
-    """
-    웹 푸시 알림 구독 등록
-    """
-    try:
-        # 중복 구독 확인
-        for existing in subscriptions:
-            if existing.get("endpoint") == subscription.endpoint:
-                return {"message": "이미 구독되어 있습니다.", "success": True}
-        
-        # 구독 정보 저장
-        subscriptions.append(subscription.dict())
-        
-        # 구독 확인 알림 전송
-        notification_data = {
-            "title": "알림 설정 완료",
-            "body": "차량 정비 관리 시스템의 알림 설정이 완료되었습니다.",
-            "icon": "/logo192.png"
-        }
-        
-        try:
-            webpush(
-                subscription_info=subscription.dict(),
-                data=json.dumps(notification_data),
-                vapid_private_key=VAPID_PRIVATE_KEY,
-                vapid_claims=VAPID_CLAIMS
-            )
-        except Exception as e:
-            logger.warning(f"확인 알림 전송 중 오류 발생: {str(e)}")
-        
-        return {"message": "푸시 알림 구독이 등록되었습니다.", "success": True}
-    except Exception as e:
-        logger.error(f"구독 등록 중 오류 발생: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="알림 구독 등록 중 오류가 발생했습니다."
-        )
+    success: bool
+    message: str
+    failed_count: Optional[int] = None
 
-@router.post("/send", status_code=status.HTTP_200_OK)
-async def send_notification(notification: NotificationData, user_ids: List[str] = Body(None)):
-    """
-    푸시 알림 전송
-    
-    특정 사용자 또는 모든 구독자에게 알림을 전송합니다.
-    user_ids가 제공되면 해당 사용자에게만 전송하고, 그렇지 않으면 모든 구독자에게 전송합니다.
-    """
-    if not subscriptions:
-        return {"message": "구독자가 없습니다.", "success": False}
-    
-    try:
-        notification_data = notification.dict()
-        sent_count = 0
-        failed_count = 0
-        
-        for subscription in subscriptions:
-            try:
-                webpush(
-                    subscription_info=subscription,
-                    data=json.dumps(notification_data),
-                    vapid_private_key=VAPID_PRIVATE_KEY,
-                    vapid_claims=VAPID_CLAIMS
-                )
-                sent_count += 1
-            except WebPushException as e:
-                logger.warning(f"알림 전송 실패: {str(e)}")
-                # 만료된 구독 삭제
-                if e.response and e.response.status_code == 410:
-                    subscriptions.remove(subscription)
-                failed_count += 1
-        
-        return {
-            "message": f"알림 전송 완료: {sent_count}명 성공, {failed_count}명 실패",
-            "success": True,
-            "sent_count": sent_count,
-            "failed_count": failed_count
-        }
-    except Exception as e:
-        logger.error(f"알림 전송 중 오류 발생: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="알림 전송 중 오류가 발생했습니다."
-        )
 
+# 엔드포인트 정의
 @router.get("/vapid-public-key")
 async def get_vapid_public_key():
+    """VAPID 공개 키 반환"""
+    return {"public_key": VAPID_PUBLIC_KEY}
+
+
+@router.post("/subscribe", status_code=201, response_model=NotificationResponse)
+async def subscribe(subscription: PushSubscription = Body(...)):
     """
-    VAPID 공개 키 반환
+    새 구독 등록
     """
-    return {"public_key": VAPID_PUBLIC_KEY} 
+    # 중복 구독 확인
+    for existing_sub in subscriptions:
+        if existing_sub.get("endpoint") == subscription.endpoint:
+            logger.info(f"이미 등록된 구독: {subscription.endpoint}")
+            return {"success": True, "message": "이미 구독되어 있습니다"}
+
+    # 구독 정보 저장
+    subscription_dict = subscription.dict()
+    subscriptions.append(subscription_dict)
+
+    # 테스트 알림 전송
+    try:
+        webpush(
+            subscription_info=subscription_dict,
+            data=json.dumps(
+                {
+                    "title": "구독 성공",
+                    "body": "푸시 알림 구독이 성공적으로 등록되었습니다.",
+                    "icon": "/logo192.png",
+                }
+            ),
+            vapid_private_key=VAPID_PRIVATE_KEY,
+            vapid_claims=VAPID_CLAIMS,
+        )
+        logger.info(f"새 구독 등록: {subscription.endpoint}")
+
+        return {"success": True, "message": "푸시 알림 구독이 등록되었습니다"}
+    except WebPushException as e:
+        logger.error(f"구독 중 오류 발생: {e}")
+        # 구독은 여전히 유효하므로 성공으로 처리
+        return {
+            "success": True,
+            "message": "푸시 알림 구독이 등록되었습니다 (알림 전송 실패)",
+        }
+
+
+@router.post("/send", response_model=NotificationResponse)
+async def send_notification(notification: NotificationData = Body(...)):
+    """
+    구독자에게 알림 전송
+    """
+    if not subscriptions:
+        logger.warning("구독자가 없음")
+        return {"success": False, "message": "구독자가 없습니다"}
+
+    # 알림 데이터 준비
+    data = notification.dict()
+
+    # 실패한 전송 카운트
+    failed_count = 0
+
+    # 모든 구독자에게 전송
+    for subscription in subscriptions[:]:  # 복사본으로 반복
+        try:
+            webpush(
+                subscription_info=subscription,
+                data=json.dumps(data),
+                vapid_private_key=VAPID_PRIVATE_KEY,
+                vapid_claims=VAPID_CLAIMS,
+            )
+        except WebPushException as e:
+            failed_count += 1
+            logger.error(f"알림 전송 실패: {e}")
+
+            # 만료된 구독인 경우 제거
+            if "410" in str(e):
+                subscriptions.remove(subscription)
+                logger.info(f"만료된 구독 제거: {subscription.get('endpoint')}")
+
+    result = {
+        "success": failed_count < len(subscriptions),
+        "message": "알림 전송 완료",
+        "failed_count": failed_count,
+    }
+
+    logger.info(f"알림 전송 결과: {result}")
+    return result

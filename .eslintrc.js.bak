@@ -42,47 +42,52 @@ module.exports = {
     'import'
   ],
   rules: {
-    // 경고로 변경된 규칙들 (완전히 비활성화하지 않고 개발자에게 알림)
-    '@typescript-eslint/no-explicit-any': 'off',
-    '@typescript-eslint/ban-types': 'off',
-    '@typescript-eslint/no-unused-vars': 'off',
-    'react-hooks/exhaustive-deps': 'off',
+    // 타입스크립트 규칙 강화
+    '@typescript-eslint/no-explicit-any': 'warn',
+    '@typescript-eslint/ban-types': 'warn',
+    '@typescript-eslint/no-unused-vars': ['warn', { 'argsIgnorePattern': '^_', 'varsIgnorePattern': '^_' }],
+    'react-hooks/exhaustive-deps': 'warn',
     
-    // JSX 관련 규칙 완화
+    // 코드 품질 규칙
+    'no-console': ['warn', { 'allow': ['warn', 'error'] }],
+    'prefer-const': 'warn',
+    'no-var': 'error',
+    
+    // JSX 관련 규칙
     'react/jsx-uses-react': 'off',
     'react/react-in-jsx-scope': 'off',
-    '@typescript-eslint/no-namespace': 'off',
-    '@typescript-eslint/ban-ts-comment': 'off',
+    '@typescript-eslint/no-namespace': 'warn',
+    '@typescript-eslint/ban-ts-comment': 'warn',
     
-    // JSX 타입 검사 규칙 완화 
-    '@typescript-eslint/no-empty-interface': 'off',
+    // JSX 타입 검사 규칙
+    '@typescript-eslint/no-empty-interface': 'warn',
     'react/prop-types': 'off',
     'react/display-name': 'off',
     
-    // 접근성 규칙 조정
-    'jsx-a11y/anchor-is-valid': 'off',
-    'jsx-a11y/no-noninteractive-element-interactions': 'off',
-    'jsx-a11y/click-events-have-key-events': 'off',
-    'jsx-a11y/no-static-element-interactions': 'off',
+    // 접근성 규칙 조정 - 일부 유지
+    'jsx-a11y/anchor-is-valid': 'warn',
+    'jsx-a11y/no-noninteractive-element-interactions': 'warn',
+    'jsx-a11y/click-events-have-key-events': 'warn',
+    'jsx-a11y/no-static-element-interactions': 'warn',
     
     // 효율적인 개발을 위한 추가 설정
     'no-unreachable': 'warn',
     'import/no-anonymous-default-export': 'warn',
     
-    // 새롭게 추가한 규칙 완화
-    '@typescript-eslint/explicit-module-boundary-types': 'off',
-    '@typescript-eslint/no-non-null-assertion': 'off',
-    'no-case-declarations': 'off',
+    // 타입 안전성 규칙
+    '@typescript-eslint/explicit-module-boundary-types': 'warn',
+    '@typescript-eslint/no-non-null-assertion': 'warn',
+    'no-case-declarations': 'warn',
     'no-empty': 'warn',
     'no-constant-condition': 'warn',
-    '@typescript-eslint/no-empty-function': 'off',
+    '@typescript-eslint/no-empty-function': 'warn',
     
-    // unknown 타입 경고 무시
-    '@typescript-eslint/no-unsafe-assignment': 'off',
-    '@typescript-eslint/no-unsafe-member-access': 'off',
-    '@typescript-eslint/no-unsafe-call': 'off',
-    '@typescript-eslint/no-unsafe-return': 'off',
-    '@typescript-eslint/no-unsafe-argument': 'off'
+    // unknown 타입 경고 활성화 - 단계적 적용
+    '@typescript-eslint/no-unsafe-assignment': 'warn',
+    '@typescript-eslint/no-unsafe-member-access': 'warn',
+    '@typescript-eslint/no-unsafe-call': 'warn',
+    '@typescript-eslint/no-unsafe-return': 'warn',
+    '@typescript-eslint/no-unsafe-argument': 'warn'
   },
   settings: {
     react: {
@@ -114,14 +119,14 @@ module.exports = {
       }
     },
     {
-      // 서비스 파일에 대한 특별 규칙
+      // 서비스 파일에 대한 특별 규칙 - 점진적으로 수정 예정
       files: ['**/services/**/*.ts', '**/services/**/*.tsx'],
       rules: {
-        '@typescript-eslint/no-unsafe-assignment': 'off',
-        '@typescript-eslint/no-unsafe-member-access': 'off',
-        '@typescript-eslint/no-unsafe-call': 'off', 
-        '@typescript-eslint/no-unsafe-return': 'off',
-        '@typescript-eslint/no-unsafe-argument': 'off'
+        '@typescript-eslint/no-unsafe-assignment': 'warn',
+        '@typescript-eslint/no-unsafe-member-access': 'warn',
+        '@typescript-eslint/no-unsafe-call': 'warn', 
+        '@typescript-eslint/no-unsafe-return': 'warn',
+        '@typescript-eslint/no-unsafe-argument': 'warn'
       }
     }
   ]

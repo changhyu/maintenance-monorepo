@@ -2,6 +2,8 @@
  * 날짜 관련 유틸리티 함수 모음
  */
 
+import { errorLogger } from './errorLogger';
+
 /**
  * 날짜 형식 설정
  */
@@ -24,7 +26,7 @@ export function formatDate(dateString: string | Date | undefined): string {
     
     return `${year}년 ${month}월 ${day}일`;
   } catch (error) {
-    console.error('날짜 형식 변환 오류:', error);
+    errorLogger.error('날짜 형식 변환 오류', { dateString }, error);
     return '';
   }
 }
@@ -47,7 +49,7 @@ export function formatDateTime(dateString: string | Date | undefined): string {
     
     return `${year}년 ${month}월 ${day}일 ${hours}:${minutes}`;
   } catch (error) {
-    console.error('날짜 시간 형식 변환 오류:', error);
+    errorLogger.error('날짜 시간 형식 변환 오류', { dateString }, error);
     return '';
   }
 }
@@ -78,7 +80,7 @@ export function getRelativeTime(dateString: string | Date | undefined): string {
     if (diffMonths < 12) return `${diffMonths}개월 전`;
     return `${diffYears}년 전`;
   } catch (error) {
-    console.error('상대 시간 계산 오류:', error);
+    errorLogger.error('상대 시간 계산 오류', { dateString }, error);
     return '';
   }
 }
@@ -105,7 +107,7 @@ export function getDaysBetween(
     const diffMs = end.getTime() - start.getTime();
     return Math.round(diffMs / (1000 * 60 * 60 * 24));
   } catch (error) {
-    console.error('날짜 간격 계산 오류:', error);
+    errorLogger.error('날짜 간격 계산 오류', { startDate, endDate }, error);
     return 0;
   }
 }
@@ -126,7 +128,7 @@ export function addDays(
     date.setDate(date.getDate() + days);
     return date.toISOString().split('T')[0];
   } catch (error) {
-    console.error('날짜 추가 오류:', error);
+    errorLogger.error('날짜 추가 오류', { dateString, days }, error);
     return '';
   }
 }
@@ -156,7 +158,7 @@ export function isDatePassed(dateString: string | Date | undefined): boolean {
     
     return date.getTime() < now.getTime();
   } catch (error) {
-    console.error('날짜 경과 확인 오류:', error);
+    errorLogger.error('날짜 경과 확인 오류', { dateString }, error);
     return false;
   }
 }
@@ -182,7 +184,7 @@ export function getMoreRecentDate(
       ? d1.toISOString() 
       : d2.toISOString();
   } catch (error) {
-    console.error('최근 날짜 비교 오류:', error);
+    errorLogger.error('최근 날짜 비교 오류', { date1, date2 }, error);
     return '';
   }
 } 

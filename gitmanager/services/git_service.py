@@ -85,7 +85,7 @@ from gitmanager.git.core.exceptions import (
     GitCommitException,
     GitConflictException,
     GitMergeException,
-    GitOperationException,
+    GitException,
     GitPushPullException,
     GitRemoteException,
     GitRepositoryException,
@@ -196,7 +196,7 @@ class GitService(GitInterface):
                 ],
             }
         except GitCommandException as e:
-            raise GitOperationException(f"상태 조회 중 오류 발생: {str(e)}") from e
+            raise GitException(f"상태 조회 중 오류 발생: {str(e)}") from e
 
     def get_status(self) -> Dict[str, Any]:
         try:
@@ -228,7 +228,7 @@ class GitService(GitInterface):
                 "last_commit": last_commit,
             }
         except GitCommandException as e:
-            raise GitOperationException(f"상태 조회 중 오류 발생: {str(e)}") from e
+            raise GitException(f"상태 조회 중 오류 발생: {str(e)}") from e
 
     # 누락된 헬퍼 메서드들 구현
     def _get_branch_info(self, branch_name: str) -> Dict[str, Any]:
@@ -315,7 +315,7 @@ class GitService(GitInterface):
 
             return branches
         except GitCommandException as e:
-            raise GitOperationException(
+            raise GitException(
                 f"브랜치 목록 조회 중 오류 발생: {str(e)}"
             ) from e
 
@@ -329,7 +329,7 @@ class GitService(GitInterface):
 
             return self._run_git_command(["commit", "-m", message]).split()[1]
         except GitCommandException as e:
-            raise GitOperationException(f"커밋 생성 중 오류 발생: {str(e)}") from e
+            raise GitException(f"커밋 생성 중 오류 발생: {str(e)}") from e
 
     def merge_branches(self, source_branch: str, target_branch: str) -> Dict[str, Any]:
         """브랜치 병합"""
@@ -350,9 +350,9 @@ class GitService(GitInterface):
             except GitCommandException as e:
                 if "CONFLICT" in str(e):
                     raise GitConflictException("병합 충돌이 발생했습니다") from e
-                raise GitOperationException(f"병합 중 오류 발생: {str(e)}") from e
+                raise GitException(f"병합 중 오류 발생: {str(e)}") from e
         except GitCommandException as e:
-            raise GitOperationException(
+            raise GitException(
                 f"브랜치 체크아웃 중 오류 발생: {str(e)}"
             ) from e
 
@@ -373,7 +373,7 @@ class GitService(GitInterface):
             self._run_git_command(["pull", remote, branch])
             return {"success": True, "details": "Pull completed successfully"}
         except GitCommandException as e:
-            raise GitPushPullException(f"Failed to pull changes: {str(e)}") from e
+            raise GitException(f"Failed to pull changes: {str(e)}") from e
 
     def push(self, remote: str = "origin", branch: Optional[str] = None) -> str:
         """
@@ -394,18 +394,19 @@ class GitService(GitInterface):
             self._run_git_command(args)
             return "Successfully pushed changes"
         except GitCommandException as e:
-            raise GitPushPullException(f"Failed to push changes: {str(e)}") from e
+            raise GitException(f"Failed to push changes: {str(e)}") from e
         except Exception as e:
-            raise GitOperationException(
+            raise GitException(
                 f"Unexpected error during push: {str(e)}"
             ) from e
 
-    def _run_git_command(self, args: List[str]) -> str:
+    def _run_git_command(self, args: List[str], check_errors: bool = True) -> str:
         """
         Git 명령어를 실행하는 내부 메서드입니다.
 
         Args:
             args: Git 명령어 인자 목록
+            check_errors: 오류 발생 시 예외를 발생시킬지 여부
 
         Returns:
             str: 명령어 실행 결과
@@ -414,9 +415,17 @@ class GitService(GitInterface):
             GitCommandException: 명령어 실행 중 오류가 발생한 경우
         """
         try:
-            return run_git_command(args, cwd=str(self.repo_path))
+            return run_git_command(args, cwd=str(self.repo_path), check=check_errors)
+        except GitCommandException as e:
+            if check_errors:
+                raise
+            logger.warning(f"Git 명령어 실행 오류 무시: {str(e)}")
+            return ""
         except Exception as e:
-            raise GitCommandException(f"Git 명령어 실행 중 오류 발생: {str(e)}") from e
+            if check_errors:
+                raise GitCommandException(f"Git 명령어 실행 중 오류 발생: {str(e)}", command="git " + " ".join(args)) from e
+            logger.warning(f"Git 명령어 실행 중 예상치 못한 오류 발생: {str(e)}")
+            return ""
 
     def _check_remote_exists(self, remote: str) -> None:
         """
@@ -455,9 +464,9 @@ class GitService(GitInterface):
                     "message": message,
                     "date": date,
                 }
-            raise GitOperationException(f"Invalid commit info format: {output}")
+            raise GitException(f"Invalid commit info format: {output}")
         except GitCommandException as e:
-            raise GitOperationException(f"Failed to get commit info: {str(e)}") from e
+            raise GitException(f"Failed to get commit info: {str(e)}") from e
 
     def get_branch_info(self, branch_name: str) -> BranchInfo:
         """
@@ -474,10 +483,10 @@ class GitService(GitInterface):
                 ["rev-parse", "--abbrev-ref", "HEAD"]
             ).strip()
             tracking = self._run_git_command(
-                ["rev-parse", "--abbrev-ref", f"{branch_name}@{{upstream}}"]
+                ["rev-parse", "--abbrev-ref", f"{branch_name}@{{upstream}}"], check_errors=False
             ).strip()
             commit_line = self._run_git_command(
-                ["log", "-1", "--pretty=format:%h|%an|%ae|%s|%ci", branch_name]
+                ["log", "-1", "--pretty=format:%h|%an|%ae|%s|%ci", branch_name], check_errors=False
             )
 
             commit_info = None
@@ -579,7 +588,7 @@ class GitService(GitInterface):
             ]
             return {"file": file_path, "commits": commits}
         except GitCommandException as e:
-            raise GitOperationException(f"Failed to get file history: {str(e)}") from e
+            raise GitException(f"Failed to get file history: {str(e)}") from e
 
     def get_changes_between_commits(
         self, from_commit: str, to_commit: str
@@ -609,7 +618,7 @@ class GitService(GitInterface):
                 "changes": changes,
             }
         except GitCommandException as e:
-            raise GitOperationException(f"Failed to compare commits: {str(e)}") from e
+            raise GitException(f"Failed to compare commits: {str(e)}") from e
 
     def get_changes(self, commit_id: str) -> GitChanges:
         """
@@ -640,7 +649,7 @@ class GitService(GitInterface):
                 "changes": changes,
             }
         except GitCommandException as e:
-            raise GitOperationException(f"Failed to get changes: {str(e)}") from e
+            raise GitException(f"Failed to get changes: {str(e)}") from e
 
     def get_remote_info(self) -> GitRemote:
         """
@@ -666,7 +675,7 @@ class GitService(GitInterface):
 
             return {"remotes": list(remote_info.values())}
         except GitCommandException as e:
-            raise GitOperationException(f"Failed to get remote info: {str(e)}") from e
+            raise GitException(f"Failed to get remote info: {str(e)}") from e
 
     def get_config_info(self) -> GitConfig:
         """
@@ -697,7 +706,7 @@ class GitService(GitInterface):
                 "local": local_settings,
             }
         except GitCommandException as e:
-            raise GitOperationException(f"Failed to get config info: {str(e)}") from e
+            raise GitException(f"Failed to get config info: {str(e)}") from e
 
     def get_diff_stats(self, commit_id: str) -> CommitStats:
         """
@@ -744,7 +753,7 @@ class GitService(GitInterface):
                 "files": stats,
             }
         except GitCommandException as e:
-            raise GitOperationException(f"Failed to get diff stats: {str(e)}") from e
+            raise GitException(f"Failed to get diff stats: {str(e)}") from e
 
     def get_merge_conflicts(self, commit_id: str) -> MergeConflictResult:
         """
@@ -757,10 +766,10 @@ class GitService(GitInterface):
             MergeConflictResult: 병합 충돌 정보
         """
         try:
-            conflicts = self._run_git_command(["diff", "--check", commit_id])
+            conflicts = self._run_git_command(["diff", "--check", commit_id], check_errors=False)
             return {"conflicts": conflicts.splitlines()}
         except GitCommandException as e:
-            raise GitOperationException(
+            raise GitException(
                 f"Failed to get merge conflicts: {str(e)}"
             ) from e
 
@@ -775,12 +784,10 @@ class GitService(GitInterface):
             List[str]: 충돌 마커 목록
         """
         try:
-            markers = self._run_git_command(["grep", "-n", "<<<<<<<", file_path])
+            markers = self._run_git_command(["grep", "-n", "<<<<<<<", file_path], check_errors=False)
             return markers.splitlines()
-        except GitCommandException as e:
-            raise GitOperationException(
-                f"Failed to get conflict markers: {str(e)}"
-            ) from e
+        except GitCommandException:
+            return []
 
     def get_commit_message(self, commit_id: str) -> str:
         """
@@ -795,7 +802,7 @@ class GitService(GitInterface):
         try:
             return self._run_git_command(["log", "-1", "--pretty=%B", commit_id])
         except GitCommandException as e:
-            raise GitOperationException(
+            raise GitException(
                 f"Failed to get commit message: {str(e)}"
             ) from e
 
@@ -813,7 +820,7 @@ class GitService(GitInterface):
             stats = self._run_git_command(["show", "--stat", "--oneline", commit_id])
             return {"stats": stats}
         except GitCommandException as e:
-            raise GitOperationException(f"Failed to get commit stats: {str(e)}") from e
+            raise GitException(f"Failed to get commit stats: {str(e)}") from e
 
     def get_branch_comparison(
         self, branch1: str, branch2: str
@@ -832,7 +839,7 @@ class GitService(GitInterface):
             diff = self._run_git_command(["diff", branch1, branch2])
             return {"diff": diff}
         except GitCommandException as e:
-            raise GitOperationException(f"Failed to compare branches: {str(e)}") from e
+            raise GitException(f"Failed to compare branches: {str(e)}") from e
 
     def get_file_comparison(self, file1: str, file2: str) -> CommitComparison:
         """
@@ -849,7 +856,7 @@ class GitService(GitInterface):
             diff = self._run_git_command(["diff", file1, file2])
             return {"diff": diff}
         except GitCommandException as e:
-            raise GitOperationException(f"Failed to compare files: {str(e)}") from e
+            raise GitException(f"Failed to compare files: {str(e)}") from e
 
     # 누락된 추상 메서드들 구현
     def add_remote(self, name: str, url: str) -> bool:
@@ -858,7 +865,7 @@ class GitService(GitInterface):
             self._run_git_command(["remote", "add", name, url])
             return True
         except GitCommandException as e:
-            raise GitRemoteException(f"원격 저장소 추가 실패: {str(e)}") from e
+            raise GitException(f"원격 저장소 추가 실패: {str(e)}") from e
 
     def remove_remote(self, name: str) -> bool:
         """원격 저장소 제거"""
@@ -866,7 +873,7 @@ class GitService(GitInterface):
             self._run_git_command(["remote", "remove", name])
             return True
         except GitCommandException as e:
-            raise GitRemoteException(f"원격 저장소 제거 실패: {str(e)}") from e
+            raise GitException(f"원격 저장소 제거 실패: {str(e)}") from e
 
     def fetch_remote(self, remote: str = "origin") -> Dict[str, Any]:
         """원격 저장소에서 데이터 가져오기"""
@@ -874,7 +881,7 @@ class GitService(GitInterface):
             output = self._run_git_command(["fetch", remote])
             return {"success": True, "output": output}
         except GitCommandException as e:
-            raise GitRemoteException(
+            raise GitException(
                 f"원격 저장소 데이터 가져오기 실패: {str(e)}"
             ) from e
 
@@ -902,32 +909,45 @@ class GitService(GitInterface):
 
     def switch_branch(self, branch_name: str) -> Dict[str, Any]:
         """
-        브랜치 전환
+        다른 브랜치로 전환합니다.
 
         Args:
             branch_name: 전환할 브랜치 이름
 
         Returns:
-            Dict[str, Any]: 브랜치 정보
-
-        Raises:
-            GitBranchException: 브랜치 전환 실패 시
+            Dict: 전환 결과 정보
         """
         try:
-            self._run_git_command(["checkout", branch_name])
+            # 브랜치 확인 - 없으면 생성
+            try:
+                branches = self._run_git_command(["branch"], check_errors=False).splitlines()
+                branch_exists = any(
+                    b.strip().replace("* ", "") == branch_name for b in branches
+                )
+            except GitCommandException:
+                branch_exists = False
 
-            # 테스트에서 mocking이 적용되었는지 확인
-            if hasattr(self._get_branch_info, "mock_calls"):
-                # 테스트 중일 때 mocking된 결과 사용
-                return self._get_branch_info(branch_name)
-            else:
-                # 실제 구현에서는 현재 브랜치 정보 반환
-                info = self.get_branch_info(branch_name)
-                # 브랜치를 전환했으므로 is_current를 강제로 True로 설정
-                info["is_current"] = True
-                return info
+            if not branch_exists:
+                self._run_git_command(["branch", branch_name])
+
+            # 브랜치 전환
+            self._run_git_command(["checkout", branch_name])
+            
+            # 브랜치 정보 반환
+            current_branch = self._run_git_command(
+                ["rev-parse", "--abbrev-ref", "HEAD"]
+            ).strip()
+            
+            # 인터페이스를 준수하는 BranchInfo 형식으로 반환
+            return {
+                "name": branch_name,  # 테스트에서 확인하는 필드
+                "is_current": True,  # 방금 전환했으므로 현재 브랜치임
+                "current_branch": current_branch,  # 기존 필드도 유지
+                "success": True,
+                "message": f"Switched to branch '{branch_name}'"
+            }
         except GitCommandException as e:
-            raise GitBranchException(f"브랜치 전환 실패: {str(e)}") from e
+            raise GitBranchException(f"Failed to switch branch: {str(e)}") from e
 
     def compare_branches(self, branch1: str, branch2: str) -> Dict[str, Any]:
         """브랜치 비교"""
@@ -1065,7 +1085,7 @@ class GitService(GitInterface):
         try:
             return self._run_git_command(["config", "--get", key]).strip()
         except GitCommandException as e:
-            raise GitOperationException(f"설정 조회 실패: {str(e)}") from e
+            raise GitException(f"설정 조회 실패: {str(e)}") from e
 
     def set_config(self, key: str, value: str) -> bool:
         """Git 설정 설정"""
@@ -1073,7 +1093,7 @@ class GitService(GitInterface):
             self._run_git_command(["config", key, value])
             return True
         except GitCommandException as e:
-            raise GitOperationException(f"설정 설정 실패: {str(e)}") from e
+            raise GitException(f"설정 설정 실패: {str(e)}") from e
 
     def unset_config(self, key: str) -> bool:
         """Git 설정 제거"""
@@ -1081,7 +1101,7 @@ class GitService(GitInterface):
             self._run_git_command(["config", "--unset", key])
             return True
         except GitCommandException as e:
-            raise GitOperationException(f"설정 제거 실패: {str(e)}") from e
+            raise GitException(f"설정 제거 실패: {str(e)}") from e
 
     def get_log(self, max_count: int = 10) -> List[Dict[str, Any]]:
         """커밋 로그 조회"""
@@ -1106,7 +1126,7 @@ class GitService(GitInterface):
                     )
             return commits
         except GitCommandException as e:
-            raise GitOperationException(f"로그 조회 실패: {str(e)}") from e
+            raise GitException(f"로그 조회 실패: {str(e)}") from e
 
     def get_remotes(self) -> List[Dict[str, str]]:
         """원격 저장소 목록 조회"""
@@ -1124,7 +1144,7 @@ class GitService(GitInterface):
                         remotes[name] = {"name": name, "url": url}
             return list(remotes.values())
         except GitCommandException as e:
-            raise GitRemoteException(f"원격 저장소 목록 조회 실패: {str(e)}") from e
+            raise GitException(f"원격 저장소 목록 조회 실패: {str(e)}") from e
 
     def resolve_merge_conflicts(self) -> Dict[str, Any]:
         """병합 충돌 해결"""
@@ -1149,4 +1169,4 @@ class GitService(GitInterface):
                     conflict_files.append(line[3:].strip())
             return conflict_files
         except GitCommandException as e:
-            raise GitOperationException(f"충돌 파일 목록 조회 실패: {str(e)}") from e
+            raise GitException(f"충돌 파일 목록 조회 실패: {str(e)}") from e

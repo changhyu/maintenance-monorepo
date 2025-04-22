@@ -7,9 +7,9 @@
 from datetime import datetime
 
 
-
 class DummyShop:
     """더미 Shop 모델"""
+
     id = None
     name = ""
     type = ""
@@ -30,12 +30,13 @@ class DummyShop:
             "status": None,
             "description": "",
             "location": {"latitude": 0, "longitude": 0},
-            "business_hours": []
+            "business_hours": [],
         }
 
 
 class DummyShopService:
     """더미 ShopService 모델"""
+
     id = None
     shop_id = None
     service_type = ""
@@ -43,15 +44,12 @@ class DummyShopService:
     def __init__(self, shop_id=None, service_type=None):
         self.shop_id = shop_id
         self.service_type = service_type
-        self.__dict__ = {
-            "id": None,
-            "shop_id": shop_id,
-            "service_type": service_type
-        }
+        self.__dict__ = {"id": None, "shop_id": shop_id, "service_type": service_type}
 
 
 class DummyShopReview:
     """더미 ShopReview 모델"""
+
     id = None
     shop_id = None
     user_id = None
@@ -73,12 +71,13 @@ class DummyShopReview:
             "rating": rating,
             "title": title,
             "content": content,
-            "created_at": datetime.now()
+            "created_at": datetime.now(),
         }
 
 
 class DummyShopImage:
     """더미 ShopImage 모델"""
+
     id = None
     shop_id = None
     file_name = ""
@@ -86,7 +85,9 @@ class DummyShopImage:
     file_type = ""
     is_main = False
 
-    def __init__(self, shop_id=None, file_name="", file_url="", file_type="", is_main=False):
+    def __init__(
+        self, shop_id=None, file_name="", file_url="", file_type="", is_main=False
+    ):
         self.shop_id = shop_id
         self.file_name = file_name
         self.file_url = file_url
@@ -98,12 +99,13 @@ class DummyShopImage:
             "file_name": file_name,
             "file_url": file_url,
             "file_type": file_type,
-            "is_main": is_main
+            "is_main": is_main,
         }
 
 
 class DummyTechnician:
     """더미 Technician 모델"""
+
     id = None
     shop_id = None
     name = ""
@@ -116,26 +118,24 @@ class DummyTechnician:
             "shop_id": None,
             "name": "",
             "specialty": "",
-            "experience_years": 0
+            "experience_years": 0,
         }
 
 
 class DummyUser:
     """더미 User 모델"""
+
     id = None
     name = ""
     email = ""
 
     def __init__(self):
-        self.__dict__ = {
-            "id": None,
-            "name": "",
-            "email": ""
-        }
+        self.__dict__ = {"id": None, "name": "", "email": ""}
 
 
 class DummyVehicle:
     """더미 Vehicle 모델"""
+
     id = None
     make = ""
     model = ""
@@ -148,12 +148,13 @@ class DummyVehicle:
             "make": "",
             "model": "",
             "year": 0,
-            "user_id": None
+            "user_id": None,
         }
 
 
 class DummyMaintenance:
     """더미 Maintenance 모델"""
+
     id = None
     vehicle_id = None
     type = ""
@@ -168,6 +169,5 @@ class DummyMaintenance:
             "type": "",
             "description": "",
             "status": "",
-            "date": datetime.now()
+            "date": datetime.now(),
         }
-\n

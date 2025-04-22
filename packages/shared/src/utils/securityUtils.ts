@@ -72,16 +72,14 @@ export class SecurityUtils {
    * SQL 인젝션 방지를 위한 이스케이프
    */
   escapeSql(unsafe: string): string {
-    return unsafe.replace(/[\0\x08\x09\x1a\n\r"'\\\%]/g, char => {
+    return unsafe.replace(/[\0\b\t\n\r"'\\%]/g, char => {
       switch (char) {
         case "\0":
           return "\\0";
-        case "\x08":
+        case "\b":
           return "\\b";
-        case "\x09":
+        case "\t":
           return "\\t";
-        case "\x1a":
-          return "\\z";
         case "\n":
           return "\\n";
         case "\r":
@@ -129,7 +127,7 @@ export class SecurityUtils {
   static patterns = {
     email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
     phone: /^\+?[\d\s-]{10,}$/,
-    url: /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([\/\w .-]*)*\/?$/,
+    url: /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/,
   };
 }
 

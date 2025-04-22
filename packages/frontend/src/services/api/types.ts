@@ -1,5 +1,5 @@
 /**
- * API 서비스 관련 타입 정의
+ * API 서비스에서 사용하는 타입 정의
  */
 
 /**
@@ -8,68 +8,94 @@
 export type ConnectionStatus = 'connected' | 'disconnected' | 'checking';
 
 /**
- * 오프라인 작업 타입
+ * 인증 상태 타입
  */
-export enum OfflineOperationType {
-  CREATE = 'create',
-  UPDATE = 'update',
-  DELETE = 'delete',
-  UPLOAD = 'upload'
+export type AuthStatus = 'authenticated' | 'unauthenticated' | 'loading';
+
+/**
+ * 로그인 요청 타입
+ */
+export interface LoginRequest {
+  email: string;
+  password: string;
+  rememberMe?: boolean;
 }
 
 /**
- * 오프라인 작업 저장 형식
+ * 로그인 응답 타입
  */
-export interface OfflineOperation {
+export interface LoginResponse {
+  token: string;
+  refreshToken: string;
+  user: UserInfo;
+  expiresAt: number;
+}
+
+/**
+ * 사용자 정보 타입
+ */
+export interface UserInfo {
   id: string;
-  type: OfflineOperationType;
-  url: string;
-  method: string;
-  data?: any;
-  timestamp: number;
-  synced: boolean;
+  email: string;
+  name: string;
+  role: UserRole;
+  profileImageUrl?: string;
+  lastLogin?: string;
 }
 
 /**
- * API 응답 기본 형식
+ * 사용자 역할 타입
  */
-export interface ApiResponse<T = any> {
-  success: boolean;
-  data?: T;
-  error?: string;
-  message?: string;
-  statusCode?: number;
-}
+export type UserRole = 'admin' | 'manager' | 'user';
 
 /**
- * 페이지네이션 응답 형식
+ * 페이지네이션 요청 타입
  */
-export interface PaginatedResponse<T> {
-  items: T[];
-  totalItems: number;
-  page: number;
-  totalPages: number;
-  itemsPerPage: number;
-}
-
-/**
- * 페이지네이션 요청 파라미터
- */
-export interface PaginationParams {
+export interface PaginationRequest {
   page?: number;
   limit?: number;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
-  search?: string;
 }
 
 /**
- * API 에러 응답 형식
+ * 페이지네이션 응답 타입
  */
-export interface ApiError {
+export interface PaginatedResponse<T> {
+  data: T[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }
+}
+
+/**
+ * API 에러 응답 타입
+ */
+export interface ApiErrorResponse {
   statusCode: number;
   message: string;
-  error: string;
-  details?: Record<string, any>;
+  errors?: Record<string, string[]>;
   timestamp?: string;
-} 
+  path?: string;
+}
+
+/**
+ * 알림 타입
+ */
+export type NotificationType = 'success' | 'error' | 'warning' | 'info';
+
+/**
+ * 알림 메시지 타입
+ */
+export interface NotificationMessage {
+  id?: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  duration?: number;
+  isRead?: boolean;
+  createdAt?: string;
+}

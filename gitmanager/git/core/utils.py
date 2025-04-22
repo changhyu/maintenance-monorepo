@@ -15,8 +15,9 @@ from typing import Any, Dict, List, Optional, Set, Tuple, TypeVar, Union, cast
 
 from gitmanager.git.core.exceptions import (
     GitCommandException,
-    GitOperationException,
     GitRepositoryException,
+    GitException,
+    create_git_exception
 )
 
 # 상수 정의
@@ -55,6 +56,8 @@ def run_git_command(
         GitCommandException: 명령어 실행 실패 시
     """
     cmd = ["git"] + args
+    cmd_str = " ".join(cmd)
+    
     try:
         process = subprocess.run(
             cmd,
@@ -70,16 +73,28 @@ def run_git_command(
         error_details = build_error_details(e)
         raise GitCommandException(
             f"Git 명령어 실행 실패: {e}",
-            command=" ".join(cmd),
+            command=cmd_str,
             exit_code=e.returncode,
             stderr=e.stderr if hasattr(e, "stderr") else "",
+            details=error_details
         ) from e
+    except FileNotFoundError:
+        raise GitException(
+            "Git 명령을 찾을 수 없습니다. Git이 설치되어 있는지 확인하세요.",
+            details={"command": cmd_str}
+        )
+    except PermissionError:
+        raise GitException(
+            "Git 명령을 실행할 권한이 없습니다.",
+            details={"command": cmd_str}
+        )
     except Exception as e:
         raise GitCommandException(
             f"Git 명령어 실행 중 오류 발생: {e}",
-            command=" ".join(cmd),
+            command=cmd_str,
             exit_code=-1,
             stderr=str(e),
+            details={"exception_type": type(e).__name__}
         ) from e
 
 

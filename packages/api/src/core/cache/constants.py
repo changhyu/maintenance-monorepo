@@ -3,6 +3,7 @@
 
 환경 변수를 통해 설정 가능한 캐시 관련 상수들을 정의합니다.
 """
+
 import os
 from typing import Final
 
@@ -28,16 +29,24 @@ MIN_CACHE_TTL: Final[int] = int(os.getenv("MIN_CACHE_TTL", "60"))  # 1분
 
 # 캐시 크기 제한
 MAX_CACHE_SIZE: Final[int] = int(os.getenv("MAX_CACHE_SIZE", "1073741824"))  # 1GB
-CACHE_SIZE_WARNING_THRESHOLD: Final[float] = float(os.getenv("CACHE_SIZE_WARNING_THRESHOLD", "0.8"))
+CACHE_SIZE_WARNING_THRESHOLD: Final[float] = float(
+    os.getenv("CACHE_SIZE_WARNING_THRESHOLD", "0.8")
+)
 
 # 압축 설정
-COMPRESSION_ENABLED: Final[bool] = os.getenv("COMPRESSION_ENABLED", "true").lower() == "true"
-COMPRESSION_THRESHOLD: Final[int] = int(os.getenv("COMPRESSION_THRESHOLD", "1024"))  # 1KB
+COMPRESSION_ENABLED: Final[bool] = (
+    os.getenv("COMPRESSION_ENABLED", "true").lower() == "true"
+)
+COMPRESSION_THRESHOLD: Final[int] = int(
+    os.getenv("COMPRESSION_THRESHOLD", "1024")
+)  # 1KB
 COMPRESSION_LEVEL: Final[int] = int(os.getenv("COMPRESSION_LEVEL", "6"))
 
 # 인코딩 설정
 REDIS_ENCODING: Final[str] = os.getenv("REDIS_ENCODING", "utf-8")
-REDIS_DECODE_RESPONSES: Final[bool] = os.getenv("REDIS_DECODE_RESPONSES", "true").lower() == "true"
+REDIS_DECODE_RESPONSES: Final[bool] = (
+    os.getenv("REDIS_DECODE_RESPONSES", "true").lower() == "true"
+)
 
 # 재시도 설정
 MAX_RETRY_ATTEMPTS: Final[int] = int(os.getenv("MAX_RETRY_ATTEMPTS", "3"))
@@ -54,11 +63,15 @@ METRICS_PATH: Final[str] = os.getenv("METRICS_PATH", "/metrics")
 
 # 로깅 설정
 LOG_LEVEL: Final[str] = os.getenv("LOG_LEVEL", "INFO")
-LOG_FORMAT: Final[str] = os.getenv("LOG_FORMAT", "%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+LOG_FORMAT: Final[str] = os.getenv(
+    "LOG_FORMAT", "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 
 # 보안 설정
 REDIS_USERNAME: Final[str] = os.getenv("REDIS_USERNAME", "")
-REDIS_ACL_ENABLED: Final[bool] = os.getenv("REDIS_ACL_ENABLED", "false").lower() == "true"
+REDIS_ACL_ENABLED: Final[bool] = (
+    os.getenv("REDIS_ACL_ENABLED", "false").lower() == "true"
+)
 REDIS_TLS_CERT_PATH: Final[str] = os.getenv("REDIS_TLS_CERT_PATH", "")
 REDIS_TLS_KEY_PATH: Final[str] = os.getenv("REDIS_TLS_KEY_PATH", "")
 REDIS_TLS_CA_PATH: Final[str] = os.getenv("REDIS_TLS_CA_PATH", "")
@@ -85,12 +98,12 @@ CRITICAL_KEY_PATTERNS = [
     "user:*",  # 사용자 데이터
     "auth:*",  # 인증 관련 데이터
     "perm:*",  # 권한 데이터
-    "config:*"  # 설정 데이터
+    "config:*",  # 설정 데이터
 ]
 
 # 메트릭 수집
 STATS_COLLECTION_INTERVAL = 60  # 통계 수집 주기 (1분)
-MAX_STATS_HISTORY = 1440  # 통계 기록 보관 기간 (24시간) 
+MAX_STATS_HISTORY = 1440  # 통계 기록 보관 기간 (24시간)
 
 # 보호된 키 프리픽스 상수
-PROTECTED_KEY_PREFIX = "protected:" 
+PROTECTED_KEY_PREFIX = "protected:"

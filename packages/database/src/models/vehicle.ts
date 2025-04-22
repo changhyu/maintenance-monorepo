@@ -1,38 +1,15 @@
 /**
  * 차량 모델 서비스
  */
+import { Vehicle, VehicleStatus, VehicleType } from '@prisma/client';
+import { 
+  VehicleFilter as RepositoryFilter,
+  VehicleRepository, 
+  vehicleRepository, 
+  queryOptimizer 
+} from '../index';
 
-import { prisma } from '../index';
-
-// 차량 관련 타입 정의
-interface Vehicle {
-  id: string;
-  make: string;
-  model: string;
-  year: number;
-  vin: string;
-  plate: string;
-  status: VehicleStatus;
-  createdAt: Date;
-  // 기타 필요한 필드들
-}
-
-enum VehicleStatus {
-  ACTIVE = 'ACTIVE',
-  MAINTENANCE = 'MAINTENANCE',
-  RETIRED = 'RETIRED',
-  OUT_OF_SERVICE = 'OUT_OF_SERVICE'
-}
-
-enum VehicleType {
-  SEDAN = 'SEDAN',
-  SUV = 'SUV',
-  TRUCK = 'TRUCK',
-  VAN = 'VAN',
-  BUS = 'BUS',
-  OTHER = 'OTHER'
-}
-
+// 차량 관련 타입 정의 (유지 - 하위 호환성)
 interface MaintenanceRecord {
   id: string;
   vehicleID: string;
@@ -43,7 +20,7 @@ interface MaintenanceRecord {
 }
 
 /**
- * 차량 필터 타입 정의
+ * 차량 필터 타입 정의 (유지 - 하위 호환성)
  */
 export interface VehicleFilter {
   make?: string;
@@ -60,153 +37,82 @@ export interface VehicleFilter {
 }
 
 /**
- * 차량 서비스 클래스
+ * 차량 서비스 클래스 - 리팩토링 버전
+ * 리포지토리 패턴을 사용하여 데이터 액세스 계층 분리
  */
 export class VehicleService {
+  private repository: VehicleRepository;
+
+  constructor(repository = vehicleRepository) {
+    this.repository = repository;
+  }
+
   /**
    * 차량 목록 조회
+   * N+1 문제를 해결하기 위한 최적화 적용
    */
   async getVehicles(filter?: VehicleFilter, skip = 0, take = 10): Promise<{
     vehicles: Vehicle[];
     total: number;
   }> {
-    const where: Record<string, unknown> = {};
-    
-    // 검색 필터 적용
-    if (filter) {
-      if (filter.make) where.make = { contains: filter.make, mode: 'insensitive' };
-      if (filter.model) where.model = { contains: filter.model, mode: 'insensitive' };
-      if (filter.year) where.year = filter.year;
-      if (filter.type) where.type = filter.type;
-      if (filter.status) where.status = filter.status;
-      if (filter.ownerId) where.ownerID = filter.ownerId;
-      
-      // 생성일 범위 필터
-      if (filter.fromDate || filter.toDate) {
-        where.createdAt = {};
-        if (filter.fromDate) (where.createdAt as Record<string, Date>).gte = filter.fromDate;
-        if (filter.toDate) (where.createdAt as Record<string, Date>).lte = filter.toDate;
-      }
-      
-      // 검색어 필터
-      if (filter.search) {
-        where.OR = [
-          { make: { contains: filter.search, mode: 'insensitive' } },
-          { model: { contains: filter.search, mode: 'insensitive' } },
-          { vin: { contains: filter.search, mode: 'insensitive' } },
-          { plate: { contains: filter.search, mode: 'insensitive' } }
-        ];
-      }
-    }
-    
-    // 정렬 옵션
-    const orderBy: Record<string, string> = {};
-    if (filter?.sortBy) {
-      orderBy[filter.sortBy] = filter.sortDirection || 'asc';
-    } else {
-      orderBy.createdAt = 'desc';
-    }
-    
-    // 차량 목록 및 총 수 조회
-    const [vehicles, total] = await Promise.all([
-      prisma.vehicle.findMany({
-        where,
-        orderBy,
-        skip,
-        take,
-        include: {
-          owner: true,
-          telemetry: true,
-        },
-      }),
-      prisma.vehicle.count({ where }),
-    ]);
-    
-    return { vehicles, total };
+    // 필터를 리포지토리 형식으로 변환
+    const repositoryFilter: RepositoryFilter = {
+      ...filter,
+      skip,
+      take,
+      includeOwner: true,
+      includeTelemetry: true
+    };
+
+    // 최적화된 리포지토리 메서드 호출
+    const result = await this.repository.findAll(repositoryFilter);
+
+    return {
+      vehicles: result.data,
+      total: result.total
+    };
   }
-  
+
   /**
    * 차량 상세 조회
+   * 최적화된 관계 데이터 로딩
    */
   async getVehicleById(id: string, includeRelations = true): Promise<Vehicle | null> {
-    return prisma.vehicle.findUnique({
-      where: { id },
-      include: includeRelations ? {
-        owner: true,
-        telemetry: true,
-        documents: true,
-        maintenanceRecords: {
-          orderBy: { date: 'desc' },
-          take: 5,
-        },
-      } : undefined,
-    });
+    return this.repository.findById(id, includeRelations);
   }
-  
+
   /**
    * 차량 생성
    */
   async createVehicle(data: Omit<Vehicle, 'id' | 'createdAt'>): Promise<Vehicle> {
-    return prisma.vehicle.create({ data });
+    return this.repository.create(data);
   }
-  
+
   /**
    * 차량 업데이트
    */
   async updateVehicle(id: string, data: Partial<Omit<Vehicle, 'id' | 'createdAt'>>): Promise<Vehicle | null> {
-    // 차량이 존재하는지 확인
-    const vehicle = await prisma.vehicle.findUnique({ where: { id } });
-    if (!vehicle) return null;
-    
-    return prisma.vehicle.update({
-      where: { id },
-      data,
-    });
+    return this.repository.update(id, data);
   }
-  
+
   /**
    * 차량 삭제
+   * 트랜잭션으로 최적화된 삭제 처리
    */
   async deleteVehicle(id: string): Promise<boolean> {
-    try {
-      // 관련 데이터 함께 삭제
-      await prisma.$transaction([
-        prisma.telemetry.deleteMany({ where: { vehicleID: id } }),
-        prisma.vehicleDocument.deleteMany({ where: { vehicleID: id } }),
-        prisma.maintenancePart.deleteMany({
-          where: { 
-            maintenance: { 
-              vehicleID: id 
-            } 
-          }
-        }),
-        prisma.maintenanceDocument.deleteMany({
-          where: { 
-            maintenance: { 
-              vehicleID: id 
-            } 
-          }
-        }),
-        prisma.maintenanceRecord.deleteMany({ where: { vehicleID: id } }),
-        prisma.vehicle.delete({ where: { id } }),
-      ]);
-      
-      return true;
-    } catch (error) {
-      console.error('차량 삭제 중 오류 발생:', error);
-      return false;
-    }
+    return this.repository.delete(id);
   }
-  
+
   /**
    * 차량 상태 변경
    */
   async updateVehicleStatus(id: string, status: VehicleStatus): Promise<Vehicle | null> {
-    return this.updateVehicle(id, { status });
+    return this.repository.updateStatus(id, status);
   }
-  
+
   /**
    * 차량의 정비 이력 조회
+   * N+1 문제 해결을 위한 최적화 적용
    */
   async getVehicleMaintenanceHistory(
     vehicleId: string,
@@ -216,25 +122,41 @@ export class VehicleService {
     records: MaintenanceRecord[];
     total: number;
   }> {
-    const [records, total] = await Promise.all([
-      prisma.maintenanceRecord.findMany({
-        where: { vehicleID: vehicleId },
-        orderBy: { date: 'desc' },
-        skip,
-        take,
-        include: {
-          parts: true,
-          documents: true,
-        },
-      }),
-      prisma.maintenanceRecord.count({
-        where: { vehicleID: vehicleId },
-      }),
-    ]);
+    const result = await this.repository.getMaintenanceHistory(vehicleId, { skip, take });
     
-    return { records, total };
+    return {
+      records: result.data as unknown as MaintenanceRecord[],
+      total: result.total
+    };
+  }
+  
+  /**
+   * 여러 차량 일괄 처리 (새로운 기능)
+   * 배치 처리 최적화 사용
+   */
+  async processVehiclesBatch(vehicleIds: string[], processor: (vehicle: Vehicle) => Promise<any>): Promise<any[]> {
+    const vehicles = await this.repository.findByIds(vehicleIds, false);
+    
+    return queryOptimizer.batchProcess(
+      vehicles,
+      async (batch) => {
+        const results = [];
+        for (const vehicle of batch) {
+          results.push(await processor(vehicle));
+        }
+        return results;
+      },
+      { batchSize: 50, parallel: true, maxConcurrency: 5 }
+    );
+  }
+  
+  /**
+   * 여러 차량 상태 일괄 업데이트 (새로운 기능)
+   */
+  async bulkUpdateStatus(vehicleIds: string[], status: VehicleStatus): Promise<number> {
+    return this.repository.bulkUpdateStatus(vehicleIds, status);
   }
 }
 
 // 서비스 인스턴스 생성 및 내보내기
-export const vehicleService = new VehicleService(); 
+export const vehicleService = new VehicleService();

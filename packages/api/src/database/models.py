@@ -3,22 +3,35 @@ Database models for SQLAlchemy.
 """
 
 from __future__ import annotations
-from datetime import datetime
-import logging
-import json
 
-# REMOVED: from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text, Enum
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text, Enum, JSON
-from sqlalchemy.orm import relationship
+import json
+import logging
+from datetime import datetime
+
 # from sqlalchemy.ext.declarative import declarative_base
 # REMOVED: from typing import Optional
-from typing import Optional, List, Dict, Any
+from typing import Any, Dict, List, Optional
+
+from packagesmodels.base import BaseModel
+from packagesmodels.vehicle import VehicleModel as Vehicle  # Vehicle 모델 통일
+
+# REMOVED: from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text, Enum
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    Column,
+    DateTime,
+    Enum,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+)
+from sqlalchemy.orm import relationship
 
 # Base를 직접 정의하지 않고 패키지에서 가져옵니다
-from . import Base
-
-from ..models.base import BaseModel
-from ..models.vehicle import VehicleModel as Vehicle  # Vehicle 모델 통일
+from packages.api.src.database import Base
 
 # 로거 설정
 logger = logging.getLogger(__name__)
@@ -30,9 +43,11 @@ VEHICLES_TABLE_ID = "vehicles.id"
 
 logger.info("데이터베이스 모델 로드 중...")
 
+
 # Shop 관련 모델
 class Shop(BaseModel):
     """정비소 모델"""
+
     __tablename__ = "shops"
 
     id = Column(String(36), primary_key=True)
@@ -58,15 +73,19 @@ class Shop(BaseModel):
     reviews = relationship("ShopReview", back_populates="shop")
     images = relationship("ShopImage", back_populates="shop")
     technicians = relationship("Technician", back_populates="shop")
-    schedules = relationship("ScheduleModel", back_populates="shop", cascade="all, delete-orphan")
+    schedules = relationship(
+        "ScheduleModel", back_populates="shop", cascade="all, delete-orphan"
+    )
 
     @property
     def location(self):
         """위치 정보 반환"""
+
         class Location:
             def __init__(self, lat, lng):
                 self.latitude = lat
                 self.longitude = lng
+
         return Location(self.latitude, self.longitude)
 
     def __repr__(self):
@@ -75,6 +94,7 @@ class Shop(BaseModel):
 
 class ShopService(BaseModel):
     """정비소 서비스 모델"""
+
     __tablename__ = "shop_services"
 
     id = Column(String(36), primary_key=True)
@@ -93,6 +113,7 @@ class ShopService(BaseModel):
 
 class ShopReview(BaseModel):
     """정비소 리뷰 모델"""
+
     __tablename__ = "shop_reviews"
 
     id = Column(String(36), primary_key=True)
@@ -114,6 +135,7 @@ class ShopReview(BaseModel):
 
 class ShopImage(BaseModel):
     """정비소 이미지 모델"""
+
     __tablename__ = "shop_images"
 
     id = Column(String(36), primary_key=True)
@@ -134,6 +156,7 @@ class ShopImage(BaseModel):
 
 class Technician(BaseModel):
     """정비소 기술자 모델"""
+
     __tablename__ = "technicians"
 
     id = Column(String(36), primary_key=True)
@@ -153,6 +176,7 @@ class Technician(BaseModel):
 
 class User(BaseModel):
     """사용자 모델"""
+
     __tablename__ = "users"
 
     id = Column(String(36), primary_key=True)
@@ -168,7 +192,9 @@ class User(BaseModel):
     vehicles = relationship("Vehicle", back_populates="owner")
     # 할 일(Todo) 모델과의 관계 정의 - 완전하게 구현됨
     todos = relationship("Todo", foreign_keys="Todo.user_id", back_populates="user")
-    assigned_todos = relationship("Todo", foreign_keys="Todo.assignee_id", back_populates="assignee")
+    assigned_todos = relationship(
+        "Todo", foreign_keys="Todo.assignee_id", back_populates="assignee"
+    )
 
     def __repr__(self):
         return f"<User {self.email}>"
@@ -176,6 +202,7 @@ class User(BaseModel):
 
 class Todo(BaseModel):
     """Todo 모델"""
+
     __tablename__ = "todos"
 
     id = Column(String(36), primary_key=True)
@@ -198,40 +225,44 @@ class Todo(BaseModel):
 
     # Relationships
     user = relationship("User", foreign_keys=[user_id], back_populates="todos")
-    assignee = relationship("User", foreign_keys=[assignee_id], back_populates="assigned_todos")
+    assignee = relationship(
+        "User", foreign_keys=[assignee_id], back_populates="assigned_todos"
+    )
     vehicle = relationship("Vehicle", back_populates="todos")
 
     # 관련 투두 기능 구현
     related_todos = []  # 내부 사용 변수
-    
+
     def find_related_todos(self, db_session) -> List[Dict[str, Any]]:
         """
         관련된 할 일들을 찾습니다.
-        
+
         Args:
             db_session: 데이터베이스 세션
-            
+
         Returns:
             List[Dict[str, Any]]: 관련 할 일 목록
         """
         # 같은 차량에 대한 할 일 찾기
         if self.vehicle_id:
-            self.related_todos = db_session.query(Todo).filter(
-                Todo.vehicle_id == self.vehicle_id,
-                Todo.id != self.id
-            ).all()
-            
+            self.related_todos = (
+                db_session.query(Todo)
+                .filter(Todo.vehicle_id == self.vehicle_id, Todo.id != self.id)
+                .all()
+            )
+
         # 같은 사용자가 할당된 할 일 찾기
         elif self.assignee_id:
-            self.related_todos = db_session.query(Todo).filter(
-                Todo.assignee_id == self.assignee_id,
-                Todo.id != self.id
-            ).all()
-            
+            self.related_todos = (
+                db_session.query(Todo)
+                .filter(Todo.assignee_id == self.assignee_id, Todo.id != self.id)
+                .all()
+            )
+
         return [todo.to_dict() for todo in self.related_todos]
 
     def __repr__(self):
         return f"<Todo {self.title}>"
 
 
-logger.info("데이터베이스 모델 로드 완료") 
+logger.info("데이터베이스 모델 로드 완료")

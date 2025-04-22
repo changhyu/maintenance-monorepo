@@ -86,8 +86,8 @@ const ThemeToggle: React.FC = () => {
           color="inherit"
           onClick={handleThemeToggle}
           aria-label={modeText}
-          aria-pressed={darkMode}
           role="switch"
+          aria-checked={darkMode}
           data-testid="theme-toggle-button"
           tabIndex={0}
           sx={{
@@ -105,4 +105,4 @@ const ThemeToggle: React.FC = () => {
   );
 };
 
-export default ThemeToggle; 
+export default ThemeToggle;

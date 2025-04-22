@@ -266,7 +266,7 @@ const ReportListPage: React.FC = () => {
             <Typography variant="body1">
               저장된 오프라인 보고서가 없습니다.
               <br />
-              보고서 생성 시 'IndexedDB에 저장' 옵션을 선택하면 오프라인에서도 조회할 수 있습니다.
+              보고서 생성 시 &apos;IndexedDB에 저장&apos; 옵션을 선택하면 오프라인에서도 조회할 수 있습니다.
             </Typography>
           </Box>
         )}
@@ -279,4 +279,4 @@ const ReportListPage: React.FC = () => {
   );
 };
 
-export default ReportListPage; 
+export default ReportListPage;

@@ -37,6 +37,7 @@ import {
   ChevronLeft as ChevronLeftIcon,
 } from '@mui/icons-material';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
+import WebSocketStatus from '../WebSocketStatus';
 
 const drawerWidth = 240;
 
@@ -280,6 +281,11 @@ const MainLayout: React.FC = () => {
           </IconButton>
 
           <Box sx={{ flexGrow: 1 }} />
+
+          {/* WebSocket 상태 표시 */}
+          <Box sx={{ mr: 2, display: { xs: 'none', sm: 'block' } }}>
+            <WebSocketStatus showControls={false} />
+          </Box>
 
           {/* 알림 아이콘 */}
           <Tooltip title="알림">

@@ -2,21 +2,21 @@
 마이그레이션 환경 설정 파일.
 데이터베이스 스키마 마이그레이션 처리를 위한 환경 설정.
 """
+
 # pylint: skip-file
 # flake8: noqa
 # mypy: ignore-errors
 # ruff: noqa
 # fmt: off
 
+import logging
 import os
 import sys
 from logging.config import fileConfig
-import logging
 
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
 # 알렘빅 문맥은 마이그레이션 프레임워크에서 제공함
 from alembic import context  # noqa
+from sqlalchemy import engine_from_config, pool
 
 # 프로젝트 루트 디렉토리를 시스템 경로에 추가
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
@@ -41,22 +41,21 @@ target_metadata = None
 try:
     # 먼저 데이터베이스 패키지에서 Base를 가져옵니다
     from src.database import Base
-    
+
     # 모델 로드를 위한 임포트
     try:
         # 먼저 사용자 모델을 임포트합니다
-        from src.database.models import User
-        
         # 그 다음 다른 데이터베이스 모델들을 임포트합니다
-        from src.database.models import Shop, ShopService, ShopReview, ShopImage, Technician
-        
+        from src.database.models import (Shop, ShopImage, ShopReview,
+                                         ShopService, Technician, User)
+        # 정비 관련 모델 임포트 
+        from src.modules.maintenance.models import (Maintenance,
+                                                    MaintenanceDocument,
+                                                    MaintenancePart)
         # 그런 다음 모듈 모델들을 임포트합니다
         # 차량 모델 임포트
         from src.modules.vehicle.models import Vehicle
-        
-        # 정비 관련 모델 임포트 
-        from src.modules.maintenance.models import Maintenance, MaintenanceDocument, MaintenancePart
-        
+
         # Todo 모델 임포트
         try:
             from src.database.models import Todo

@@ -1,6 +1,7 @@
-import { BaseService, ServiceOptions } from './BaseService';
 import { errorLogger } from '../utils/errorLogger';
 import { securityUtils } from '../utils/securityUtils';
+
+import { BaseService, ServiceOptions } from './BaseService';
 
 interface MaintenanceRecord {
   id: string;
@@ -16,6 +17,7 @@ interface MaintenanceInput {
   type: string;
   description: string;
   date: string;
+  [key: string]: unknown; // 인덱스 시그니처 추가
 }
 
 export class MaintenanceService extends BaseService {
@@ -50,7 +52,7 @@ export class MaintenanceService extends BaseService {
           date: { 
             type: 'string', 
             required: true,
-            validate: (value) => !isNaN(Date.parse(value))
+            validate: (value) => !isNaN(Date.parse(String(value)))
           }
         });
 
@@ -61,12 +63,14 @@ export class MaintenanceService extends BaseService {
         // 여기에 실제 데이터베이스 저장 로직이 들어갈 것입니다
         const newRecord: MaintenanceRecord = {
           id: securityUtils.generateToken(16),
-          ...sanitized as MaintenanceInput,
+          vehicleId: String(sanitized.vehicleId || ''),
+          type: String(sanitized.type || ''),
+          description: String(sanitized.description || ''),
+          date: String(sanitized.date || ''),
           status: 'scheduled'
         };
 
         errorLogger.info('정비 기록 생성됨', { record: newRecord });
-
         return newRecord;
       },
       {

@@ -8,4 +8,4 @@ if [ ! -d ".venv" ]; then
 fi
 
 # API 서버 실행
-./.venv/bin/python -m uvicorn src.main:app --reload --host 0.0.0.0 --port 8081
+./.venv/bin/python -m uvicorn src.main:app --reload --host 0.0.0.0 --port 8080

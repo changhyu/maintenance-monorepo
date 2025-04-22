@@ -18,7 +18,7 @@ from gitmanager.git.core.exceptions import (
     GitCommandException,
     GitCommitException,
     GitMergeException,
-    GitOperationException,
+    GitException,
     GitPushPullException,
     GitRepositoryException,
     GitTagException,

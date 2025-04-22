@@ -1,15 +1,50 @@
 """
+Core 패키지 초기화
+
+이 패키지는 API 서비스의 핵심 기능을 제공합니다.
+주요 기능:
+- 설정 관리
+- 데이터베이스 연결
+- 로깅 설정
+- 메트릭 수집
+"""
+
+from packages.api.src.core.config import settings
+from packages.api.src.core.exceptions import (
+    AuthenticationException,
+    ConfigurationException,
+    DatabaseException,
+    ExternalServiceException,
+    NotFoundException,
+    ValidationException,
+)
+from packages.api.src.core.offline_manager import OfflineManager
+from packages.api.src.coredatabase.database import (
+    AsyncSession,
+    Base,
+    SessionLocal,
+    get_db_session,
+    get_session,
+)
+
+__all__ = [
+    "settings",
+    "ConfigurationException",
+    "ValidationException",
+    "NotFoundException",
+    "AuthenticationException",
+    "DatabaseException",
+    "ExternalServiceException",
+    "OfflineManager",
+    "SessionLocal",
+    "Base",
+    "get_db_session",
+    "AsyncSession",
+    "get_session",
+]
+
+"""
 Core functionality for the API service.
 """
 
-from .metrics import (
-    init_metrics,
-    track_db_query_time,
-    record_cache_hit,
-    record_cache_miss,
-    record_token_created,
-    record_token_refreshed,
-    record_token_blacklisted,
-    update_active_users,
-    set_api_info
-)
+# 이 디렉토리를 패키지로 인식하기 위한 __init__.py 파일입니다.

@@ -3,13 +3,11 @@ Maintenance 모듈의 데이터 모델.
 """
 
 from datetime import datetime
+
+from packagesmodels.base import BaseModel
+from packagesmodels.schemas import MaintenanceStatus
+from sqlalchemy import Column, DateTime, Enum, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
-from sqlalchemy import Column, ForeignKey, String, Integer, Float, DateTime, Text, Enum
-
-
-
-from ...models.base import BaseModel
-from ...models.schemas import MaintenanceStatus
 
 
 class Maintenance(BaseModel):

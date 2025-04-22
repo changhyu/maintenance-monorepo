@@ -744,7 +744,7 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({
                 </List>
               ) : (
                 <Typography variant="body2" color="text.secondary">
-                  저장된 보고서가 없습니다. 보고서를 생성할 때 'IndexedDB에 저장' 옵션을 선택하면 이곳에 표시됩니다.
+                  저장된 보고서가 없습니다. 보고서를 생성할 때 &apos;IndexedDB에 저장&apos; 옵션을 선택하면 이곳에 표시됩니다.
                 </Typography>
               )}
             </Box>

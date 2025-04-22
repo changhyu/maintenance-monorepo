@@ -1,51 +1,53 @@
 # API 서비스 요구사항
-fastapi>=0.103.1
-uvicorn>=0.23.2
-pydantic>=2.4.2
+# Python 3.12+ 호환성 보장
+
+# 공통 모듈 (개발 환경에서는 -e 옵션으로 설치)
+-e ../shared-python
+
+# API 기본 요구사항
 pydantic-settings>=2.2.0
-sqlalchemy>=2.0.22
+sqlalchemy>=2.0.27
 python-jose[cryptography]>=3.3.0
 passlib[bcrypt]>=1.7.4
-python-multipart>=0.0.6
-python-dotenv>=1.0.0
-alembic>=1.12.0
-psycopg2-binary==2.9.9
-bcrypt==4.1.2
-httpx==0.27.0
-pytest==7.4.4
-pytest-cov==4.1.0
-black==24.3.0
-isort==5.13.2
-mypy==1.8.0
-pylint==3.0.3
-pyjwt==2.8.0
-requests==2.31.0
-tenacity==8.3.0
-jinja2==3.1.3
-email-validator>=2.0.0
-ruff==0.2.2
+python-multipart>=0.0.9
+alembic>=1.13.0
+psycopg2-binary>=2.9.9
+bcrypt>=4.1.2
+urllib3>=2.0.0
+pytest>=7.4.0
+pytest-asyncio>=0.23.0
+httpx>=0.26.0
+black>=24.3.0
+isort>=5.13.2
+mypy>=1.8.0
+pylint>=3.0.3
+pyjwt>=2.8.0
+requests>=2.31.0
+tenacity>=8.3.0
+jinja2>=3.1.3
+email-validator>=2.1.0
+ruff>=0.2.2
 geopy>=2.4.1
 pyotp>=2.9.0
 structlog>=24.1.0
+prisma>=0.15.0
 
-# 메트릭 수집 및 모니터링
-prometheus-client>=0.17.1
+# 메트릭 수집
+prometheus-client>=0.19.0
 prometheus-fastapi-instrumentator>=6.1.0
-psutil>=5.9.5
-redis==5.0.1
+psutil>=5.9.8
+redis>=5.0.0
 
-# 웹소켓 및 실시간 통신
+# 실시간 통신
 websockets>=12.0.0
 aioredis>=2.0.1
 socketio>=0.2.1
-python-socketio>=5.9.0
+python-socketio>=5.10.0
 
-# 테스트용 패키지
-aiohttp>=3.9.1
+# 데이터베이스
+aiohttp>=3.9.3
+asyncpg>=0.29.0
 
-# 데이터베이스 관련
-asyncpg>=0.28.0
-
-# 푸시 알림을 위한 패키지
-pywebpush==1.14.0
-cryptography==42.0.5
+# 푸시 알림
+pywebpush>=1.14.0
+cryptography>=42.0.5

@@ -15,6 +15,7 @@ import {
   ListItemText,
   ListItemIcon,
   Avatar,
+  useTheme,
 } from '@mui/material';
 import {
   DirectionsCar as CarIcon,
@@ -26,88 +27,79 @@ import {
 
 // 차트 컴포넌트 임포트 (필요시 추후 구현)
 import { DashboardChart } from '../components/dashboard/DashboardChart';
+// API 클라이언트
+import apiClient from '../api-client';
+import logger from '../utils/logger';
 
-// 태스트 데이터 (실제로는 API 호출하여 데이터 가져옴)
-const mockData = {
+// 대시보드 데이터 타입 정의
+interface DashboardData {
   vehicles: {
-    total: 12,
-    active: 9,
-    maintenance: 3,
-    inactive: 0,
-  },
+    total: number;
+    active: number;
+    maintenance: number;
+    inactive: number;
+  };
   maintenance: {
-    completed: 48,
-    scheduled: 7,
-    inProgress: 3,
-    overdue: 1,
-  },
-  upcomingMaintenance: [
-    {
-      id: '1',
-      vehicleId: '1',
-      vehicleName: '현대 소나타',
-      date: '2023-05-28',
-      type: '정기 점검',
-      priority: 'medium',
-    },
-    {
-      id: '2',
-      vehicleId: '2',
-      vehicleName: '기아 K5',
-      date: '2023-05-29',
-      type: '오일 교체',
-      priority: 'high',
-    },
-    {
-      id: '3',
-      vehicleId: '3',
-      vehicleName: '테슬라 모델 3',
-      date: '2023-06-02',
-      type: '타이어 교체',
-      priority: 'medium',
-    },
-  ],
-  recentMaintenance: [
-    {
-      id: '4',
-      vehicleName: '현대 그랜저',
-      date: '2023-05-20',
-      type: '정기 점검',
-      cost: 150000,
-    },
-    {
-      id: '5',
-      vehicleName: '기아 쏘렌토',
-      date: '2023-05-18',
-      type: '브레이크 패드 교체',
-      cost: 280000,
-    },
-    {
-      id: '6',
-      vehicleName: 'BMW 520d',
-      date: '2023-05-15',
-      type: '엔진 오일 교체',
-      cost: 220000,
-    },
-  ],
-};
+    completed: number;
+    scheduled: number;
+    inProgress: number;
+    overdue: number;
+  };
+  upcomingMaintenance: Array<{
+    id: string;
+    vehicleId: string;
+    vehicleName: string;
+    date: string;
+    type: string;
+    priority: string;
+  }>;
+  recentMaintenance: Array<{
+    id: string;
+    vehicleName: string;
+    date: string;
+    type: string;
+    cost: number;
+  }>;
+}
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [dashboardData, setDashboardData] = useState(mockData);
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  // API에서 데이터를 가져오는 효과 (목업 데이터 사용)
+  // API에서 데이터를 가져오는 효과
   useEffect(() => {
     const fetchData = async () => {
+      setIsLoading(true);
+      setError(null);
+      
       try {
-        // 실제 API 호출 대신 타임아웃으로 로딩 상태 시뮬레이션
-        setTimeout(() => {
-          setDashboardData(mockData);
-          setIsLoading(false);
-        }, 1000);
+        // 대시보드 데이터 API 호출
+        const response = await apiClient.get<DashboardData>('/dashboard');
+        setDashboardData(response.data);
       } catch (error) {
-        console.error('대시보드 데이터 로딩 실패:', error);
+        logger.error('대시보드 데이터 로딩 실패:', error);
+        setError('대시보드 데이터를 불러오는데 실패했습니다.');
+        
+        // API 실패 시 기본 대시보드 데이터로 초기화 (실제 배포 시 제거)
+        setDashboardData({
+          vehicles: {
+            total: 0,
+            active: 0,
+            maintenance: 0,
+            inactive: 0,
+          },
+          maintenance: {
+            completed: 0,
+            scheduled: 0,
+            inProgress: 0,
+            overdue: 0,
+          },
+          upcomingMaintenance: [],
+          recentMaintenance: []
+        });
+      } finally {
         setIsLoading(false);
       }
     };
@@ -140,6 +132,25 @@ const Dashboard: React.FC = () => {
     }).format(amount);
   };
 
+  // 데이터가 없는 경우 표시할 컴포넌트
+  if (!isLoading && !dashboardData) {
+    return (
+      <Box sx={{ textAlign: 'center', py: 5 }}>
+        <Typography variant="h5" color="text.secondary" gutterBottom>
+          {error || '대시보드 데이터를 불러올 수 없습니다.'}
+        </Typography>
+        <Button 
+          variant="contained" 
+          color="primary" 
+          onClick={() => window.location.reload()}
+          sx={{ mt: 2 }}
+        >
+          다시 시도
+        </Button>
+      </Box>
+    );
+  }
+
   return (
     <Box>
       <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -157,7 +168,7 @@ const Dashboard: React.FC = () => {
 
       {isLoading ? (
         <LinearProgress sx={{ mb: 4 }} />
-      ) : (
+      ) : dashboardData && (
         <Grid container spacing={3}>
           {/* 차량 현황 요약 */}
           <Grid item xs={12} md={6} lg={3}>
@@ -385,6 +396,11 @@ const Dashboard: React.FC = () => {
             </Card>
           </Grid>
         </Grid>
+      )}
+      {error && (
+        <Typography color="error" sx={{ mt: 2 }}>
+          {error}
+        </Typography>
       )}
     </Box>
   );

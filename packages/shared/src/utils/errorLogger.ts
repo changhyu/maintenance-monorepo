@@ -23,7 +23,7 @@ export interface LogEntry {
   timestamp: string;
   level: LogLevel;
   message: string;
-  context?: Record<string, any>;
+  context?: Record<string, unknown>;
   stack?: string;
 }
 
@@ -49,9 +49,11 @@ class ErrorLogger {
     setInterval(() => this.flushLogs(), this.FLUSH_INTERVAL);
 
     // 프로세스 종료 시 남은 로그 플러시
-    process.on('beforeExit', () => {
+    const onBeforeExit = () => {
       this.flushLogs();
-    });
+    };
+    
+    process.on('beforeExit', onBeforeExit);
 
     if (this.options.sentryDsn) {
       // Sentry 초기화 로직 (필요시 구현)
@@ -72,7 +74,7 @@ class ErrorLogger {
       // 캐시에 최근 에러 통계 저장
       this.updateErrorStats(logsToFlush);
     } catch (error) {
-      console.error('로그 플러시 실패:', error);
+      console.error('로그 플러시 실패:', error instanceof Error ? error.message : String(error));
       // 실패한 로그는 다음 플러시 시도 시 재처리
       this.logBuffer.unshift(...this.logBuffer);
     }
@@ -93,19 +95,19 @@ class ErrorLogger {
     setCache(key, currentStats);
   }
 
-  public log(level: LogLevel, message: string, context?: Record<string, any>): void {
+  public log(level: LogLevel, message: string, context?: Record<string, unknown>, error?: Error | unknown): void {
     const logEntry: LogEntry = {
       timestamp: new Date().toISOString(),
       level,
       message,
       context,
-      stack: new Error().stack
+      stack: error instanceof Error ? error.stack : undefined
     };
 
     this.logBuffer.push(logEntry);
 
     // 즉시 콘솔에도 출력
-    let consoleMethod: string;
+    let consoleMethod: 'log' | 'warn' | 'error';
     if (level === LogLevel.ERROR || level === LogLevel.FATAL) {
       consoleMethod = 'error';
     } else if (level === LogLevel.WARN) {
@@ -121,24 +123,24 @@ class ErrorLogger {
     }
   }
 
-  public debug(message: string, context?: Record<string, any>): void {
-    this.log(LogLevel.DEBUG, message, context);
+  public debug(message: string, context?: Record<string, unknown>, error?: Error | unknown): void {
+    this.log(LogLevel.DEBUG, message, context, error);
   }
 
-  public info(message: string, context?: Record<string, any>): void {
-    this.log(LogLevel.INFO, message, context);
+  public info(message: string, context?: Record<string, unknown>, error?: Error | unknown): void {
+    this.log(LogLevel.INFO, message, context, error);
   }
 
-  public warn(message: string, context?: Record<string, any>): void {
-    this.log(LogLevel.WARN, message, context);
+  public warn(message: string, context?: Record<string, unknown>, error?: Error | unknown): void {
+    this.log(LogLevel.WARN, message, context, error);
   }
 
-  public error(message: string, context?: Record<string, any>): void {
-    this.log(LogLevel.ERROR, message, context);
+  public error(message: string, context?: Record<string, unknown>, error?: Error | unknown): void {
+    this.log(LogLevel.ERROR, message, context, error);
   }
 
-  public fatal(message: string, context?: Record<string, any>): void {
-    this.log(LogLevel.FATAL, message, context);
+  public fatal(message: string, context?: Record<string, unknown>, error?: Error | unknown): void {
+    this.log(LogLevel.FATAL, message, context, error);
   }
 
   public async getErrorStats(days: number = 7): Promise<Record<string, number>> {

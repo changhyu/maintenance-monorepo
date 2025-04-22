@@ -1,6 +1,6 @@
 import { saveAs } from 'file-saver';
-import * as XLSX from 'xlsx';
-
+// XLSX 라이브러리를 ExcelJS로 대체
+import ExcelJS from 'exceljs';
 import { Report, ReportFormat, ExportOptions } from '../services/reportService';
 
 /**
@@ -36,42 +36,46 @@ export const convertToCSV = <T extends Record<string, any>>(
 };
 
 /**
- * 데이터를 Excel 형식으로 변환
+ * 데이터를 Excel 형식으로 변환 (ExcelJS 사용)
  * @param data 변환할 데이터 배열
  * @param columns 열 설정
  * @param sheetName 시트 이름
  */
-export const convertToExcel = <T extends Record<string, any>>(
+export const convertToExcel = async <T extends Record<string, any>>(
   data: T[],
   columns: { key: string; title: string }[],
   sheetName = 'Sheet1'
-): Blob => {
-  // 헤더 행 생성
-  const headers = columns.map(col => col.title);
+): Promise<Blob> => {
+  // 새 워크북 생성
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet(sheetName);
 
-  // 데이터 행 생성
-  const rows = data.map(item => {
-    return columns.map(col => item[col.key]);
-  });
+  // 헤더 행 추가
+  worksheet.addRow(columns.map(col => col.title));
 
-  // 워크북 생성
-  const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+  // 스타일 적용
+  const headerRow = worksheet.getRow(1);
+  headerRow.font = { bold: true };
+  headerRow.fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FFE0E0E0' }
+  };
 
-  // 워크시트 생성
-  XLSX.utils.book_append_sheet(wb, ws, sheetName);
-
-  // 바이너리 파일 생성
-  const wbout = XLSX.write(wb, { type: 'binary', bookType: 'xlsx' });
-
-  // 문자열 데이터를 바이너리 데이터로 변환
-  const buf = new ArrayBuffer(wbout.length);
-  const view = new Uint8Array(buf);
-  for (let i = 0; i < wbout.length; i++) {
-    view[i] = wbout.charCodeAt(i) & 0xff;
+  // 데이터 행 추가
+  for (const item of data) {
+    worksheet.addRow(columns.map(col => item[col.key]));
   }
 
-  return new Blob([buf], { type: 'application/octet-stream' });
+  // 각 열 너비 자동 조정
+  columns.forEach((_, index) => {
+    const column = worksheet.getColumn(index + 1);
+    column.width = 15; // 기본 너비 설정
+  });
+
+  // 엑셀 파일 생성 및 반환
+  const buffer = await workbook.xlsx.writeBuffer();
+  return new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
 };
 
 /**
@@ -79,7 +83,7 @@ export const convertToExcel = <T extends Record<string, any>>(
  * @param report 보고서 데이터
  * @param options 내보내기 옵션
  */
-export const exportReportData = (report: Report, options: ExportOptions): Blob | string => {
+export const exportReportData = async (report: Report, options: ExportOptions): Promise<Blob | string> => {
   // 테이블 데이터 및 열 정보 추출
   const { data, columns } = extractTableData(report);
 
@@ -88,7 +92,7 @@ export const exportReportData = (report: Report, options: ExportOptions): Blob |
     case ReportFormat.CSV:
       return convertToCSV(data, columns);
     case ReportFormat.EXCEL:
-      return convertToExcel(data, columns, report.title);
+      return await convertToExcel(data, columns, report.title);
     case ReportFormat.JSON:
       return JSON.stringify(report.data, null, 2);
     default:

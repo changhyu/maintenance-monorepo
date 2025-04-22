@@ -34,6 +34,13 @@ export default prisma;
 // 모델 타입 다시 내보내기
 export * from '@prisma/client';
 
+// Repository 및 유틸리티 내보내기
+export * from './repository/base-repository';
+export * from './repository/vehicle-repository';
+export * from './repository/maintenance-repository';
+export * from './repository/user-repository';
+export * from './utils/query-optimizer';
+
 // 데이터베이스 연결 테스트 유틸리티 함수
 export async function testConnection() {
   try {
@@ -46,4 +53,4 @@ export async function testConnection() {
   } finally {
     await prisma.$disconnect();
   }
-} 
+}

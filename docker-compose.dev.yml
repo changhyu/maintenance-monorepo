@@ -11,13 +11,15 @@ services:
     environment:
       - DEBUG=True
       - ENVIRONMENT=development
-      - CORS_ORIGINS=["http://localhost:3000", "http://dev.car-goro.local"]
-      - API_DOMAIN=api.car-goro.local
+      - CORS_ORIGINS=["http://localhost:3000", "http://dev.car-goro.local", "http://0.0.0.0:3000", "http://0.0.0.0:8081"]
+      - API_DOMAIN=0.0.0.0
     ports:
-      - "8000:8000"
+      - "8081:8000"  # 8081 포트로 변경
     depends_on:
       - db
       - redis
+    networks:
+      - maintenance-network
 
   frontend:
     build:
@@ -29,11 +31,13 @@ services:
       - frontend-node-modules:/app/packages/frontend/node_modules
     environment:
       - NODE_ENV=development
-      - VITE_API_URL=http://localhost:8000
+      - VITE_API_URL=http://localhost:8081  # API 포트 변경
     ports:
-      - "3000:3000"
+      - "3008:3000"  # 3008 포트로 변경
     depends_on:
       - api
+    networks:
+      - maintenance-network
 
   db:
     ports:
@@ -42,10 +46,19 @@ services:
       - POSTGRES_DB=maintenance_dev
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=development
+    networks:
+      - maintenance-network
 
   redis:
     ports:
       - "6379:6379"
+    networks:
+      - maintenance-network
+
+# 공통 네트워크 설정 추가
+networks:
+  maintenance-network:
+    driver: bridge
 
 volumes:
   api-node-modules:

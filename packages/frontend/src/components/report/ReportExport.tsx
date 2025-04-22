@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-
 import { Button, Select, message, Spin } from 'antd';
 import { jsPDF } from 'jspdf';
-import * as XLSX from 'xlsx';
+// XLSX를 ExcelJS로 교체
+import ExcelJS from 'exceljs';
+import { saveAs } from 'file-saver';
 import 'jspdf-autotable';
 import html2canvas from 'html2canvas';
 
@@ -254,23 +255,98 @@ const ReportExport: React.FC<ReportExportProps> = ({
   };
 
   /**
-   * 데이터를 Excel로 내보내는 함수
+   * 데이터를 Excel로 내보내는 함수 (ExcelJS 사용)
    */
-  const exportToExcel = () => {
+  const exportToExcel = async () => {
     try {
       setIsLoading(true);
+      
       // 데이터 유형 확인 (객체 배열 또는 단일 객체)
       const dataArray = Array.isArray(reportData) ? reportData : [reportData];
       
-      // 워크시트 생성
-      const worksheet = XLSX.utils.json_to_sheet(dataArray);
+      // 새 워크북 생성
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = '차량 관리 시스템';
+      workbook.lastModifiedBy = '차량 관리 시스템';
+      workbook.created = new Date();
+      workbook.modified = new Date();
       
-      // 워크북 생성 및 워크시트 추가
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, title.substring(0, 31));
+      // 최대 31자로 시트 이름 제한
+      const sheetName = title.substring(0, 31);
+      const worksheet = workbook.addWorksheet(sheetName);
       
-      // Excel 파일 저장
-      XLSX.writeFile(workbook, `${title}.xlsx`);
+      // 헤더 행 추가
+      if (dataArray.length > 0) {
+        const headers = Object.keys(dataArray[0]).filter(key => 
+          // 복잡한 객체나 배열 필드 제외
+          typeof dataArray[0][key] !== 'object' || dataArray[0][key] === null
+        );
+        
+        // 헤더 행 설정
+        worksheet.addRow(headers.map(header => 
+          header
+            .replace(/([A-Z])/g, ' $1') // 카멜케이스를 공백으로 구분
+            .replace(/^./, str => str.toUpperCase()) // 첫 글자 대문자
+        ));
+        
+        // 헤더 스타일 설정
+        const headerRow = worksheet.getRow(1);
+        headerRow.font = { bold: true };
+        headerRow.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FF4F81BD' }
+        };
+        headerRow.font = {
+          name: 'Arial',
+          size: 12,
+          bold: true,
+          color: { argb: 'FFFFFFFF' }
+        };
+        
+        // 데이터 행 추가
+        dataArray.forEach(item => {
+          const rowData = headers.map(key => {
+            const value = item[key];
+            
+            // 값이 null 또는 undefined인 경우 빈 문자열 반환
+            if (value === null || value === undefined) return '';
+            
+            // 날짜 형식 변환
+            if (value instanceof Date) return value;
+            
+            // 객체인 경우 JSON 문자열로 변환
+            if (typeof value === 'object') return JSON.stringify(value);
+            
+            return value;
+          });
+          
+          worksheet.addRow(rowData);
+        });
+        
+        // 열 너비 자동 조정
+        worksheet.columns.forEach(column => {
+          column.width = 15; // 기본 너비 설정
+        });
+        
+        // 테두리 스타일 적용
+        worksheet.eachRow((row, rowNumber) => {
+          row.eachCell(cell => {
+            cell.border = {
+              top: { style: 'thin' },
+              left: { style: 'thin' },
+              bottom: { style: 'thin' },
+              right: { style: 'thin' }
+            };
+          });
+        });
+      }
+      
+      // Excel 파일로 저장
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      saveAs(blob, `${title}.xlsx`);
+      
       message.success('Excel 보고서가 생성되었습니다.');
     } catch (error) {
       console.error('Excel 내보내기 오류:', error);

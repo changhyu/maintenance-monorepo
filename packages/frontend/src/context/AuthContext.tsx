@@ -1,286 +1,210 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
+import { UserInfo, AuthStatus } from '../services/api/types';
+import { getStoredUserInfo, isLoggedIn, removeToken } from '../services/api/auth-helpers';
+import { authApi } from '../services/api/domain/auth-api';
+import { useNotifications } from './AppContext';
 
-// 사용자 역할 정의
-export enum UserRole {
-  SUPER_ADMIN = 'SUPER_ADMIN',
-  ENTERPRISE_ADMIN = 'ENTERPRISE_ADMIN',
-  SHOP_OWNER = 'SHOP_OWNER',
-  TECHNICIAN = 'TECHNICIAN',
-  VEHICLE_OWNER = 'VEHICLE_OWNER'
-}
-
-// 사용자 정보 인터페이스
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-  role: UserRole;
-  profileImage?: string;
-  phone?: string;
-  companyId?: string;
-  shopId?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-// 인증 컨텍스트 타입
-interface AuthContextType {
-  user: User | null;
-  loading: boolean;
+// 인증 상태 타입
+interface AuthState {
+  status: AuthStatus; // 'authenticated' | 'unauthenticated' | 'loading'
+  user: UserInfo | null;
   error: string | null;
-  login: (email: string, password: string) => Promise<void>;
+}
+
+// 액션 타입
+type AuthAction = 
+  | { type: 'AUTH_LOGIN_SUCCESS', payload: UserInfo }
+  | { type: 'AUTH_LOGOUT' }
+  | { type: 'AUTH_ERROR', payload: string }
+  | { type: 'AUTH_RESET_ERROR' }
+  | { type: 'AUTH_LOADING' }
+  | { type: 'AUTH_USER_UPDATE', payload: Partial<UserInfo> };
+
+// 초기 상태
+const initialState: AuthState = {
+  status: 'loading',
+  user: null,
+  error: null,
+};
+
+// 리듀서 함수
+function authReducer(state: AuthState, action: AuthAction): AuthState {
+  switch (action.type) {
+    case 'AUTH_LOGIN_SUCCESS':
+      return { 
+        ...state, 
+        status: 'authenticated', 
+        user: action.payload,
+        error: null 
+      };
+    
+    case 'AUTH_LOGOUT':
+      return { 
+        ...state, 
+        status: 'unauthenticated', 
+        user: null,
+        error: null 
+      };
+    
+    case 'AUTH_ERROR':
+      return { 
+        ...state, 
+        status: 'unauthenticated', 
+        error: action.payload 
+      };
+    
+    case 'AUTH_RESET_ERROR':
+      return { 
+        ...state, 
+        error: null 
+      };
+    
+    case 'AUTH_LOADING':
+      return { 
+        ...state, 
+        status: 'loading',
+        error: null 
+      };
+      
+    case 'AUTH_USER_UPDATE':
+      return {
+        ...state,
+        user: state.user ? { ...state.user, ...action.payload } : null
+      };
+    
+    default:
+      return state;
+  }
+}
+
+// Context 생성
+interface AuthContextType {
+  state: AuthState;
+  login: (email: string, password: string, rememberMe?: boolean) => Promise<boolean>;
   logout: () => Promise<void>;
-  register: (userData: RegisterData) => Promise<void>;
-  forgotPassword: (email: string) => Promise<void>;
-  resetPassword: (token: string, newPassword: string) => Promise<void>;
-  updateProfile: (userData: Partial<User>) => Promise<void>;
-  isAuthenticated: boolean;
-  hasRole: (roles: UserRole | UserRole[]) => boolean;
+  resetError: () => void;
+  updateUserProfile: (userData: Partial<UserInfo>) => void;
 }
 
-// 회원가입 데이터 인터페이스
-export interface RegisterData {
-  name: string;
-  email: string;
-  password: string;
-  role: UserRole;
-  companyId?: string;
-  shopId?: string;
-  phone?: string;
-}
+const AuthContext = createContext<AuthContextType>({
+  state: initialState,
+  login: async () => false,
+  logout: async () => {},
+  resetError: () => {},
+  updateUserProfile: () => {},
+});
 
-// 인증 컨텍스트 생성
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-interface AuthProviderProps {
-  children: ReactNode;
-}
-
-export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-
-  // 초기 인증 상태 확인
+// Provider 컴포넌트
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [state, dispatch] = useReducer(authReducer, initialState);
+  const { addNotification } = useNotifications();
+  
+  // 로그인 상태 초기화
   useEffect(() => {
-    const checkAuthStatus = async () => {
+    const initAuth = async () => {
       try {
-        setLoading(true);
-        const token = localStorage.getItem('authToken');
-
-        if (!token) {
-          setIsAuthenticated(false);
-          setUser(null);
-          setLoading(false);
-          return;
+        // 로컬 스토리지에서 토큰 확인
+        if (isLoggedIn()) {
+          // 저장된 사용자 정보 가져오기
+          const userInfo = getStoredUserInfo();
+          
+          if (userInfo) {
+            dispatch({ type: 'AUTH_LOGIN_SUCCESS', payload: userInfo });
+            
+            // 백그라운드에서 최신 사용자 정보 갱신 (선택적)
+            try {
+              const latestUserInfo = await authApi.getCurrentUser();
+              dispatch({ type: 'AUTH_LOGIN_SUCCESS', payload: latestUserInfo });
+            } catch (error) {
+              console.error('사용자 정보 갱신 실패:', error);
+              // 심각한 오류가 아니므로 상태는 변경하지 않음
+            }
+          } else {
+            dispatch({ type: 'AUTH_LOGOUT' });
+          }
+        } else {
+          dispatch({ type: 'AUTH_LOGOUT' });
         }
-
-        // TODO: 실제 API 구현 시 토큰 검증 로직 추가
-        // const response = await api.get('/auth/me');
-        // setUser(response.data);
-
-        // 임시 사용자 데이터 (개발용)
-        const tempUser: User = {
-          id: '1',
-          email: 'user@example.com',
-          name: '사용자',
-          role: UserRole.SHOP_OWNER,
-          profileImage: 'https://via.placeholder.com/150',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        };
-
-        setUser(tempUser);
-        setIsAuthenticated(true);
-      } catch (err) {
-        console.error('인증 상태 확인 중 오류 발생:', err);
-        localStorage.removeItem('authToken');
-        setIsAuthenticated(false);
-        setUser(null);
-        setError('인증 세션이 만료되었습니다. 다시 로그인해주세요.');
-      } finally {
-        setLoading(false);
+      } catch (error) {
+        console.error('인증 초기화 오류:', error);
+        dispatch({ type: 'AUTH_LOGOUT' });
       }
     };
-
-    checkAuthStatus();
+    
+    initAuth();
   }, []);
-
+  
   // 로그인 함수
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string, rememberMe: boolean = false): Promise<boolean> => {
     try {
-      setLoading(true);
-      setError(null);
-
-      // TODO: 실제 API 구현 시 로그인 로직 추가
-      // const response = await api.post('/auth/login', { email, password });
-      // localStorage.setItem('authToken', response.data.token);
-
-      // 임시 로그인 로직 (개발용)
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      localStorage.setItem('authToken', 'temp-auth-token');
-
-      const tempUser: User = {
-        id: '1',
-        email,
-        name: '사용자',
-        role: UserRole.SHOP_OWNER,
-        profileImage: 'https://via.placeholder.com/150',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-
-      setUser(tempUser);
-      setIsAuthenticated(true);
-    } catch (err: any) {
-      console.error('로그인 중 오류 발생:', err);
-      setError(err.message || '로그인 중 오류가 발생했습니다.');
-      throw err;
-    } finally {
-      setLoading(false);
+      dispatch({ type: 'AUTH_LOADING' });
+      
+      const response = await authApi.login({ email, password, rememberMe });
+      dispatch({ type: 'AUTH_LOGIN_SUCCESS', payload: response.user });
+      
+      addNotification(`환영합니다, ${response.user.name}님`, 'success');
+      return true;
+    } catch (error) {
+      console.error('로그인 오류:', error);
+      const errorMessage = error instanceof Error ? error.message : '로그인에 실패했습니다';
+      dispatch({ type: 'AUTH_ERROR', payload: errorMessage });
+      
+      addNotification(errorMessage, 'error');
+      return false;
     }
   };
-
+  
   // 로그아웃 함수
-  const logout = async () => {
+  const logout = async (): Promise<void> => {
     try {
-      setLoading(true);
-
-      // TODO: 실제 API 구현 시 로그아웃 로직 추가
-      // await api.post('/auth/logout');
-
-      localStorage.removeItem('authToken');
-      setUser(null);
-      setIsAuthenticated(false);
-    } catch (err) {
-      console.error('로그아웃 중 오류 발생:', err);
-    } finally {
-      setLoading(false);
+      await authApi.logout();
+    } catch (error) {
+      console.error('로그아웃 API 호출 오류:', error);
+      // API 호출이 실패해도 로컬에서는 로그아웃 처리
     }
+    
+    // 로컬 토큰 제거
+    removeToken();
+    dispatch({ type: 'AUTH_LOGOUT' });
+    addNotification('로그아웃되었습니다', 'info');
   };
-
-  // 회원가입 함수
-  const register = async (userData: RegisterData) => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      // TODO: 실제 API 구현 시 회원가입 로직 추가
-      // await api.post('/auth/register', userData);
-
-      // 임시 회원가입 로직 (개발용)
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    } catch (err: any) {
-      console.error('회원가입 중 오류 발생:', err);
-      setError(err.message || '회원가입 중 오류가 발생했습니다.');
-      throw err;
-    } finally {
-      setLoading(false);
-    }
+  
+  // 오류 초기화
+  const resetError = (): void => {
+    dispatch({ type: 'AUTH_RESET_ERROR' });
   };
-
-  // 비밀번호 재설정 요청 함수
-  const forgotPassword = async (email: string) => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      // TODO: 실제 API 구현 시 비밀번호 재설정 요청 로직 추가
-      // await api.post('/auth/forgot-password', { email });
-
-      // 임시 로직 (개발용)
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    } catch (err: any) {
-      console.error('비밀번호 재설정 요청 중 오류 발생:', err);
-      setError(err.message || '비밀번호 재설정 요청 중 오류가 발생했습니다.');
-      throw err;
-    } finally {
-      setLoading(false);
-    }
+  
+  // 사용자 프로필 업데이트
+  const updateUserProfile = (userData: Partial<UserInfo>): void => {
+    dispatch({ type: 'AUTH_USER_UPDATE', payload: userData });
   };
-
-  // 비밀번호 재설정 함수
-  const resetPassword = async (token: string, newPassword: string) => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      // TODO: 실제 API 구현 시 비밀번호 재설정 로직 추가
-      // await api.post('/auth/reset-password', { token, newPassword });
-
-      // 임시 로직 (개발용)
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    } catch (err: any) {
-      console.error('비밀번호 재설정 중 오류 발생:', err);
-      setError(err.message || '비밀번호 재설정 중 오류가 발생했습니다.');
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // 프로필 업데이트 함수
-  const updateProfile = async (userData: Partial<User>) => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      // TODO: 실제 API 구현 시 프로필 업데이트 로직 추가
-      // const response = await api.put('/auth/profile', userData);
-      // setUser(response.data);
-
-      // 임시 로직 (개발용)
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      setUser(prev => (prev ? { ...prev, ...userData } : null));
-    } catch (err: any) {
-      console.error('프로필 업데이트 중 오류 발생:', err);
-      setError(err.message || '프로필 업데이트 중 오류가 발생했습니다.');
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // 권한 확인 함수
-  const hasRole = (roles: UserRole | UserRole[]): boolean => {
-    if (!user) return false;
-
-    if (Array.isArray(roles)) {
-      return roles.includes(user.role);
-    }
-
-    return user.role === roles;
-  };
-
+  
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        loading,
-        error,
-        login,
-        logout,
-        register,
-        forgotPassword,
-        resetPassword,
-        updateProfile,
-        isAuthenticated,
-        hasRole
-      }}
-    >
+    <AuthContext.Provider value={{ state, login, logout, resetError, updateUserProfile }}>
       {children}
     </AuthContext.Provider>
   );
-};
+}
 
-// 인증 컨텍스트를 사용하기 위한 커스텀 훅
-export const useAuth = (): AuthContextType => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
+// 커스텀 훅
+export function useAuth() {
+  return useContext(AuthContext);
+}
 
-export default AuthContext;
+// 인증 상태 확인을 위한 커스텀 훅
+export function useAuthStatus() {
+  const { state } = useAuth();
+  return state.status;
+}
+
+// 인증된 사용자 정보를 위한 커스텀 훅
+export function useAuthUser() {
+  const { state } = useAuth();
+  return state.user;
+}
+
+// 인증 오류 확인을 위한 커스텀 훅
+export function useAuthError() {
+  const { state, resetError } = useAuth();
+  return { error: state.error, resetError };
+}

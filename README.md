@@ -1,371 +1,415 @@
-# 차량 정비 관리 시스템 모노레포
+# GitService 모듈
 
-차량 정비 기록 및 관리를 위한 통합 시스템입니다.
+이 프로젝트는 Git 저장소를 관리하기 위한 Python 래퍼 라이브러리입니다.
 
-## 프로젝트 구조
+## 주요 기능
 
-```
-maintenance-monorepo/
-├── packages/
-│   ├── api/                  # 백엔드 API 서비스
-│   ├── frontend/             # React 프론트엔드
-│   ├── database/             # 데이터베이스 모델 및 접근 레이어
-│   ├── shared/               # 공유 타입 및 유틸리티
-│   └── api-client/           # API 클라이언트
-├── docs/                     # 프로젝트 문서
-├── scripts/                  # 빌드 및 배포 스크립트
-├── config/                   # 공통 설정
-└── tests/                    # 통합 테스트
-```
+- Git 저장소 상태 확인
+- 커밋 생성 및 관리
+- 원격 저장소와의 동기화 (풀/푸시)
+- 병합 충돌 해결
+- 커밋 이력 조회 및 관리
 
-## 시작하기
+## 설치 방법
 
-### 필수 조건
+### 요구사항
 
-- Node.js v16 이상
-- npm v8 이상
-- Python 3.8 이상 (API 서비스용)
-- PostgreSQL 14 이상
-- Docker 및 Docker Compose (Docker 환경에서 실행 시)
+- Python 3.7 이상
+- Git (명령줄 도구)
+- GitPython (선택적 의존성)
 
-### Docker 환경에서 실행하기
+### 설치
 
-프로젝트는 Docker를 통해 쉽게 실행할 수 있습니다. 다음은 Docker 환경에서 프로젝트를 설정하고 실행하는 방법입니다:
-
-1. Docker 환경 설정 스크립트 실행:
 ```bash
-npm run docker:setup
-```
-
-2. 개발 환경 실행:
-```bash
-npm run docker:dev
-```
-
-3. 개발 환경 이미지 빌드 후 실행:
-```bash
-npm run docker:dev:build
-```
-
-4. 테스트 환경 실행:
-```bash
-npm run docker:test
-```
-
-5. 프로덕션 환경 실행:
-```bash
-npm run docker:prod
-```
-
-6. 컨테이너 중지:
-```bash
-npm run docker:down
-```
-
-7. 로그 확인:
-```bash
-npm run docker:logs
-```
-
-> 참고: 최신 Docker 버전(Docker Desktop)을 사용하고 있으므로 `docker compose` 명령어를 사용합니다.
-
-### 기존 방식으로 설치 및 개발 환경 설정
-
-1. 저장소 클론:
-```bash
-git clone <repository-url>
+# 저장소 클론
+git clone https://github.com/username/maintenance-monorepo.git
 cd maintenance-monorepo
-```
 
-2. 의존성 설치:
-```bash
-npm install
-```
+# 패키지 설치
+pip install -e .
 
-3. 환경 변수 설정:
-```bash
-cp .env.example .env
-# .env 파일을 편집하여 필요한 환경 변수 설정
-```
-
-4. 개발 모드 실행:
-```bash
-npm run dev
-```
-
-## 패키지 사용 방법
-
-### API 서비스
-
-```bash
-cd packages/api
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
+# 또는 요구 사항만 설치
 pip install -r requirements.txt
-python -m src.main
+
+# 개발 패키지 설치
+pip install -r requirements-dev.txt
 ```
 
-### 프론트엔드
+### GitPython 의존성 설치
+
+일부 기능은 GitPython 라이브러리를 사용합니다. GitPython을 설치하려면:
 
 ```bash
-cd packages/frontend
-pnpm dev
+pip install gitpython
 ```
 
-## 리팩토링 진행 현황
+### 직접 실행
 
-### 완료된 작업
+```bash
+# 셸 스크립트로 실행 (Unix/Linux/Mac)
+bash run_via_bash.sh
 
-1. **모노레포 기본 구조 설정**
-   - 디렉토리 구조 생성
-   - 패키지별 기본 파일 설정
+# Python으로 실행
+python run_via_python.py
+```
 
-2. **API 패키지 리팩토링**
-   - 코어 모듈 구현 (config, security, dependencies)
-   - 모델 및 스키마 정의
-   - 비즈니스 로직 모듈화 (차량 모듈)
-   - API 라우터 구현 (인증, 차량)
+## 사용 예시
 
-3. **데이터베이스 패키지 구성**
-   - Prisma 스키마 정의
-   - 데이터베이스 모델 서비스 구현 (차량 모델)
+### 기본 사용법
 
-### 진행 예정 작업
+```python
+from gitmanager.git.core.service import GitService
 
-1. **프론트엔드 패키지 구현**
-   - 컴포넌트 구조 개선
-   - API 통합 서비스
-   - 상태 관리 구현
+# Git 서비스 초기화
+repo_path = "/path/to/your/repo"
+git = GitService(repo_path)
 
-2. **공유 패키지 구현**
-   - 공통 타입 정의
-   - 유틸리티 함수 구현
+# 저장소 상태 확인
+status = git.get_status()
+print(f"현재 브랜치: {status['branch']}")
+print(f"변경된 파일: {status['modified']}")
 
-3. **배포 설정**
-   - Docker 설정
-   - CI/CD 파이프라인 구성
+# 변경 사항 커밋
+message = "새로운 기능 추가"
+git.create_commit(message)
+print("변경 사항이 커밋되었습니다.")
 
-## 코드 개선 사항
+# 원격 저장소에서 변경 사항 가져오기
+git.pull()
+print("원격 저장소에서 최신 변경 사항을 가져왔습니다.")
 
-최근 코드베이스 개선 작업이 완료되었습니다. 아래는 주요 개선 사항입니다:
+# 원격 저장소로 변경 사항 푸시
+git.push()
+print("로컬 변경 사항이 원격 저장소로 푸시되었습니다.")
+```
 
-### 구조적 개선
-- 더미 클래스를 별도 파일로 분리하여 코드 중복 제거
-- 예외 처리 강화 및 모듈화 개선
-- 코드 중복 제거 및 함수 재사용성 증가
+### 고급 기능
 
-### 보안 강화
-- 토큰 관리 기능 개선 (액세스 토큰 및 리프레시 토큰 분리)
-- 환경 변수 검증 로직 추가
-- 프로덕션 환경에서의 보안 설정 강화
+```python
+# 커밋 이력 조회
+history = git.get_log(limit=5)
+for commit in history:
+    print(f"커밋: {commit['hash']}")
+    print(f"작성자: {commit['author']}")
+    print(f"날짜: {commit['date']}")
+    print(f"메시지: {commit['message']}")
+    print("---")
 
-### 로깅 및 디버깅
-- 로깅 시스템 추가 및 강화
-- 오류 추적 개선
-- 디버깅 정보 확장
+# 병합 충돌 해결
+try:
+    git.pull()
+except GitOperationException as e:
+    print(f"병합 충돌 발생: {e}")
+    # 충돌 해결
+    conflicts = git.get_status().status.conflicts
+    # 충돌 해결 후 자동으로 해결
+    git.resolve_merge_conflicts(strategy="ours")  # 또는 "theirs"
+    # 또는 수동으로 파일 편집 후
+    git.create_commit("병합 충돌 해결")
+```
 
-### 설정 관리
-- 환경 변수 처리 기능 강화
-- 기본값 설정 개선
-- 설정 유효성 검증 추가
+## 테스트 실행
 
-### 기타 개선
-- API 응답 형식 표준화
-- 코드 문서화 개선
-- 서비스 클래스 기능 확장
+```bash
+# 모든 테스트 실행
+python run_tests.py --all
 
-### 코드 모듈 구성
+# Git 관련 테스트 실행
+python run_tests.py --git
 
-#### 주요 모듈
-- 모듈명: 기능 설명
-- `packages/api/src/core`: 핵심 기능 및 설정
-- `packages/api/src/modules`: 비즈니스 로직 모듈
-- `packages/api/src/routers`: API 라우터
-- `packages/api/src/models`: 데이터 모델 및 스키마
+# GitManager 테스트 실행
+python run_tests.py --gitmanager
 
-#### 주요 클래스
-- `ShopService`: 정비소 관련 기능
-- `MaintenanceService`: 정비 관련 기능
-- `UserService`: 사용자 관리 기능
+# 특정 테스트 파일 실행
+python run_tests.py --test-file git_tests/test_git_service.py
 
-#### 주요 함수
-- `verify_password`: 비밀번호 검증
-- `create_access_token`: 액세스 토큰 생성
-- `create_refresh_token`: 리프레시 토큰 생성
-- `get_current_user`: 현재 인증된 사용자 조회
-- `export_data`: 데이터 내보내기 기능
+# 상세 출력과 함께 테스트 실행
+python run_tests.py --all --verbose
 
-## 최근 업데이트
-### TurboRepo 최적화
-- `turbo.json` 설정에서 캐싱 및 증분 빌드가 활성화되었습니다.
-- `build` 작업에 `outputs`가 정의되어 변경된 파일만 빌드하도록 최적화되었습니다.
+# JUnit XML 보고서 생성
+python run_tests.py --all --junit
+```
 
-### Docker Compose 개선
-- 서비스별 Docker Compose 파일로 분리:
-  - `docker-compose.api.yml`: API 서비스
-  - `docker-compose.frontend.yml`: 프론트엔드 서비스
-  - `docker-compose.db.yml`: 데이터베이스 서비스
-  - `docker-compose.dev.yml`: 개발 환경
-  - `docker-compose.test.yml`: 테스트 환경
-- `version` 속성이 제거되어 최신 Docker Compose와 호환됩니다.
+추가적인 테스트 옵션을 확인하려면:
 
-### Dockerfile 개선
-- `Dockerfile.api`:
-  - 멀티스테이지 빌드 적용으로 이미지 크기 감소 및 빌드 효율성 향상.
-  - 프로덕션 단계에서 최소한의 종속성만 포함.
-- `Dockerfile.frontend`:
-  - `nginx`를 사용한 프로덕션 단계 추가.
-  - 멀티스테이지 빌드로 최적화.
+```bash
+python run_tests.py -h
+```
 
-### `.env.db` 파일 추가
-- 데이터베이스 서비스에 필요한 환경 변수를 정의하는 `.env.db` 파일이 추가되었습니다.
-- 예시:
-  ```env
-  POSTGRES_USER=postgres
-  POSTGRES_PASSWORD=postgres
-  POSTGRES_DB=maintenance
-  ```
+### 테스트 환경 설정
 
-### 실행 및 테스트 검증
-- `build-dev.sh`, `build-prod.sh`, `build-test.sh` 스크립트를 통해 개발, 프로덕션, 테스트 환경이 성공적으로 검증되었습니다.
+테스트를 실행하기 전 필요한 환경 설정:
+
+```bash
+# 필수 패키지 설치
+pip install -r requirements-dev.txt
+
+# GitPython 설치
+pip install gitpython
+
+# 테스트 환경 설정
+python setup_test_env.py
+```
+
+## 모듈 구조
+
+```
+gitmanager/
+├── __init__.py         # 모듈 초기화 및 기본 임포트
+├── pytestcompat.py     # pytest 호환성 모듈
+└── git/                # Git 관련 모듈
+    ├── __init__.py     # Git 모듈 초기화
+    ├── core/           # 핵심 기능
+    │   ├── __init__.py
+    │   ├── service.py  # GitService 클래스
+    │   ├── types.py    # 타입 정의
+    │   ├── utils.py    # 유틸리티 함수
+    │   └── exceptions.py # 예외 클래스
+    ├── interfaces/     # 인터페이스 정의
+    │   └── __init__.py
+    ├── services/       # 부가 서비스
+    │   └── __init__.py
+    └── tests/          # Git 모듈 테스트
+        └── __init__.py
+
+git_tests/              # 독립 테스트 디렉토리
+├── __init__.py
+├── test_git_integration.py
+├── test_git_service.py
+└── git_lib.py
+```
+
+## 주요 클래스 및 함수
+
+### GitService
+
+```python
+class GitService:
+    """Git 저장소 관리 및 작업을 위한 서비스 클래스"""
+    
+    def __init__(self, repo_path: str):
+        """Git 서비스 초기화"""
+        
+    def get_status(self) -> GitStatusResult:
+        """저장소 상태 조회"""
+        
+    def create_commit(self, message: str, files: Optional[List[str]] = None) -> CommitResponse:
+        """변경사항 커밋"""
+        
+    def pull(self, remote: str = "origin", branch: Optional[str] = None) -> PullPushResult:
+        """원격 저장소에서 변경사항 가져오기"""
+        
+    def push(self, remote: str = "origin", branch: Optional[str] = None) -> PullPushResultWithChanges:
+        """원격 저장소로 변경사항 푸시"""
+        
+    def create_branch(self, name: str) -> BranchInfo:
+        """새 브랜치 생성"""
+        
+    def delete_branch(self, name: str) -> bool:
+        """브랜치 삭제"""
+        
+    def switch_branch(self, name: str) -> BranchInfo:
+        """브랜치 전환"""
+        
+    def list_branches(self) -> List[BranchInfo]:
+        """브랜치 목록 조회"""
+        
+    def get_log(self, limit: int = 10, skip: int = 0, branch: str = None, path: str = None) -> List[CommitInfo]:
+        """커밋 로그 조회"""
+        
+    def merge_branches(self, source: str, target: str = None) -> MergeConflictResult:
+        """브랜치 병합"""
+        
+    def resolve_merge_conflicts(self) -> MergeConflictResult:
+        """병합 충돌 해결"""
+        
+    def get_remotes(self) -> List[GitRemote]:
+        """원격 저장소 목록 조회"""
+        
+    def add_remote(self, name: str, url: str) -> bool:
+        """원격 저장소 추가"""
+        
+    def remove_remote(self, name: str) -> bool:
+        """원격 저장소 제거"""
+        
+    def create_tag(self, name: str, message: str = "", commit: str = "HEAD") -> bool:
+        """태그 생성"""
+        
+    def delete_tag(self, name: str) -> bool:
+        """태그 삭제"""
+```
+
+## 보안 취약점 관리
+
+이 프로젝트는 보안 취약점을 효과적으로 관리하기 위한 여러 도구와 프로세스를 포함하고 있습니다.
+
+### 보안 명령어
+
+```bash
+# 보안 취약점 수정
+npm run security:fix
+
+# 향상된 보안 테스트 실행
+npm run security:test
+
+# 보안 수정 및 테스트 한 번에 실행
+npm run security:full
+```
+
+### 보안 문서
+
+보안과 관련된 자세한 내용은 다음 문서를 참조하세요:
+
+- [보안 개선 상세 보고서](./SECURITY_IMPROVEMENTS.md)
+- [보안 개선 최종 요약](./SECURITY_SUMMARY.md)
+
+### 보안 취약점 보고
+
+보안 취약점을 발견하신 경우, 즉시 보안 담당자에게 보고해 주세요. 이메일: security@example.com
+
+## 기여하기
+
+1. 저장소를 포크합니다.
+2. 기능 브랜치를 생성합니다 (`git checkout -b feature/amazing-feature`).
+3. 변경 사항을 커밋합니다 (`git commit -m 'feat: 놀라운 기능 추가'`).
+4. 브랜치를 푸시합니다 (`git push origin feature/amazing-feature`).
+5. Pull Request를 생성합니다.
 
 ## 라이선스
 
-MIT 
+MIT 라이선스 하에 배포됩니다. 자세한 내용은 [LICENSE](LICENSE) 파일을 참조하세요.
 
-## 개발 환경 설정 가이드
+## 최근 버그 수정 및 개선사항
 
-이 문서는 프로젝트의 개발 환경을 설정하고 실행하는 방법을 설명합니다.
+### v0.2.1 (2023-05-30)
 
-### 시스템 요구사항
+#### 버그 수정
+1. **임포트 경로 수정**
+   - `gitmanager/__init__.py`에서 잘못된 임포트 경로 수정: `gitmanagerservices.git_service` → `gitmanager.git.core.service`
+   - `git_tests/test_git_service.py`에서 잘못된 임포트 경로 수정: `gitmanager.services.git_service` → `gitmanager.git.core.service`
 
-- Node.js 16.0.0 이상
-- Python 3.8 이상
-- npm 9.6.0 이상
+2. **README 업데이트**
+   - 사용 예시에서 잘못된 임포트 경로 수정
+   - 실제 코드 구조와 일치하도록 모듈 구조 설명 업데이트
+   - 클래스 및 메서드 설명 업데이트
+   - 테스트 실행 방법 업데이트
 
-### 환경 설정
+#### 개선사항
+1. **문서 개선**
+   - 실제 프로젝트 구조를 명확하게 문서화
+   - 테스트 실행 방법 구체화
+   - API 문서 타입 힌트 추가
 
-#### 1. 의존성 설치
+2. **테스트 환경**
+   - GitPython 의존성 명확화
+   - 테스트 환경 설정 방법 개선
 
-프로젝트 루트 디렉토리에서 다음 명령어를 실행하여 모든 패키지의 의존성을 설치합니다.
+### 다음 버전 계획
 
-```bash
-# 루트 디렉토리에서
-npm install
+1. **성능 최적화**
+   - 대용량 저장소 처리 성능 개선
+   - 메모리 사용량 최적화
+
+2. **새로운 기능**
+   - 서브모듈 관리 기능 추가
+   - 고급 diff 시각화 기능
+
+# GitService 개선 결과
+
+## 최근 개선 내용
+
+GitService 클래스에 다음과 같은 개선이 이루어졌습니다:
+
+1. **캐싱 메커니즘 적용**
+   - 상태 정보, 브랜치 목록, 태그 목록, 커밋 히스토리 등에 대한 캐싱 적용
+   - TTL 기반의 캐시 만료 기능 구현
+   - 적응형 캐싱으로 자주 사용되는 데이터의 캐시 수명 연장
+
+2. **병렬 처리 도입**
+   - 여러 파일 이력 동시 조회 (`get_multiple_files_history`)
+   - 여러 커밋 정보 일괄 조회 (`get_commits_batch`)
+   - 파일 검색 병렬화 (`find_file_in_history`)
+
+3. **파일 이력 조회 개선**
+   - 첫 번째 커밋에 대한 처리 로직 개선
+   - 오류 처리 강화 및 예외 상황 대응
+
+4. **기여자 정보 조회 기능 추가**
+   - 커밋 기여자 조회 (`get_commit_contributors`)
+   - 파일 기여자 조회 (`get_file_contributors`)
+
+## 성능 벤치마크 결과
+
+### 병렬 처리 성능 향상
+
+| 작업 | 순차 처리 | 병렬 처리 | 성능 향상 |
+|------|----------|-----------|---------|
+| 파일 이력 조회 | 1.4505초 | 0.0024초 | 99.83% |
+| 커밋 정보 조회 | 0.0953초 | 0.0314초 | 67.05% |
+| 파일 이력 검색 | 0.2851초 | 0.0842초 | 70.45% |
+| 파일 작업 처리 | 0.2516초 | 0.0735초 | 70.80% |
+
+### 캐싱 성능 향상
+
+메서드별 캐싱 성능 개선 결과는 `benchmark_caching.py` 스크립트를 실행하여 확인할 수 있습니다.
+
+## 사용 예제
+
+### 캐싱 사용
+
+```python
+# 캐시 사용
+status = git_service.get_status(use_cache=True)
+
+# 캐시 사용하지 않음 (최신 데이터 조회)
+status = git_service.get_status(use_cache=False)
 ```
 
-#### 2. 환경 변수 설정
+### 병렬 처리 사용
 
-프론트엔드 환경 변수:
+```python
+# 여러 파일의 이력을 병렬로 조회
+result = git_service.get_multiple_files_history(
+    file_paths=["file1.txt", "file2.txt", "file3.txt"],
+    use_parallel=True
+)
 
-```
-# packages/frontend/.env
-VITE_API_URL=http://localhost:8000
-VITE_MAPS_API_KEY=YOUR_GOOGLE_MAPS_API_KEY
-```
-
-API 환경 변수:
-
-```
-# packages/api/.env
-DATABASE_URL=sqlite:///app.db
-SECRET_KEY=your_secret_key
-ENVIRONMENT=development
+# 여러 커밋 정보를 병렬로 조회
+result = git_service.get_commits_batch(
+    commit_hashes=["abc123", "def456", "ghi789"],
+    use_parallel=True
+)
 ```
 
-#### 3. 가상 환경 및 데이터베이스 설정
+### 파일 검색
 
-API 패키지에서 Python 가상 환경을 설정하고 필요한 패키지를 설치합니다:
-
-```bash
-cd packages/api
-python -m venv .venv
-./.venv/bin/pip install -r requirements.txt
+```python
+# Git 히스토리에서 파일 검색
+result = git_service.find_file_in_history(
+    search_pattern="config",
+    use_parallel=True,
+    max_depth=10
+)
 ```
 
-### 실행 방법
+### 기여자 정보 조회
 
-#### 개발 서버 실행
+```python
+# 커밋 기여자 조회
+contributors = git_service.get_commit_contributors(commit_hash="HEAD")
 
-##### 모든 패키지 동시에 실행
-
-```bash
-# 루트 디렉토리에서
-npm run dev:all
+# 파일 기여자 조회
+file_contributors = git_service.get_file_contributors(file_path="src/main.py")
 ```
 
-##### 각 패키지 개별 실행
+## 벤치마크 실행 방법
 
-프론트엔드:
-
-```bash
-# 루트 디렉토리에서
-npm run dev:frontend
-
-# 또는 프론트엔드 패키지 디렉토리에서
-cd packages/frontend
-npm run dev
+병렬 처리 성능 벤치마크 실행:
+```
+python benchmark_parallel.py
 ```
 
-API 서버:
-
-```bash
-# 루트 디렉토리에서
-npm run dev:api
-
-# 또는 API 패키지 디렉토리에서
-cd packages/api
-./run.sh
+캐싱 성능 벤치마크 실행:
 ```
-
-### 빌드
-
-```bash
-# 루트 디렉토리에서 전체 빌드
-npm run build
-
-# 또는 개별 패키지 빌드
-npm run build:frontend
-npm run build:api
+python benchmark_caching.py
 ```
-
-### 개발 포트
-
-- 프론트엔드: http://localhost:3000
-- API 서버: http://localhost:8000
-
-## 트러블슈팅
-
-### 실행 권한 오류
-API 실행 스크립트에 실행 권한이 없는 경우 다음 명령어를 실행합니다:
-
-```bash
-chmod +x packages/api/run.sh
-```
-
-### API 서버 연결 오류
-API 서버에 연결할 수 없는 경우 다음을 확인하세요:
-
-1. `.env` 파일의 `VITE_API_URL` 값이 올바른지 확인
-2. API 서버가 실행 중인지 확인
-3. 네트워크 설정 확인
-
-### Google Maps API 오류
-지도 기능이 작동하지 않는 경우:
-
-1. `.env` 파일에 유효한 Google Maps API 키가 설정되었는지 확인
-2. Google Cloud Console에서 API 키가 활성화되어 있는지 확인
-
-## 도메인 설정
-
-이 프로젝트는 [www.car-goro.com](http://www.car-goro.com)에서 접근할 수 있습니다. 
-
-GitHub Pages에 도메인 설정을 위해 다음과 같은 방법이 사용되었습니다:
-
-1. 저장소의 루트에 CNAME 파일 생성 (`www.car-goro.com` 내용 포함)
-2. 빌드된 프론트엔드 디렉토리에 CNAME 파일 복사
-3. GitHub Actions 워크플로우 설정 (.github/workflows/cd.yml)에서 도메인 설정 자동화
-
-도메인 제공업체에서 다음의 DNS 설정이 필요합니다:
-- `www.car-goro.com`에 대한 CNAME 레코드를 `changhyu.github.io`로 설정
-- 또는 A 레코드를 GitHub Pages의 IP 주소로 설정 (185.199.108.153, 185.199.109.153, 185.199.110.153, 185.199.111.153)

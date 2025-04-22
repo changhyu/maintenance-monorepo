@@ -1,18 +1,21 @@
 import axios from 'axios';
 import { saveAs } from 'file-saver';
 import { jsPDF } from 'jspdf';
-import * as XLSX from 'xlsx';
 import html2canvas from 'html2canvas';
+import ExcelJS from 'exceljs';
+import FileSaver from 'file-saver';
+import { format } from 'date-fns';
+import logger from '../utils/logger';
 
 import { Report, ReportFormat, ExportOptions } from './reportService';
 import { reportApi } from './api/reportApi';
 import { 
   convertToCSV, 
-  convertToExcel, 
   extractTableData,
   downloadFile 
 } from '../utils/reportUtils';
 import * as indexedDBUtils from '../utils/indexedDBUtils';
+import { ReportData, ReportRow } from '../types/reports';
 
 /**
  * 내보내기 서비스 클래스
@@ -55,7 +58,7 @@ export class ExportService {
       case ReportFormat.CSV:
         return convertToCSV(data, columns);
       case ReportFormat.EXCEL:
-        return convertToExcel(data, columns, report.title);
+        return this.convertToExcel(data, columns, report.title);
       case ReportFormat.JSON:
         return JSON.stringify({
           title: report.title,
@@ -144,7 +147,7 @@ export class ExportService {
       ];
       
       // Excel로 변환 및 다운로드
-      const excelData = convertToExcel(response.data, columns, '차량 목록');
+      const excelData = await this.convertToExcel(response.data, columns, '차량 목록');
       downloadFile(excelData, fileName, ReportFormat.EXCEL);
     } catch (error) {
       console.error('차량 목록 내보내기 중 오류 발생:', error);
@@ -378,9 +381,267 @@ export class ExportService {
       throw new Error(`보고서 삭제 실패: ${error instanceof Error ? error.message : '알 수 없는 오류'}`);
     }
   }
+
+  /**
+   * 보고서 데이터를 Excel 파일로 변환하여 다운로드
+   * @param reportData 내보낼 보고서 데이터
+   * @param filename 파일 이름 (확장자 제외)
+   */
+  public static async exportReportToExcel(reportData: ReportData, filename: string): Promise<void> {
+    try {
+      logger.info(`보고서 데이터를 Excel로 내보내기 시작: ${filename}`);
+      
+      // 새 워크북 생성
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = '차량 관리 시스템';
+      workbook.lastModifiedBy = '차량 관리 시스템';
+      workbook.created = new Date();
+      workbook.modified = new Date();
+      
+      // 워크시트 추가
+      const worksheet = workbook.addWorksheet('보고서');
+      
+      // 헤더 설정
+      const { headers, rows } = reportData;
+      
+      // 헤더 행 추가
+      const headerRow = worksheet.addRow(headers.map(h => h.label));
+      
+      // 헤더 스타일 설정
+      headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      headerRow.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FF4B8BBE' } // 파란색 배경
+      };
+      
+      // 데이터 행 추가
+      rows.forEach((row: ReportRow) => {
+        worksheet.addRow(headers.map(header => row[header.key] || ''));
+      });
+      
+      // 컬럼 너비 자동 설정
+      worksheet.columns.forEach((column, i) => {
+        let maxLength = headers[i].label.length;
+        rows.forEach((row: ReportRow) => {
+          const value = row[headers[i].key];
+          const cellLength = value ? String(value).length : 0;
+          if (cellLength > maxLength) {
+            maxLength = cellLength;
+          }
+        });
+        
+        // 최대 너비 설정 (최소 10, 최대 50)
+        column.width = Math.min(Math.max(maxLength + 2, 10), 50);
+      });
+      
+      // 테두리 스타일 적용
+      for (let i = 1; i <= worksheet.rowCount; i++) {
+        for (let j = 1; j <= worksheet.columnCount; j++) {
+          worksheet.getCell(i, j).border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' }
+          };
+        }
+      }
+      
+      // 발행일 추가
+      worksheet.addRow([]);
+      worksheet.addRow([`발행일: ${format(new Date(), 'yyyy-MM-dd HH:mm')}`]);
+      
+      // 엑셀 파일 생성 및 다운로드
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { 
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+      });
+      
+      FileSaver.saveAs(blob, `${filename}.xlsx`);
+      logger.info(`보고서 Excel 내보내기 완료: ${filename}.xlsx`);
+    } catch (error) {
+      logger.error('Excel 내보내기 중 오류가 발생했습니다:', error);
+      throw new Error('Excel 파일 생성 중 오류가 발생했습니다.');
+    }
+  }
+  
+  /**
+   * 템플릿 기반 보고서 Excel 파일 생성
+   * @param template 사용할 템플릿 (base64 인코딩된 문자열)
+   * @param data 삽입할 데이터
+   * @param filename 파일 이름 (확장자 제외)
+   */
+  public static async exportFromTemplate(
+    template: string,
+    data: Record<string, any>[],
+    filename: string
+  ): Promise<void> {
+    try {
+      logger.info('템플릿 기반 Excel 내보내기 시작');
+      
+      // base64 문자열을 ArrayBuffer로 변환
+      const binary = atob(template.replace(/^data:.*?;base64,/, ''));
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      
+      // ArrayBuffer로 워크북 로드
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(bytes.buffer);
+      
+      // 첫 번째 워크시트 가져오기
+      const worksheet = workbook.worksheets[0];
+      
+      // 시작 행 (헤더 이후)
+      const startRow = 2;
+      
+      // 데이터 추가
+      data.forEach((item, index) => {
+        const rowIndex = startRow + index;
+        
+        // 행이 없으면 추가
+        let row = worksheet.getRow(rowIndex);
+        
+        // 데이터 칼럼별로 입력
+        Object.entries(item).forEach(([key, value], colIndex) => {
+          row.getCell(colIndex + 1).value = value;
+        });
+      });
+      
+      // 엑셀 파일 생성 및 다운로드
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      });
+      
+      FileSaver.saveAs(blob, `${filename}.xlsx`);
+      logger.info(`템플릿 기반 Excel 내보내기 완료: ${filename}.xlsx`);
+    } catch (error) {
+      logger.error('템플릿 기반 Excel 내보내기 중 오류가 발생했습니다:', error);
+      throw new Error('템플릿 기반 Excel 파일 생성 중 오류가 발생했습니다.');
+    }
+  }
+  
+  /**
+   * 시트 여러 개로 구성된 통합 보고서 생성
+   * @param sheetData 시트별 데이터
+   * @param filename 파일 이름 (확장자 제외)
+   */
+  public static async exportMultipleSheetsToExcel(
+    sheetData: { name: string; data: ReportData }[],
+    filename: string
+  ): Promise<void> {
+    try {
+      logger.info('다중 시트 Excel 내보내기 시작');
+      
+      // 새 워크북 생성
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = '차량 관리 시스템';
+      workbook.lastModifiedBy = '차량 관리 시스템';
+      workbook.created = new Date();
+      workbook.modified = new Date();
+      
+      // 각 시트 데이터를 워크시트로 추가
+      sheetData.forEach(({ name, data }) => {
+        const { headers, rows } = data;
+        
+        // 워크시트 추가
+        const worksheet = workbook.addWorksheet(name);
+        
+        // 헤더 행 추가
+        const headerRow = worksheet.addRow(headers.map(h => h.label));
+        
+        // 헤더 스타일 설정
+        headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        headerRow.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FF4B8BBE' }
+        };
+        
+        // 데이터 행 추가
+        rows.forEach((row: ReportRow) => {
+          worksheet.addRow(headers.map(header => row[header.key] || ''));
+        });
+        
+        // 컬럼 너비 자동 설정
+        worksheet.columns.forEach((column, i) => {
+          let maxLength = headers[i].label.length;
+          rows.forEach((row: ReportRow) => {
+            const value = row[headers[i].key];
+            const cellLength = value ? String(value).length : 0;
+            if (cellLength > maxLength) {
+              maxLength = cellLength;
+            }
+          });
+          
+          // 최대 너비 설정 (최소 10, 최대 50)
+          column.width = Math.min(Math.max(maxLength + 2, 10), 50);
+        });
+        
+        // 테두리 스타일 적용
+        for (let i = 1; i <= worksheet.rowCount; i++) {
+          for (let j = 1; j <= worksheet.columnCount; j++) {
+            worksheet.getCell(i, j).border = {
+              top: { style: 'thin' },
+              left: { style: 'thin' },
+              bottom: { style: 'thin' },
+              right: { style: 'thin' }
+            };
+          }
+        }
+      });
+      
+      // 엑셀 파일 생성 및 다운로드
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      });
+      
+      FileSaver.saveAs(blob, `${filename}.xlsx`);
+      logger.info(`다중 시트 Excel 내보내기 완료: ${filename}.xlsx`);
+    } catch (error) {
+      logger.error('다중 시트 Excel 내보내기 중 오류가 발생했습니다:', error);
+      throw new Error('다중 시트 Excel 파일 생성 중 오류가 발생했습니다.');
+    }
+  }
+
+  /**
+   * 데이터를 Excel 파일로 변환
+   * @param data 데이터 배열
+   * @param columns 컬럼 정의
+   * @param title 파일 제목
+   * @returns Blob
+   */
+  private async convertToExcel(data: any[], columns: any[], title: string): Promise<Blob> {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet(title);
+
+    // 헤더 추가
+    const headerRow = worksheet.addRow(columns.map(col => col.title));
+    headerRow.font = { bold: true };
+
+    // 데이터 추가
+    data.forEach(row => {
+      worksheet.addRow(columns.map(col => row[col.key]));
+    });
+
+    // 컬럼 너비 자동 설정
+    worksheet.columns.forEach((column, index) => {
+      const maxLength = Math.max(
+        ...data.map(row => (row[columns[index].key] || '').toString().length),
+        columns[index].title.length
+      );
+      column.width = maxLength + 2;
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    return new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  }
 }
 
 // 내보내기 서비스 인스턴스 생성
 export const exportService = new ExportService();
 
-export default exportService; 
+export default exportService;

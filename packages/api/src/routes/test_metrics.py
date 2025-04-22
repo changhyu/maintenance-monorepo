@@ -1,9 +1,11 @@
-from fastapi import APIRouter, HTTPException
-from src.core.metrics import metrics_collector
 import random
 import time
 
+from fastapi import APIRouter, HTTPException
+from src.core.metrics import metrics_collector
+
 router = APIRouter(prefix="/test-metrics", tags=["메트릭 테스트"])
+
 
 @router.get("/success")
 async def test_success():
@@ -13,6 +15,7 @@ async def test_success():
     time.sleep(delay)
     return {"status": "success", "delay": delay}
 
+
 @router.get("/slow")
 async def test_slow():
     """느린 응답 테스트 엔드포인트"""
@@ -21,12 +24,14 @@ async def test_slow():
     time.sleep(delay)
     return {"status": "slow", "delay": delay}
 
+
 @router.get("/error")
 async def test_error():
     """에러 응답 테스트 엔드포인트"""
     if random.random() < 0.5:  # 50% 확률로 에러 발생
         raise HTTPException(status_code=500, detail="테스트용 서버 에러")
     return {"status": "error occurred"}
+
 
 @router.get("/database")
 async def test_database():
@@ -36,6 +41,7 @@ async def test_database():
     time.sleep(query_time)
     metrics_collector.track_db_query(query_time)
     return {"status": "database query completed", "query_time": query_time}
+
 
 @router.get("/cache")
 async def test_cache():

@@ -1,52 +1,52 @@
 """
-데이터베이스 모듈 초기화 및 설정
+데이터베이스 초기화 모듈
 """
 
 import logging
-from typing import Generator
 
+from packagescore.config import settings
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.pool import StaticPool
 
-from ..core.config import settings
-
-# 로깅 설정
 logger = logging.getLogger(__name__)
 
-# 데이터베이스 연결 URL 설정
-SQLALCHEMY_DATABASE_URL = settings.DATABASE_URL
-
-# 데이터베이스 엔진 생성
-try:
-    engine = create_engine(
-        SQLALCHEMY_DATABASE_URL,
-        pool_pre_ping=True,
-        pool_size=settings.DB_POOL_SIZE,
-        max_overflow=settings.DB_MAX_OVERFLOW,
-        connect_args=settings.DB_CONNECT_ARGS
-    )
-    logger.info("데이터베이스 엔진이 성공적으로 생성되었습니다.")
-except Exception as e:
-    logger.error("데이터베이스 엔진 생성 중 오류가 발생했습니다: %s", str(e))
-    raise
-
-# 세션 팩토리 생성
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-# 베이스 클래스 생성
+# Base 클래스 생성
 Base = declarative_base()
 
+try:
+    # SQLite를 사용하는 경우와 그 외의 경우를 구분하여 엔진 생성
+    if "sqlite" in settings.DATABASE_URL:
+        engine = create_engine(
+            settings.DATABASE_URL,
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+    else:
+        engine = create_engine(
+            settings.DATABASE_URL,
+            pool_size=settings.DB_POOL_SIZE,
+            max_overflow=settings.DB_MAX_OVERFLOW,
+        )
 
-def get_session() -> Session:
-    """
-    데이터베이스 세션을 반환합니다.
-    세션은 사용 후 반드시 닫아야 합니다.
-    """
-    session = SessionLocal()
+    # 세션 팩토리 생성
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+    logger.info("데이터베이스 엔진이 성공적으로 생성되었습니다.")
+
+except Exception as e:
+    logger.error(f"데이터베이스 엔진 생성 중 오류가 발생했습니다: {str(e)}")
+    raise
+
+
+def get_db():
+    """데이터베이스 세션 생성"""
+    db = SessionLocal()
     try:
-        return session
-    except Exception as e:
-        logger.error("데이터베이스 세션 생성 중 오류가 발생했습니다: %s", str(e))
-        session.close()
-        raise
+        yield db
+    finally:
+        db.close()
+
+
+# 모델 임포트
+from packages.api.src.databasemodels import *  # noqa: F403, F401

@@ -1,187 +1,280 @@
 """
-Configuration settings for the API service.
+애플리케이션 환경 설정
 """
 
-# 기본 모듈 임포트
-import logging
 import os
-import secrets
-from typing import List, Dict, Any, Optional
+from functools import lru_cache
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
-# 로거 설정
-logger = logging.getLogger(__name__)
+from dotenv import load_dotenv
+from pydantic import PostgresDsn, validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from packages.api.src.core.exceptions import ConfigurationException
+
+# yaml 의존성 조건부 임포트
+try:
+    import yaml
+except ImportError:
+    yaml = None
+
+# 환경 변수 로드
+load_dotenv()
+
 
 # 상수 정의
-APP_NAME_KR = "차량정비관리 API"
-API_VERSION = "0.1.0"
+class AppConstants:
+    """애플리케이션 상수 정의"""
 
-try:
-    # pydantic v2 임포트 시도
-    from pydantic_settings import BaseSettings, SettingsConfigDict
-    from pydantic import Field, field_validator, PostgresDsn
-    
-    class Settings(BaseSettings):
+    # 애플리케이션 정보
+    APP_NAME = "Maintenance API"
+    APP_VERSION = "1.0.0"
+    APP_DESCRIPTION = "Maintenance API 서비스"
+    APP_TAGS = ["maintenance", "api", "service"]
+
+    # API 설정
+    API_V1_STR = "/api/v1"
+
+    # 데이터베이스 설정
+    DEFAULT_DB_HOST = "localhost"
+    DEFAULT_DB_USER = "postgres"
+    DEFAULT_DB_NAME = "maintenance"
+
+    # 로깅 설정
+    DEFAULT_LOG_LEVEL = "INFO"
+    DEFAULT_LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    DEFAULT_LOG_FILE = "logs/maintenance.log"
+
+    # 이메일 설정
+    DEFAULT_SMTP_PORT = 587
+    DEFAULT_SMTP_TLS = True
+
+    # 미들웨어 설정
+    DEFAULT_CORS_ORIGINS = "*"
+    DEFAULT_ALLOWED_HOSTS = "*"
+
+
+class Settings(BaseSettings):
+    """애플리케이션 설정"""
+
+    # API 설정
+    API_V1_STR: str = AppConstants.API_V1_STR
+    PROJECT_NAME: str = AppConstants.APP_NAME
+    VERSION: str = AppConstants.APP_VERSION
+    DESCRIPTION: str = AppConstants.APP_DESCRIPTION
+    TAGS: List[str] = AppConstants.APP_TAGS
+
+    # 데이터베이스 설정
+    POSTGRES_SERVER: str = os.getenv("POSTGRES_SERVER", AppConstants.DEFAULT_DB_HOST)
+    POSTGRES_USER: str = os.getenv("POSTGRES_USER", AppConstants.DEFAULT_DB_USER)
+    POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "")
+    POSTGRES_DB: str = os.getenv("POSTGRES_DB", AppConstants.DEFAULT_DB_NAME)
+    SQLALCHEMY_DATABASE_URI: Optional[str] = None
+
+    # 데이터베이스 추가 설정
+    DATABASE_URL: Optional[str] = None
+    DB_POOL_SIZE: Optional[int] = 5
+    DB_MAX_OVERFLOW: Optional[int] = 10
+    DB_HOST: Optional[str] = "db"
+    DB_PORT: Optional[str] = "5432"
+    DB_USER: Optional[str] = "postgres"
+    DB_PASSWORD: Optional[str] = "postgres"
+    DB_NAME: Optional[str] = "maintenance"
+    DB_MAX_CONNECTIONS: Optional[int] = 10
+
+    # Redis 설정
+    REDIS_HOST: Optional[str] = "redis"
+    REDIS_PORT: Optional[str] = "6379"
+
+    # API 설정
+    API_HOST: Optional[str] = "0.0.0.0"
+    API_PORT: Optional[str] = "8000"
+    ENVIRONMENT: Optional[str] = "development"
+    DEBUG: Optional[bool] = True
+    SECRET_KEY: Optional[str] = "dev_secret_key_replace_in_production"
+
+    # CORS 설정
+    CORS_ORIGINS: Optional[str] = (
+        '["http://localhost:3000", "http://localhost:8080", "http://localhost"]'
+    )
+    VITE_API_URL: Optional[str] = "http://localhost:8000"
+
+    @validator("SQLALCHEMY_DATABASE_URI", pre=True)
+    def assemble_db_connection(cls, v: Optional[str], values: Dict[str, Any]) -> Any:
+        if isinstance(v, str):
+            return v.replace("postgresql://", "postgresql+asyncpg://")
+
+        # Pydantic v2 스타일로 PostgreSQL DSN 생성
+        username = values.get("POSTGRES_USER")
+        password = values.get("POSTGRES_PASSWORD")
+        host = values.get("POSTGRES_SERVER")
+        db_name = values.get("POSTGRES_DB", "")
+
+        # 기본 포트 사용
+        port = "5432"
+
+        if not all([username, host]):
+            return None
+
+        # URL 형식: postgresql+asyncpg://user:pass@host:port/db
+        return f"postgresql+asyncpg://{username}:{password}@{host}:{port}/{db_name}"
+
+    # 로깅 설정
+    LOG_LEVEL: str = os.getenv("LOG_LEVEL", AppConstants.DEFAULT_LOG_LEVEL)
+    LOG_FORMAT: str = AppConstants.DEFAULT_LOG_FORMAT
+    LOG_FILE: str = AppConstants.DEFAULT_LOG_FILE
+
+    # 이메일 설정
+    SMTP_TLS: bool = AppConstants.DEFAULT_SMTP_TLS
+    SMTP_PORT: Optional[int] = int(
+        os.getenv("SMTP_PORT", str(AppConstants.DEFAULT_SMTP_PORT))
+    )
+    SMTP_HOST: Optional[str] = os.getenv("SMTP_HOST")
+    SMTP_USER: Optional[str] = os.getenv("SMTP_USER")
+    SMTP_PASSWORD: Optional[str] = os.getenv("SMTP_PASSWORD")
+    EMAILS_FROM_EMAIL: Optional[str] = os.getenv("EMAILS_FROM_EMAIL")
+    EMAILS_FROM_NAME: Optional[str] = AppConstants.APP_NAME
+
+    # 미들웨어 설정
+    BACKEND_CORS_ORIGINS: List[str] = os.getenv(
+        "BACKEND_CORS_ORIGINS", AppConstants.DEFAULT_CORS_ORIGINS
+    ).split(",")
+    ALLOWED_HOSTS: List[str] = os.getenv(
+        "ALLOWED_HOSTS", AppConstants.DEFAULT_ALLOWED_HOSTS
+    ).split(",")
+
+    model_config = SettingsConfigDict(
+        case_sensitive=True,
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="allow",  # 추가 필드 허용
+    )
+
+
+def yaml_config_settings_source() -> Dict[str, Any]:
+    """
+    YAML 설정 파일에서 설정 로드 (yaml 모듈이 있는 경우만 동작)
+
+    Returns:
+        설정 딕셔너리
+    """
+    config_file = os.environ.get("CONFIG_FILE", "config.yaml")
+
+    if not os.path.exists(config_file) or yaml is None:
+        return {}
+
+    try:
+        with open(config_file, "r") as f:
+            return yaml.safe_load(f)
+    except Exception as e:
+        print(f"설정 파일 로드 중 오류 발생: {str(e)}")
+        return {}
+
+
+@lru_cache()
+def get_settings() -> Settings:
+    """
+    애플리케이션 설정 가져오기
+
+    Returns:
+        Settings: 설정 객체
+    """
+    return Settings()
+
+
+settings = get_settings()
+
+
+class Config:
+    """설정 관리 클래스"""
+
+    def __init__(self):
+        """설정 초기화"""
+        self._settings = get_settings()
+        self._config: Dict[str, Any] = {}
+        self._load_config()
+
+    def _load_config(self) -> None:
+        """설정 로드"""
+        try:
+            # 환경 변수에서 설정 로드
+            self._config = self._settings.dict()
+
+            # YAML 설정 파일 로드
+            config_path = Path("config.yaml")
+            if config_path.exists():
+                with open(config_path, "r") as f:
+                    yaml_config = yaml.safe_load(f)
+                    self._config.update(yaml_config)
+
+        except Exception as e:
+            raise ConfigurationException(f"설정 로드 실패: {str(e)}")
+
+    def get(self, key: str, default: Any = None) -> Any:
+        """설정값 조회"""
+        try:
+            keys = key.split(".")
+            value = self._config
+            for k in keys:
+                value = value[k]
+            return value
+        except (KeyError, TypeError):
+            return default
+
+    def get_env(self, key: str, default: Any = None) -> Any:
+        """환경 변수 조회"""
+        return os.environ.get(key, default)
+
+    def get_path(self, key: str) -> Path:
+        """경로 설정 조회"""
+        path_str = self.get(key)
+        if not path_str:
+            raise ConfigurationException(f"경로 설정이 없습니다: {key}")
+        return Path(path_str)
+
+    def get_database_config(self) -> Dict[str, Any]:
+        """데이터베이스 설정 조회"""
+        return {
+            "url": self.get("DATABASE_URL"),
+            "pool_size": self.get("DB_POOL_SIZE"),
+            "max_overflow": self.get("DB_MAX_OVERFLOW"),
+        }
+
+    def get_git_config(self) -> Dict[str, Any]:
         """
-        API 환경 설정 관리 클래스
+        Git 설정 조회
+
+        Returns:
+            Git 설정
         """
-        # 애플리케이션 설정
-        APP_NAME: str = "Maintenance API"
-        API_V1_PREFIX: str = "/api/v1"
-        SECRET_KEY: str = secrets.token_urlsafe(32)
-        ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7일
-        ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
-        DEBUG: bool = ENVIRONMENT == "development"
-        
-        # CORS 설정
-        BACKEND_CORS_ORIGINS: List[str] = ["*"]
-        
-        @classmethod
-        @field_validator("BACKEND_CORS_ORIGINS", mode='before')
-        def assemble_cors_origins(cls, v: Any) -> List[str]:
-            if isinstance(v, str) and not v.startswith("["):
-                return [i.strip() for i in v.split(",")]
-            elif isinstance(v, (list, str)):
-                return v
-            raise ValueError(v)
-        
-        # 데이터베이스 설정
-        POSTGRES_SERVER: str = os.getenv("POSTGRES_SERVER", "localhost")
-        POSTGRES_USER: str = os.getenv("POSTGRES_USER", "postgres")
-        POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "postgres")
-        POSTGRES_DB: str = os.getenv("POSTGRES_DB", "maintenance")
-        POSTGRES_PORT: str = os.getenv("POSTGRES_PORT", "5432")
-        DATABASE_URI: Optional[PostgresDsn] = None
-        
-        @classmethod
-        @field_validator("DATABASE_URI", mode='before')
-        def assemble_db_connection(cls, v: Optional[str], values: Dict[str, Any]) -> Any:
-            if isinstance(v, str):
-                return v
-            # URL 직접 구성
-            user = values.get("POSTGRES_USER")
-            password = values.get("POSTGRES_PASSWORD")
-            host = values.get("POSTGRES_SERVER")
-            port = values.get("POSTGRES_PORT")
-            db = values.get("POSTGRES_DB", "")
-            
-            url = f"postgresql://{user}:{password}@{host}:{port}/{db}"
-            # PostgresDsn으로 변환하여 유효성 검사
-            return url
-        
-        # 로깅 설정
-        LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
-        
-        # 인증 설정
-        JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", SECRET_KEY)
-        JWT_ALGORITHM: str = "HS256"
-        
-        # 보안 설정
-        SSL_REDIRECT: bool = os.getenv("ENVIRONMENT", "development").lower() == "production"
-        SECURE_HSTS_SECONDS: int = 31536000 if os.getenv("ENVIRONMENT", "development").lower() == "production" else 0
-        SECURE_HSTS_INCLUDE_SUBDOMAINS: bool = os.getenv("ENVIRONMENT", "development").lower() == "production"
-        SECURE_HSTS_PRELOAD: bool = os.getenv("ENVIRONMENT", "development").lower() == "production"
-        SECURE_CONTENT_TYPE_NOSNIFF: bool = True
-        SECURE_BROWSER_XSS_FILTER: bool = True
-        SECURE_SSL_REDIRECT: bool = os.getenv("ENVIRONMENT", "development").lower() == "production"
-        
-        # 필드 추가
-        HOST: str = Field(default="0.0.0.0")
-        PORT: int = Field(default=8081)
-        DATABASE_URL: str = Field(default="postgresql://postgres:zD...alhost:5432/maintenance")
-        
-        model_config = SettingsConfigDict(
-            env_file=".env",
-            env_file_encoding="utf-8",
-            extra="ignore"  # extra 필드 허용
-        )
-except ImportError:
-    # pydantic v1 임포트로 대체
-    from pydantic import BaseSettings, Field
-    
-    class Settings(BaseSettings):
-        """API 서비스 설정."""
+        return self.get("git", {})
 
-        # 기본 설정
-        APP_NAME: str = APP_NAME_KR
-        VERSION: str = API_VERSION
-        DEBUG: bool = Field(default=False, env="DEBUG")
-        ENVIRONMENT: str = Field(default="development", env="ENVIRONMENT")
+    def get_logging_config(self) -> Dict[str, Any]:
+        """로깅 설정 조회"""
+        return {"level": self.get("LOG_LEVEL"), "format": self.get("LOG_FORMAT")}
 
-        # API 경로 설정
-        API_V1_STR: str = "/api/v1"
+    def get_security_config(self) -> Dict[str, Any]:
+        """
+        보안 설정 조회
 
-        # 프로젝트 메타데이터
-        PROJECT_NAME: str = APP_NAME_KR
-        PROJECT_DESCRIPTION: str = "차량 정비 관리를 위한 API 서비스"
-        PROJECT_VERSION: str = API_VERSION
+        Returns:
+            보안 설정
+        """
+        return self.get("security", {})
 
-        # 서버 설정
-        HOST: str = Field(default="0.0.0.0", env="HOST")
-        PORT: int = Field(default=8080, env="PORT")
+    def get_api_config(self) -> Dict[str, Any]:
+        """API 설정 조회"""
+        return {
+            "host": self.get("HOST"),
+            "port": self.get("PORT"),
+            "debug": self.get("DEBUG"),
+        }
 
-        # 데이터베이스 설정
-        DATABASE_URL: str = Field(
-            default="postgresql://postgres:${DB_PASSWORD}@localhost:5432/maintenance",
-            env="DATABASE_URL"
-        )
-        DB_POOL_SIZE: int = Field(default=5, env="DB_POOL_SIZE")
-        DB_MAX_OVERFLOW: int = Field(default=10, env="DB_MAX_OVERFLOW")
-        DB_CONNECT_ARGS: dict = {}
+    def reload(self) -> None:
+        """설정 재로드"""
+        self._load_config()
 
-        # 보안 설정
-        SECRET_KEY: str = Field(
-            default="development_secret_key_please_change_in_production",
-            env="SECRET_KEY"
-        )
-        ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(
-            default=30,
-            env="ACCESS_TOKEN_EXPIRE_MINUTES"
-        )
-        REFRESH_TOKEN_EXPIRE_DAYS: int = Field(
-            default=7,
-            env="REFRESH_TOKEN_EXPIRE_DAYS"
-        )
 
-        # CORS 설정
-        CORS_ORIGINS: List[str] = Field(
-            default=["*"],
-            env="CORS_ORIGINS"
-        )
-
-        # 로깅 설정
-        LOG_LEVEL: str = Field(default="INFO", env="LOG_LEVEL")
-        LOG_FORMAT: str = Field(
-            default="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-            env="LOG_FORMAT"
-        )
-
-        # 스토리지 설정
-        UPLOAD_DIR: str = Field(default="./uploads", env="UPLOAD_DIR")
-        MAX_UPLOAD_SIZE_MB: int = Field(default=10, env="MAX_UPLOAD_SIZE_MB")
-        ALLOWED_EXTENSIONS: List[str] = Field(
-            default=["jpg", "jpeg", "png", "pdf"],
-            env="ALLOWED_EXTENSIONS"
-        )
-        CACHE_BACKEND: str = Field(default="redis", env="CACHE_BACKEND")
-        REDIS_HOST: str = "localhost"  # Redis 연결 호스트
-        REDIS_PORT: int = 6379  # Redis 연결 포트 (기본 6379)
-        REDIS_DB: int = 0  # Redis DB (기본 0)
-        REDIS_PASSWORD: str = Field(default="", env="REDIS_PASSWORD")
-        REDIS_URL: str = Field(default="redis://localhost:6379/0", env="REDIS_URL")
-
-# 설정 인스턴스 생성
-try:
-    settings = Settings()
-
-    # 주요 설정 로깅
-    if settings.DEBUG:
-        logger.debug("환경: %s", settings.ENVIRONMENT)
-        logger.debug("API 버전: %s", settings.VERSION if hasattr(settings, 'VERSION') else API_VERSION)
-        logger.debug("API 경로: %s", settings.API_V1_STR if hasattr(settings, 'API_V1_STR') else settings.API_V1_PREFIX)
-        logger.debug("서버: %s:%s", settings.HOST if hasattr(settings, 'HOST') else "0.0.0.0", 
-                    settings.PORT if hasattr(settings, 'PORT') else 8080)
-        logger.debug("로그 레벨: %s", settings.LOG_LEVEL)
-except Exception as e:
-    logger.error("설정 로드 중 오류 발생: %s", e)
-    # 기본 설정으로 대체
-    settings = Settings()
+# 전역 설정 인스턴스
+config = Config()

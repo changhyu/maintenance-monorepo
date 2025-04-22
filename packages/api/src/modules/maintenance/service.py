@@ -3,22 +3,20 @@ Maintenance service module.
 """
 
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any
-
+from typing import Any, Dict, List, Optional
 
 # 데이터베이스 관련 임포트 (Session은 필요하지 않으므로 제거)
-from ...core.dependencies import get_db
-from ...models.schemas import MaintenanceCreate, MaintenanceUpdate, MaintenanceStatus
+from packagescore.dependencies import get_db
+from packagesmodels.schemas import (MaintenanceCreate, MaintenanceStatus,
+                                    MaintenanceUpdate)
 
 
 class MaintenanceService:
     """정비 서비스 클래스."""
 
     def get_maintenance_records(
-        self,
-        skip: int = 0,
-        limit: int = 100,
-        filters: Dict = None) -> Dict[str, Any]:
+        self, skip: int = 0, limit: int = 100, filters: Dict = None
+    ) -> Dict[str, Any]:
         """
         정비 기록 목록을 조회합니다.
         """
@@ -30,17 +28,26 @@ class MaintenanceService:
         # 필터 적용
         if filters:
             if "vehicle_id" in filters:
-                query = query.filter(self.maintenance_model.vehicle_id == filters["vehicle_id"])
+                query = query.filter(
+                    self.maintenance_model.vehicle_id == filters["vehicle_id"]
+                )
             if "status" in filters:
                 query = query.filter(self.maintenance_model.status == filters["status"])
             if "from_date" in filters and filters["from_date"]:
-                query = query.filter(self.maintenance_model.date >= filters["from_date"])
+                query = query.filter(
+                    self.maintenance_model.date >= filters["from_date"]
+                )
             if "to_date" in filters and filters["to_date"]:
                 query = query.filter(self.maintenance_model.date <= filters["to_date"])
 
         # 정렬 및 페이지네이션
         total = query.count()
-        records = query.order_by(self.maintenance_model.date.desc()).offset(skip).limit(limit).all()
+        records = (
+            query.order_by(self.maintenance_model.date.desc())
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
 
         # 관련 정보 조회
         result_records = []
@@ -48,7 +55,9 @@ class MaintenanceService:
             record_dict = record.__dict__
 
             # 관련 차량 정보 조회
-            vehicle = db.query(self.vehicle_model).filter_by(id=record.vehicle_id).first()
+            vehicle = (
+                db.query(self.vehicle_model).filter_by(id=record.vehicle_id).first()
+            )
             if vehicle:
                 record_dict["vehicle"] = {
                     "id": vehicle.id,
@@ -56,23 +65,28 @@ class MaintenanceService:
                     "model": vehicle.model,
                     "year": vehicle.year,
                     "vin": vehicle.vin,
-                    "plate": vehicle.plate
+                    "plate": vehicle.plate,
                 }
 
             # 관련 문서 조회
-            documents = db.query(self.maintenance_document_model).filter_by(maintenance_id=record.id).all()
+            documents = (
+                db.query(self.maintenance_document_model)
+                .filter_by(maintenance_id=record.id)
+                .all()
+            )
             record_dict["documents"] = [doc.__dict__ for doc in documents]
 
             # 관련 부품 조회
-            parts = db.query(self.maintenance_part_model).filter_by(maintenance_id=record.id).all()
+            parts = (
+                db.query(self.maintenance_part_model)
+                .filter_by(maintenance_id=record.id)
+                .all()
+            )
             record_dict["parts"] = [part.__dict__ for part in parts]
 
             result_records.append(record_dict)
 
-        return {
-            "records": result_records,
-            "total": total
-        }
+        return {"records": result_records, "total": total}
 
     def get_maintenance_record_by_id(self, record_id: str) -> Dict[str, Any]:
         """
@@ -86,22 +100,34 @@ class MaintenanceService:
 
         result = record.__dict__
 
-        if (vehicle := db.query(self.vehicle_model).filter_by(id=record.vehicle_id).first()):
+        if (
+            vehicle := db.query(self.vehicle_model)
+            .filter_by(id=record.vehicle_id)
+            .first()
+        ):
             result["vehicle"] = {
                 "id": vehicle.id,
                 "make": vehicle.make,
                 "model": vehicle.model,
                 "year": vehicle.year,
                 "vin": vehicle.vin,
-                "plate": vehicle.plate
+                "plate": vehicle.plate,
             }
 
         # 관련 문서 조회
-        documents = db.query(self.maintenance_document_model).filter_by(maintenance_id=record.id).all()
+        documents = (
+            db.query(self.maintenance_document_model)
+            .filter_by(maintenance_id=record.id)
+            .all()
+        )
         result["documents"] = [doc.__dict__ for doc in documents]
 
         # 관련 부품 조회
-        parts = db.query(self.maintenance_part_model).filter_by(maintenance_id=record.id).all()
+        parts = (
+            db.query(self.maintenance_part_model)
+            .filter_by(maintenance_id=record.id)
+            .all()
+        )
         result["parts"] = [part.__dict__ for part in parts]
 
         return result
@@ -125,7 +151,7 @@ class MaintenanceService:
             status=data.status,
             cost=data.cost,
             performed_by=data.performed_by,
-            notes=data.notes
+            notes=data.notes,
         )
 
         db.add(new_record)
@@ -139,7 +165,9 @@ class MaintenanceService:
 
         return new_record.__dict__
 
-    def update_maintenance_record(self, record_id: str, data: MaintenanceUpdate) -> Dict[str, Any]:
+    def update_maintenance_record(
+        self, record_id: str, data: MaintenanceUpdate
+    ) -> Dict[str, Any]:
         """
         정비 기록을 업데이트합니다.
         """
@@ -161,19 +189,25 @@ class MaintenanceService:
         if vehicle and data.status:
             if data.status == MaintenanceStatus.COMPLETED:
                 # 다른 진행 중인 정비가 없는지 확인
-                ongoing_count = db.query(self.maintenance_model).filter(
-                    self.maintenance_model.vehicle_id == record.vehicle_id,
-                    self.maintenance_model.id != record_id,
-                    self.maintenance_model.status.in_([
-                        MaintenanceStatus.SCHEDULED,
-                        MaintenanceStatus.IN_PROGRESS
-                    ])
-                ).count()
+                ongoing_count = (
+                    db.query(self.maintenance_model)
+                    .filter(
+                        self.maintenance_model.vehicle_id == record.vehicle_id,
+                        self.maintenance_model.id != record_id,
+                        self.maintenance_model.status.in_(
+                            [MaintenanceStatus.SCHEDULED, MaintenanceStatus.IN_PROGRESS]
+                        ),
+                    )
+                    .count()
+                )
 
                 if ongoing_count == 0:
                     vehicle.status = "active"
                     db.commit()
-            elif data.status in [MaintenanceStatus.SCHEDULED, MaintenanceStatus.IN_PROGRESS]:
+            elif data.status in [
+                MaintenanceStatus.SCHEDULED,
+                MaintenanceStatus.IN_PROGRESS,
+            ]:
                 vehicle.status = "maintenance"
                 db.commit()
 
@@ -190,10 +224,14 @@ class MaintenanceService:
             raise ValueError(f"ID가 {record_id}인 정비 기록을 찾을 수 없습니다.")
 
         # 관련 문서 삭제
-        db.query(self.maintenance_document_model).filter_by(maintenance_id=record_id).delete()
+        db.query(self.maintenance_document_model).filter_by(
+            maintenance_id=record_id
+        ).delete()
 
         # 관련 부품 삭제
-        db.query(self.maintenance_part_model).filter_by(maintenance_id=record_id).delete()
+        db.query(self.maintenance_part_model).filter_by(
+            maintenance_id=record_id
+        ).delete()
 
         # 정비 기록 삭제
         db.delete(record)
@@ -201,16 +239,22 @@ class MaintenanceService:
 
         # 차량 상태 업데이트
         vehicle = db.query(self.vehicle_model).filter_by(id=record.vehicle_id).first()
-        if vehicle and record.status in [MaintenanceStatus.SCHEDULED, MaintenanceStatus.IN_PROGRESS]:
+        if vehicle and record.status in [
+            MaintenanceStatus.SCHEDULED,
+            MaintenanceStatus.IN_PROGRESS,
+        ]:
             # 다른 진행 중인 정비가 없는지 확인
-            ongoing_count = db.query(self.maintenance_model).filter(
-                self.maintenance_model.vehicle_id == record.vehicle_id,
-                self.maintenance_model.id != record_id,
-                self.maintenance_model.status.in_([
-                    MaintenanceStatus.SCHEDULED,
-                    MaintenanceStatus.IN_PROGRESS
-                ])
-            ).count()
+            ongoing_count = (
+                db.query(self.maintenance_model)
+                .filter(
+                    self.maintenance_model.vehicle_id == record.vehicle_id,
+                    self.maintenance_model.id != record_id,
+                    self.maintenance_model.status.in_(
+                        [MaintenanceStatus.SCHEDULED, MaintenanceStatus.IN_PROGRESS]
+                    ),
+                )
+                .count()
+            )
 
             if ongoing_count == 0:
                 vehicle.status = "active"
@@ -238,7 +282,7 @@ class MaintenanceService:
             file_name=filename,
             file_url=file_url,
             file_type=file.content_type,
-            file_size=0  # 실제 구현 시 계산 필요
+            file_size=0,  # 실제 구현 시 계산 필요
         )
 
         db.add(new_document)
@@ -252,10 +296,11 @@ class MaintenanceService:
         정비 기록에서 문서를 삭제합니다.
         """
         db = next(get_db())
-        document = db.query(self.maintenance_document_model).filter_by(
-            id=document_id,
-            maintenance_id=record_id
-        ).first()
+        document = (
+            db.query(self.maintenance_document_model)
+            .filter_by(id=document_id, maintenance_id=record_id)
+            .first()
+        )
 
         if not document:
             raise ValueError(f"ID가 {document_id}인 문서를 찾을 수 없습니다.")
@@ -277,18 +322,25 @@ class MaintenanceService:
         today = datetime.now().date()
         end_date = today + timedelta(days=days)
 
-        records = db.query(self.maintenance_model).filter(
-            self.maintenance_model.status == MaintenanceStatus.SCHEDULED,
-            self.maintenance_model.date >= today,
-            self.maintenance_model.date <= end_date
-        ).order_by(self.maintenance_model.date).all()
+        records = (
+            db.query(self.maintenance_model)
+            .filter(
+                self.maintenance_model.status == MaintenanceStatus.SCHEDULED,
+                self.maintenance_model.date >= today,
+                self.maintenance_model.date <= end_date,
+            )
+            .order_by(self.maintenance_model.date)
+            .all()
+        )
 
         result = []
         for record in records:
             record_dict = record.__dict__
 
             # 관련 차량 정보 조회
-            vehicle = db.query(self.vehicle_model).filter_by(id=record.vehicle_id).first()
+            vehicle = (
+                db.query(self.vehicle_model).filter_by(id=record.vehicle_id).first()
+            )
             if vehicle:
                 record_dict["vehicle"] = {
                     "id": vehicle.id,
@@ -296,15 +348,20 @@ class MaintenanceService:
                     "model": vehicle.model,
                     "year": vehicle.year,
                     "vin": vehicle.vin,
-                    "plate": vehicle.plate
+                    "plate": vehicle.plate,
                 }
 
             result.append(record_dict)
 
         return result
 
-    def complete_maintenance_record(self, record_id: str, mileage: Optional[int] = None,
-                                   cost: Optional[float] = None, notes: Optional[str] = None) -> Dict[str, Any]:
+    def complete_maintenance_record(
+        self,
+        record_id: str,
+        mileage: Optional[int] = None,
+        cost: Optional[float] = None,
+        notes: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """
         정비를 완료 처리합니다.
         """
@@ -320,7 +377,11 @@ class MaintenanceService:
 
         # 추가 정보 업데이트
         if mileage is not None:
-            if (vehicle := db.query(self.vehicle_model).filter_by(id=record.vehicle_id).first()):
+            if (
+                vehicle := db.query(self.vehicle_model)
+                .filter_by(id=record.vehicle_id)
+                .first()
+            ):
                 vehicle.mileage = mileage
 
         if cost is not None:
@@ -335,16 +396,23 @@ class MaintenanceService:
         db.commit()
         db.refresh(record)
 
-        if (vehicle := db.query(self.vehicle_model).filter_by(id=record.vehicle_id).first()):
+        if (
+            vehicle := db.query(self.vehicle_model)
+            .filter_by(id=record.vehicle_id)
+            .first()
+        ):
             # 다른 진행 중인 정비가 없는지 확인
-            ongoing_count = db.query(self.maintenance_model).filter(
-                self.maintenance_model.vehicle_id == record.vehicle_id,
-                self.maintenance_model.id != record_id,
-                self.maintenance_model.status.in_([
-                    MaintenanceStatus.SCHEDULED,
-                    MaintenanceStatus.IN_PROGRESS
-                ])
-            ).count()
+            ongoing_count = (
+                db.query(self.maintenance_model)
+                .filter(
+                    self.maintenance_model.vehicle_id == record.vehicle_id,
+                    self.maintenance_model.id != record_id,
+                    self.maintenance_model.status.in_(
+                        [MaintenanceStatus.SCHEDULED, MaintenanceStatus.IN_PROGRESS]
+                    ),
+                )
+                .count()
+            )
 
             if ongoing_count == 0:
                 vehicle.status = "active"
@@ -352,7 +420,9 @@ class MaintenanceService:
 
         return record.__dict__
 
-    def cancel_maintenance_record(self, record_id: str, reason: Optional[str] = None) -> Dict[str, Any]:
+    def cancel_maintenance_record(
+        self, record_id: str, reason: Optional[str] = None
+    ) -> Dict[str, Any]:
         """
         정비를 취소 처리합니다.
         """
@@ -375,16 +445,23 @@ class MaintenanceService:
         db.commit()
         db.refresh(record)
 
-        if (vehicle := db.query(self.vehicle_model).filter_by(id=record.vehicle_id).first()):
+        if (
+            vehicle := db.query(self.vehicle_model)
+            .filter_by(id=record.vehicle_id)
+            .first()
+        ):
             # 다른 진행 중인 정비가 없는지 확인
-            ongoing_count = db.query(self.maintenance_model).filter(
-                self.maintenance_model.vehicle_id == record.vehicle_id,
-                self.maintenance_model.id != record_id,
-                self.maintenance_model.status.in_([
-                    MaintenanceStatus.SCHEDULED,
-                    MaintenanceStatus.IN_PROGRESS
-                ])
-            ).count()
+            ongoing_count = (
+                db.query(self.maintenance_model)
+                .filter(
+                    self.maintenance_model.vehicle_id == record.vehicle_id,
+                    self.maintenance_model.id != record_id,
+                    self.maintenance_model.status.in_(
+                        [MaintenanceStatus.SCHEDULED, MaintenanceStatus.IN_PROGRESS]
+                    ),
+                )
+                .count()
+            )
 
             if ongoing_count == 0:
                 vehicle.status = "active"
@@ -394,13 +471,34 @@ class MaintenanceService:
 
     def get_maintenance_summary(self) -> Dict[str, Any]:
         from sqlalchemy import func
+
         db = next(get_db())
         total = db.query(self.maintenance_model).count()
-        scheduled = db.query(self.maintenance_model).filter(self.maintenance_model.status == MaintenanceStatus.SCHEDULED).count()
-        in_progress = db.query(self.maintenance_model).filter(self.maintenance_model.status == MaintenanceStatus.IN_PROGRESS).count()
-        completed = db.query(self.maintenance_model).filter(self.maintenance_model.status == MaintenanceStatus.COMPLETED).count()
-        cancelled = db.query(self.maintenance_model).filter(self.maintenance_model.status == MaintenanceStatus.CANCELLED).count()
-        total_completed_cost = db.query(func.coalesce(func.sum(self.maintenance_model.cost), 0)).filter(self.maintenance_model.status == MaintenanceStatus.COMPLETED).scalar()
+        scheduled = (
+            db.query(self.maintenance_model)
+            .filter(self.maintenance_model.status == MaintenanceStatus.SCHEDULED)
+            .count()
+        )
+        in_progress = (
+            db.query(self.maintenance_model)
+            .filter(self.maintenance_model.status == MaintenanceStatus.IN_PROGRESS)
+            .count()
+        )
+        completed = (
+            db.query(self.maintenance_model)
+            .filter(self.maintenance_model.status == MaintenanceStatus.COMPLETED)
+            .count()
+        )
+        cancelled = (
+            db.query(self.maintenance_model)
+            .filter(self.maintenance_model.status == MaintenanceStatus.CANCELLED)
+            .count()
+        )
+        total_completed_cost = (
+            db.query(func.coalesce(func.sum(self.maintenance_model.cost), 0))
+            .filter(self.maintenance_model.status == MaintenanceStatus.COMPLETED)
+            .scalar()
+        )
 
         return {
             "total_records": total,
@@ -408,7 +506,7 @@ class MaintenanceService:
             "in_progress": in_progress,
             "completed": completed,
             "cancelled": cancelled,
-            "total_completed_cost": total_completed_cost
+            "total_completed_cost": total_completed_cost,
         }
 
     def send_maintenance_alerts(self, days: int = 1) -> Dict[str, Any]:
@@ -416,11 +514,15 @@ class MaintenanceService:
         db = next(get_db())
         today = datetime.now().date()
         end_date = today + timedelta(days=days)
-        records = db.query(self.maintenance_model).filter(
-            self.maintenance_model.status == MaintenanceStatus.SCHEDULED,
-            self.maintenance_model.date >= today,
-            self.maintenance_model.date <= end_date
-        ).all()
+        records = (
+            db.query(self.maintenance_model)
+            .filter(
+                self.maintenance_model.status == MaintenanceStatus.SCHEDULED,
+                self.maintenance_model.date >= today,
+                self.maintenance_model.date <= end_date,
+            )
+            .all()
+        )
         alerts_sent = [
             {
                 "record_id": record.id,
@@ -435,50 +537,64 @@ class MaintenanceService:
         """지정된 날짜 범위 내 정비 기록의 통계를 생성합니다."""
         db = next(get_db())
         from datetime import datetime
+
         # 날짜 문자열을 datetime.date 객체로 변환
-        start_date = datetime.strptime(from_date, '%Y-%m-%d').date()
-        end_date = datetime.strptime(to_date, '%Y-%m-%d').date()
+        start_date = datetime.strptime(from_date, "%Y-%m-%d").date()
+        end_date = datetime.strptime(to_date, "%Y-%m-%d").date()
 
         # 전체 기록 수 조회
-        total_records = db.query(self.maintenance_model).filter(
-            self.maintenance_model.date >= start_date,
-            self.maintenance_model.date <= end_date
-        ).count()
+        total_records = (
+            db.query(self.maintenance_model)
+            .filter(
+                self.maintenance_model.date >= start_date,
+                self.maintenance_model.date <= end_date,
+            )
+            .count()
+        )
 
         from sqlalchemy import func
-        total_completed_cost = db.query(func.coalesce(func.sum(self.maintenance_model.cost), 0)).filter(
-            self.maintenance_model.date >= start_date,
-            self.maintenance_model.date <= end_date,
-            self.maintenance_model.status == MaintenanceStatus.COMPLETED
-        ).scalar()
+
+        total_completed_cost = (
+            db.query(func.coalesce(func.sum(self.maintenance_model.cost), 0))
+            .filter(
+                self.maintenance_model.date >= start_date,
+                self.maintenance_model.date <= end_date,
+                self.maintenance_model.status == MaintenanceStatus.COMPLETED,
+            )
+            .scalar()
+        )
 
         return {
             "total_records": total_records,
-            "total_completed_cost": total_completed_cost
+            "total_completed_cost": total_completed_cost,
         }
 
     @property
     def maintenance_model(self):
         """Maintenance 모델 반환"""
-        from ..maintenance.models import Maintenance
+        from packages.apimaintenance.models import Maintenance
+
         return Maintenance
 
     @property
     def vehicle_model(self):
         """Vehicle 모델 반환"""
-        from ..vehicle.models import Vehicle
+        from packages.apivehicle.models import Vehicle
+
         return Vehicle
 
     @property
     def maintenance_document_model(self):
         """MaintenanceDocument 모델 반환"""
-        from ..maintenance.models import MaintenanceDocument
+        from packages.apimaintenance.models import MaintenanceDocument
+
         return MaintenanceDocument
 
     @property
     def maintenance_part_model(self):
         """MaintenancePart 모델 반환"""
-        from ..maintenance.models import MaintenancePart
+        from packages.apimaintenance.models import MaintenancePart
+
         return MaintenancePart
 
 

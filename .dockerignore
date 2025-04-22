@@ -21,4 +21,44 @@ venv/
 *.sln
 coverage/
 dist/
-build/ 
+build/
+
+# 민감한 파일 및 불필요한 파일 제외
+.github
+.git-*
+git-*backup*
+*git*backup*
+*/node_modules
+*.log
+logs/
+tmp/
+temp/
+.idea
+*.md
+LICENSE
+.editorconfig
+.eslintrc*
+.prettier*
+__tests__/
+test/
+tests/
+*__test__*
+*__tests__*
+*.test.*
+*.spec.*
+# 보안 스캔 결과
+security-scans/
+docker-security-scans/
+# 백업 파일
+*backup*/
+*.bak
+*.swp
+*.tmp
+# 빌드 아티팩트
+out/
+.cache/
+.next/
+# 개발 환경 설정
+.npmrc
+.yarnrc
+.eslintcache
