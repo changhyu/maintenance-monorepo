@@ -1,0 +1,588 @@
+"""
+Git 관련 기능을 담당하는 서비스 모듈
+GitService는 저장소 관리, 커밋, 브랜치 등 Git 관련 작업을 처리합니다.
+"""
+import os
+import asyncio
+import tempfile
+from typing import Dict, List, Optional, Tuple, Union, Any
+from pathlib import Path
+import shutil
+import logging
+
+try:
+    from git import Repo, GitCommandError, Actor
+    GIT_AVAILABLE = True
+except ImportError:
+    GIT_AVAILABLE = False
+    print("경고: GitPython 라이브러리를 찾을 수 없습니다. pip install gitpython으로 설치하세요.")
+
+try:
+    from fastapi import HTTPException, status
+    FASTAPI_AVAILABLE = True
+except ImportError:
+    FASTAPI_AVAILABLE = False
+    # HTTPException, status Mock 클래스 작성
+    class HTTPException(Exception):
+        def __init__(self, status_code=500, detail="Internal Server Error"):
+            self.status_code = status_code
+            self.detail = detail
+            super().__init__(self.detail)
+    
+    class status:
+        HTTP_500_INTERNAL_SERVER_ERROR = 500
+        HTTP_404_NOT_FOUND = 404
+        HTTP_400_BAD_REQUEST = 400
+
+try:
+    from sqlalchemy.ext.asyncio import AsyncSession
+    SQLALCHEMY_AVAILABLE = True
+except ImportError:
+    SQLALCHEMY_AVAILABLE = False
+    # AsyncSession Mock 클래스 작성
+    class AsyncSession:
+        pass
+
+# packages.api.srccore.auth 모듈 의존성 제거
+class User:
+    """User 클래스의 Mock 구현"""
+    def __init__(self, id=None, username="test_user", email="test@example.com"):
+        self.id = id or 1
+        self.username = username
+        self.email = email
+
+# packages.api 경로 의존성 제거
+class Settings:
+    """설정 클래스의 Mock 구현"""
+    def __init__(self):
+        self.GIT_REPOS_DIR = os.path.join(tempfile.gettempdir(), "git_repos")
+
+def get_settings():
+    """설정을 반환하는 함수의 Mock 구현"""
+    return Settings()
+
+def get_logger(name):
+    """로거를 반환하는 함수의 Mock 구현"""
+    return logging.getLogger(name)
+
+# 서비스 기본 클래스 정의
+class BaseService:
+    """BaseService 클래스의 Mock 구현"""
+    def __init__(self, session=None, current_user=None):
+        self.session = session
+        self.current_user = current_user
+        self.logger = logging.getLogger(self.__class__.__name__)
+
+# 캐싱 관련 데코레이터 Mock 구현
+def cached(key_prefix, ttl=300):
+    """
+    캐싱 데코레이터의 Mock 구현
+    """
+    def decorator(func):
+        async def wrapper(*args, **kwargs):
+            return await func(*args, **kwargs)
+        return wrapper
+    return decorator
+
+# 비동기 관련 유틸리티 함수 
+async def run_in_executor(func, *args, **kwargs):
+    """
+    동기 함수를 비동기적으로 실행하는 Mock 구현
+    """
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, lambda: func(*args, **kwargs))
+
+class timed_operation:
+    """
+    작업 타이밍을 측정하는 컨텍스트 매니저의 Mock 구현
+    """
+    def __init__(self, operation_name):
+        self.operation_name = operation_name
+        
+    async def __aenter__(self):
+        return self
+        
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        pass
+
+# 설정
+settings = get_settings()
+
+# 로거
+logger = get_logger(__name__)
+
+
+class GitService(BaseService):
+    """
+    Git 저장소 및 작업 관련 서비스
+    """
+    
+    def __init__(
+        self,
+        session: AsyncSession,
+        current_user: Optional[User] = None,
+        repos_dir: Optional[str] = None
+    ):
+        """
+        초기화
+        
+        Args:
+            session: 데이터베이스 세션
+            current_user: 현재 인증된 사용자 (선택 사항)
+            repos_dir: Git 저장소를 저장할 기본 디렉토리 (지정하지 않으면 설정에서 가져옴)
+        """
+        super().__init__(session=session, current_user=current_user)
+        # 저장소 저장 디렉토리 설정
+        self.repos_dir = repos_dir or settings.GIT_REPOS_DIR
+        # 로컬 저장소 디렉토리 생성
+        os.makedirs(self.repos_dir, exist_ok=True)
+        
+    async def clone_repository(
+        self,
+        repo_url: str,
+        target_dir: Optional[str] = None,
+        branch: Optional[str] = None,
+        depth: Optional[int] = None
+    ) -> str:
+        """
+        Git 저장소 클론
+        
+        Args:
+            repo_url: 복제할 저장소 URL
+            target_dir: 저장소를 복제할 대상 디렉토리 (지정하지 않으면 임시 디렉토리)
+            branch: 체크아웃할 브랜치 (지정하지 않으면 기본 브랜치)
+            depth: 복제할 커밋 히스토리 깊이 (지정하지 않으면 전체 히스토리)
+            
+        Returns:
+            복제된 저장소 경로
+            
+        Raises:
+            HTTPException: Git 오류 발생 시
+        """
+        try:
+            # 대상 디렉토리가 없으면 저장소 이름에서 생성
+            if not target_dir:
+                repo_name = repo_url.split("/")[-1].replace(".git", "")
+                target_dir = os.path.join(self.repos_dir, repo_name)
+                
+            # 디렉토리가 이미 있으면 삭제
+            if os.path.exists(target_dir):
+                await run_in_executor(shutil.rmtree, target_dir)
+                
+            # Git 명령 옵션 구성
+            clone_args = {
+                "url": repo_url,
+                "to_path": target_dir,
+            }
+            
+            if branch:
+                clone_args["branch"] = branch
+                
+            if depth:
+                clone_args["depth"] = depth
+                
+            async with timed_operation(f"클론: {repo_url}"):
+                # CPU 바운드 작업이므로 스레드 풀에서 실행
+                repo = await run_in_executor(Repo.clone_from, **clone_args)
+                
+            self.logger.info(f"저장소 복제 완료: {repo_url} -> {target_dir}")
+            return target_dir
+            
+        except GitCommandError as e:
+            error_msg = f"Git 저장소 클론 실패: {str(e)}"
+            self.logger.error(error_msg)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=error_msg
+            )
+            
+        except Exception as e:
+            error_msg = f"저장소 클론 중 오류 발생: {str(e)}"
+            self.logger.error(error_msg)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=error_msg
+            )
+            
+    @cached("git:repository_info", ttl=300)  # 5분 캐싱
+    async def get_repository_info(
+        self,
+        repo_path: str
+    ) -> Dict[str, Any]:
+        """
+        저장소 정보 조회
+        
+        Args:
+            repo_path: 저장소 경로
+            
+        Returns:
+            저장소 정보 (브랜치, 최근 커밋 등)
+        """
+        try:
+            # 저장소 열기
+            repo = await run_in_executor(Repo, repo_path)
+            
+            # 기본 정보 수집
+            active_branch = await run_in_executor(getattr, repo, "active_branch")
+            remotes = await run_in_executor(list, repo.remotes)
+            
+            # 브랜치 목록 수집
+            branches = []
+            for branch in await run_in_executor(list, repo.branches):
+                branch_info = {
+                    "name": branch.name,
+                    "is_active": branch.name == active_branch.name,
+                    "commit_id": branch.commit.hexsha
+                }
+                branches.append(branch_info)
+                
+            # 최근 커밋 정보 수집
+            recent_commits = []
+            for commit in await run_in_executor(list, repo.iter_commits(max_count=10)):
+                commit_info = {
+                    "id": commit.hexsha,
+                    "message": commit.message,
+                    "author": commit.author.name,
+                    "author_email": commit.author.email,
+                    "date": commit.authored_datetime.isoformat()
+                }
+                recent_commits.append(commit_info)
+                
+            # 원격 저장소 정보
+            remotes_info = []
+            for remote in remotes:
+                remote_info = {
+                    "name": remote.name,
+                    "urls": [url for url in remote.urls]
+                }
+                remotes_info.append(remote_info)
+                
+            # 결과 반환
+            return {
+                "path": repo_path,
+                "active_branch": active_branch.name,
+                "branches": branches,
+                "recent_commits": recent_commits,
+                "remotes": remotes_info
+            }
+            
+        except Exception as e:
+            error_msg = f"저장소 정보 조회 실패: {str(e)}"
+            self.logger.error(error_msg)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=error_msg
+            )
+            
+    async def checkout_branch(
+        self,
+        repo_path: str,
+        branch_name: str,
+        create: bool = False
+    ) -> bool:
+        """
+        브랜치 체크아웃
+        
+        Args:
+            repo_path: 저장소 경로
+            branch_name: 체크아웃할 브랜치 이름
+            create: 브랜치가 없으면 생성할지 여부
+            
+        Returns:
+            성공 여부
+        """
+        try:
+            # 저장소 열기
+            repo = await run_in_executor(Repo, repo_path)
+            
+            # 브랜치 체크아웃
+            if create:
+                # 브랜치가 없으면 생성 후 체크아웃
+                git = repo.git
+                if branch_name not in repo.branches:
+                    await run_in_executor(git.checkout, "-b", branch_name)
+                    self.logger.info(f"새 브랜치 생성 및 체크아웃: {branch_name}")
+                else:
+                    await run_in_executor(git.checkout, branch_name)
+                    self.logger.info(f"브랜치 체크아웃: {branch_name}")
+            else:
+                # 기존 브랜치만 체크아웃
+                if branch_name not in repo.branches:
+                    raise ValueError(f"브랜치가 존재하지 않음: {branch_name}")
+                    
+                await run_in_executor(repo.git.checkout, branch_name)
+                self.logger.info(f"브랜치 체크아웃: {branch_name}")
+                
+            return True
+            
+        except Exception as e:
+            error_msg = f"브랜치 체크아웃 실패: {str(e)}"
+            self.logger.error(error_msg)
+            return False
+            
+    async def commit_changes(
+        self,
+        repo_path: str,
+        commit_message: str,
+        author_name: Optional[str] = None,
+        author_email: Optional[str] = None,
+        file_patterns: List[str] = None
+    ) -> str:
+        """
+        변경 사항 커밋
+        
+        Args:
+            repo_path: 저장소 경로
+            commit_message: 커밋 메시지
+            author_name: 저자 이름 (지정하지 않으면 현재 사용자)
+            author_email: 저자 이메일 (지정하지 않으면 현재 사용자)
+            file_patterns: 커밋할 파일 패턴 목록 (지정하지 않으면 모든 변경 사항)
+            
+        Returns:
+            커밋 해시
+        """
+        try:
+            # 저장소 열기
+            repo = await run_in_executor(Repo, repo_path)
+            
+            # 저자 정보 설정
+            if not author_name and self.current_user:
+                author_name = self.current_user.name
+                
+            if not author_email and self.current_user:
+                author_email = self.current_user.email
+                
+            # 기본 저자 정보
+            author_name = author_name or "System"
+            author_email = author_email or "system@example.com"
+            author = Actor(author_name, author_email)
+            
+            # 스테이징: 특정 파일 또는 모든 변경 사항
+            if file_patterns:
+                for pattern in file_patterns:
+                    await run_in_executor(repo.git.add, pattern)
+            else:
+                await run_in_executor(repo.git.add, "-A")
+                
+            # 커밋 실행
+            commit = await run_in_executor(
+                repo.index.commit,
+                commit_message,
+                author=author,
+                committer=author
+            )
+            
+            self.logger.info(f"변경 사항 커밋 완료: {commit.hexsha}")
+            return commit.hexsha
+            
+        except Exception as e:
+            error_msg = f"변경 사항 커밋 실패: {str(e)}"
+            self.logger.error(error_msg)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=error_msg
+            )
+            
+    async def push_changes(
+        self,
+        repo_path: str,
+        remote_name: str = "origin",
+        branch_name: Optional[str] = None,
+        force: bool = False
+    ) -> bool:
+        """
+        변경 사항 푸시
+        
+        Args:
+            repo_path: 저장소 경로
+            remote_name: 원격 저장소 이름
+            branch_name: 푸시할 브랜치 이름 (지정하지 않으면 현재 브랜치)
+            force: 강제 푸시 여부
+            
+        Returns:
+            성공 여부
+        """
+        try:
+            # 저장소 열기
+            repo = await run_in_executor(Repo, repo_path)
+            
+            # 현재 브랜치 확인
+            if not branch_name:
+                branch = await run_in_executor(getattr, repo, "active_branch")
+                branch_name = branch.name
+                
+            # 푸시 옵션 설정
+            refspec = f"{branch_name}:{branch_name}"
+            push_args = [remote_name, refspec]
+            
+            if force:
+                push_args.append("--force")
+                
+            # 푸시 실행
+            async with timed_operation(f"푸시: {branch_name} -> {remote_name}"):
+                info = await run_in_executor(repo.git.push, *push_args)
+                
+            self.logger.info(f"변경 사항 푸시 완료: {branch_name} -> {remote_name}")
+            return True
+            
+        except Exception as e:
+            error_msg = f"변경 사항 푸시 실패: {str(e)}"
+            self.logger.error(error_msg)
+            return False
+            
+    async def analyze_repository(
+        self,
+        repo_path: str
+    ) -> Dict[str, Any]:
+        """
+        저장소 분석
+        파일 유형, 언어 분포, 커밋 통계 등을 분석합니다.
+        
+        Args:
+            repo_path: 저장소 경로
+            
+        Returns:
+            분석 결과
+        """
+        try:
+            # 저장소 열기
+            repo = await run_in_executor(Repo, repo_path)
+            
+            # 파일 확장자 빈도 분석
+            extensions_count = {}
+            repo_files = []
+            
+            # 재귀적으로 모든 파일 수집
+            for root, _, files in os.walk(repo_path):
+                if ".git" in root:
+                    continue  # .git 디렉토리 제외
+                    
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    rel_path = os.path.relpath(file_path, repo_path)
+                    repo_files.append(rel_path)
+                    
+                    # 확장자 추출 및 카운트
+                    ext = os.path.splitext(file)[1]
+                    if ext:
+                        extensions_count[ext] = extensions_count.get(ext, 0) + 1
+                        
+            # 최근 커밋 활동 분석
+            commit_activity = {}
+            authors = {}
+            
+            for commit in await run_in_executor(list, repo.iter_commits(max_count=100)):
+                # 커밋 날짜별 집계
+                date_str = commit.authored_datetime.strftime("%Y-%m-%d")
+                commit_activity[date_str] = commit_activity.get(date_str, 0) + 1
+                
+                # 저자별 집계
+                author = commit.author.name
+                if author not in authors:
+                    authors[author] = {
+                        "commits": 0,
+                        "first_commit": commit.authored_datetime.isoformat(),
+                        "last_commit": commit.authored_datetime.isoformat()
+                    }
+                authors[author]["commits"] += 1
+                authors[author]["last_commit"] = commit.authored_datetime.isoformat()
+                
+            # 결과 반환
+            return {
+                "file_count": len(repo_files),
+                "extensions": extensions_count,
+                "commit_activity": commit_activity,
+                "authors": authors,
+                "total_commits": len(list(repo.iter_commits())),
+                "branches": len(list(repo.branches))
+            }
+            
+        except Exception as e:
+            error_msg = f"저장소 분석 실패: {str(e)}"
+            self.logger.error(error_msg)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=error_msg
+            )
+            
+    async def with_temporary_repo(
+        self,
+        repo_url: str,
+        callback: callable,
+        *args,
+        **kwargs
+    ) -> Any:
+        """
+        임시 저장소로 작업 실행
+        저장소를 임시 디렉토리에 클론하고 작업 후 정리합니다.
+        
+        Args:
+            repo_url: 저장소 URL
+            callback: 실행할 콜백 함수 (첫 번째 인자로 저장소 경로 전달)
+            *args, **kwargs: 콜백에 전달할 추가 인자
+            
+        Returns:
+            콜백 함수의 반환값
+        """
+        temp_dir = None
+        try:
+            # 임시 디렉토리 생성
+            temp_dir = tempfile.mkdtemp(prefix="git_temp_")
+            
+            # 저장소 클론
+            repo_path = await self.clone_repository(repo_url, temp_dir)
+            
+            # 콜백 실행
+            return await callback(repo_path, *args, **kwargs)
+            
+        finally:
+            # 임시 디렉토리 정리
+            if temp_dir and os.path.exists(temp_dir):
+                await run_in_executor(shutil.rmtree, temp_dir)
+                self.logger.debug(f"임시 저장소 정리 완료: {temp_dir}")
+
+# 테스트에 필요한 유틸리티 함수 추가
+def is_git_installed() -> bool:
+    """
+    Git이 시스템에 설치되어 있는지 확인합니다.
+    
+    Returns:
+        bool: Git이 설치되어 있으면 True, 그렇지 않으면 False
+    """
+    if not GIT_AVAILABLE:
+        return False
+        
+    try:
+        import subprocess
+        result = subprocess.run(
+            ['git', '--version'], 
+            stdout=subprocess.PIPE, 
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        return result.returncode == 0
+    except (FileNotFoundError, subprocess.SubprocessError):
+        return False
+
+def is_git_repository(path: str) -> bool:
+    """
+    지정된 경로가 유효한 Git 저장소인지 확인합니다.
+    
+    Args:
+        path: 확인할 디렉토리 경로
+        
+    Returns:
+        bool: 유효한 Git 저장소이면 True, 그렇지 않으면 False
+    """
+    if not GIT_AVAILABLE:
+        return False
+        
+    try:
+        from git import Repo, InvalidGitRepositoryError
+        try:
+            repo = Repo(path)
+            return True
+        except InvalidGitRepositoryError:
+            return False
+    except ImportError:
+        return False
