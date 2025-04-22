@@ -4,13 +4,15 @@ Git 작업에 필요한 핵심 유틸리티, 타입, 예외 클래스 등을 제
 """
 
 from gitmanager.git.core.exceptions import (
+    GitAuthenticationException,
     GitBranchException,
     GitCommandException,
     GitCommitException,
     GitConfigException,
+    GitException,
     GitMergeException,
-    GitOperationException,
     GitPushPullException,
+    GitRemoteException,
     GitRepositoryException,
     GitTagException,
 )
@@ -23,17 +25,22 @@ from gitmanager.git.core.utils import (
     run_git_command,
 )
 
+# 하위 호환성을 위한 별칭
+GitOperationException = GitException
+
 __all__ = [
-    # 예외 클래스들
-    "GitOperationException",
+    "GitException",
+    "GitOperationException",  # 하위 호환성을 위한 별칭
     "GitCommitException",
     "GitMergeException",
     "GitPushPullException",
     "GitBranchException",
     "GitTagException",
     "GitRepositoryException",
-    "GitConfigException",
     "GitCommandException",
+    "GitAuthenticationException",
+    "GitConfigException",
+    "GitRemoteException",
     # 유틸리티 함수들
     "run_git_command",
     "is_git_installed",

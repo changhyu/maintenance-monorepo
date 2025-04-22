@@ -17,13 +17,16 @@ if sys.version_info >= (3, 10):
 
 # 외부 라이브러리 대신 내부 모듈에서만 예외 가져오기
 from gitmanager.git.core.exceptions import (
+    GitAuthenticationException,
     GitBranchException,
     GitCommandException,
     GitCommitException,
     GitConfigException,
+    GitConflictException,
+    GitException,
     GitMergeException,
-    GitOperationException,
     GitPushPullException,
+    GitRemoteException,
     GitRepositoryException,
     GitTagException,
 )
@@ -112,9 +115,10 @@ def get_git_exceptions() -> Dict[str, Type]:
     return exceptions
 
 
+# 하위 호환성을 위한 별칭
+GitOperationException = GitException
+
 def get_git_service():
-    if not GIT_AVAILABLE:
-        raise ImportError("GitPython 라이브러리가 필요합니다")
     """GitService 클래스를 lazy import합니다."""
     from gitmanager.git.core.service import GitService
 
@@ -140,13 +144,17 @@ def get_external_git():
 __all__ = [
     "get_git_service",
     "get_external_git",
-    "GitOperationException",
+    "GitException",
+    "GitOperationException",  # 하위 호환성을 위한 별칭
     "GitCommitException",
     "GitMergeException",
     "GitPushPullException",
     "GitBranchException",
     "GitTagException",
     "GitRepositoryException",
+    "GitAuthenticationException",
     "GitConfigException",
     "GitCommandException",
+    "GitConflictException",
+    "GitRemoteException",
 ]
