@@ -6,31 +6,33 @@ services:
       dockerfile: Dockerfile.api
     restart: unless-stopped
     env_file: .env
+    ports:
+      - '8000:8000' # API 서버 포트 외부에 노출
     depends_on:
       - db
       - redis
     volumes:
       - api_logs:/app/logs
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ['CMD', 'curl', '-f', 'http://localhost:8000/health']
       interval: 30s
       timeout: 10s
       retries: 3
     networks:
       - maintenance-network
-  
+
   frontend:
     build:
       context: .
       dockerfile: Dockerfile.frontend
     restart: unless-stopped
     ports:
-      - "80:80"
+      - '80:80'
     depends_on:
       - api
     networks:
       - maintenance-network
-  
+
   db:
     image: postgres:14-alpine
     volumes:
@@ -38,18 +40,18 @@ services:
     env_file: .env.db
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
       - maintenance-network
-  
+
   redis:
     image: redis:alpine
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ['CMD', 'redis-cli', 'ping']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -65,7 +67,7 @@ services:
       dockerfile: Dockerfile.gateway
     restart: unless-stopped
     ports:
-      - "4000:4000"
+      - '4000:4000'
     env_file: .env.gateway
     depends_on:
       - api
@@ -74,7 +76,7 @@ services:
     networks:
       - maintenance-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4000/status"]
+      test: ['CMD', 'curl', '-f', 'http://localhost:4000/status']
       interval: 30s
       timeout: 10s
       retries: 3
@@ -85,7 +87,7 @@ services:
       dockerfile: Dockerfile.ml
     restart: unless-stopped
     ports:
-      - "8001:8001"
+      - '8001:8001'
     env_file: .env.ml
     depends_on:
       - db
@@ -96,7 +98,7 @@ services:
     networks:
       - maintenance-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/"]
+      test: ['CMD', 'curl', '-f', 'http://localhost:8001/']
       interval: 30s
       timeout: 10s
       retries: 3
@@ -107,7 +109,7 @@ services:
       dockerfile: Dockerfile.docs
     restart: unless-stopped
     ports:
-      - "8004:8004"
+      - '8004:8004'
     env_file: .env.docs
     depends_on:
       - db
@@ -118,7 +120,7 @@ services:
     networks:
       - maintenance-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8004/"]
+      test: ['CMD', 'curl', '-f', 'http://localhost:8004/']
       interval: 30s
       timeout: 10s
       retries: 3
@@ -129,7 +131,7 @@ services:
       dockerfile: Dockerfile.mobile-api
     restart: unless-stopped
     ports:
-      - "8002:8002"
+      - '8002:8002'
     env_file: .env.mobile
     depends_on:
       - api
@@ -139,7 +141,30 @@ services:
     networks:
       - maintenance-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      test: ['CMD', 'curl', '-f', 'http://localhost:8002/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # 캐시 모니터링 서비스 추가
+  cache-monitor:
+    build:
+      context: .
+      dockerfile: Dockerfile.cache-monitor
+    restart: unless-stopped
+    ports:
+      - '5000:5000'
+    environment:
+      - REPO_PATH=/app/gitmanager
+      - PORT=5000
+      - DEBUG=false
+    volumes:
+      - cache_data:/app/.gitmanager
+      - cache_monitor_logs:/app/logs
+    networks:
+      - maintenance-network
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:5000/']
       interval: 30s
       timeout: 10s
       retries: 3
@@ -159,3 +184,5 @@ volumes:
   document_storage:
   document_logs:
   mobile_api_logs:
+  cache_data:
+  cache_monitor_logs:

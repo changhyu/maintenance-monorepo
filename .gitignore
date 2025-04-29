@@ -3,149 +3,61 @@ node_modules/
 .pnp/
 .pnp.js
 
-# 빌드 결과물
+# Production
 dist/
 build/
 out/
-.next/
-.nuxt/
-.cache/
-.parcel-cache/
-.rpt2_cache/
-.rts2_cache*/
-.fusebox/
-.dynamodb/
-.tern-port/
-.vscode-test/
-*.tsbuildinfo
-target/
-.pybuilder/
+lib/
 
-# 환경 설정 및 시크릿
+# Testing
+coverage/
+.nyc_output/
+
+# Environment
 .env
-.env.*
-!.env.example
-*.env.local
-*.env.development.local
-*.env.test.local
-*.env.production.local
-gcp-oauth.keys.json
-.*-server-credentials.json
-.yarn-integrity
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 
-# 로그 파일
+# Logs
 logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
-.pnpm-debug.log*
 
-# IDE & 편집기 파일
+# IDE & Editors
 .idea/
-.vscode/
-*.swp
-*.swo
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
 .DS_Store
-.AppleDouble
-.LSOverride
-._*
 
-# 테스트 및 커버리지
-coverage/
-.coverage
-.coverage.*
-.pytest_cache/
-htmlcov/
-.tox/
-.nox/
-.hypothesis/
-.nyc_output/
-profile_default/
-ipython_config.py
-nosetests.xml
-coverage.xml
-*.cover
-*.py,cover
-cover/
+# Mobile
+.expo/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+web-build/
 
-# 데이터베이스
-*.sqlite3
-*.db
-*.db-shm
-*.db-wal
-
-# Python 관련
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-develop-eggs/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-share/python-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
-*.manifest
-*.spec
-pip-log.txt
-pip-delete-this-directory.txt
-.scrapy/
-docs/_build/
-.ipynb_checkpoints/
-.python-version
-.pdm.toml
-.pdm-python
-.pdm-build/
-__pypackages__/
-celerybeat-schedule
-celerybeat.pid
-*.sage.py
-.spyderproject
-.spyproject
-.ropeproject
-.mypy_cache/
-.dmypy.json
-dmypy.json
-.pyre/
-.pytype/
-cython_debug/
-
-# 기타
-report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
-pids/
-*.pid
-*.seed
-*.pid.lock
-lib-cov/
-.grunt/
-.lock-wscript/
-.yarn/
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/sdks
-!.yarn/versions
-.turbo
-
-# 임시 파일
-temp/
-tmp/
+# Temporary files
+.temp/
 .tmp/
-.temporary/
+.cache/
 
-# Git 관련 (중첩된 저장소에서 가져온 백업)
-.gitignore.old
-
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
 .fake
