@@ -11,7 +11,7 @@ from sqlalchemy import Enum as SQLAlchemyEnum
 from sqlalchemy import Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 
-from packages.api.src.modelsbase import Base
+from .base import Base
 
 
 class ScheduleStatus(str, Enum):
@@ -105,20 +105,20 @@ class MaintenanceScheduleModel(Base):
     )
 
     # 관계 설정
-    vehicle = relationship("VehicleModel", back_populates="schedules")
-    shop = relationship("ShopModel", back_populates="schedules")
+    vehicle = relationship("Vehicle", back_populates="maintenance_schedules", lazy="selectin")
+    shop = relationship("ShopModel", back_populates="schedules", lazy="selectin")
     reminders = relationship(
-        "ScheduleReminderModel", back_populates="schedule", cascade="all, delete-orphan"
+        "ScheduleReminderModel", back_populates="schedule", cascade="all, delete-orphan", lazy="selectin"
     )
     notes = relationship(
-        "ScheduleNoteModel", back_populates="schedule", cascade="all, delete-orphan"
+        "ScheduleNoteModel", back_populates="schedule", cascade="all, delete-orphan", lazy="selectin"
     )
     next_schedule = relationship(
-        "MaintenanceScheduleModel", remote_side=[id], uselist=False
+        "MaintenanceScheduleModel", remote_side=[id], uselist=False, lazy="selectin"
     )
-    previous_schedule = relationship("MaintenanceScheduleModel", uselist=False)
+    previous_schedule = relationship("MaintenanceScheduleModel", uselist=False, lazy="selectin")
     maintenance_items = relationship(
-        "MaintenanceItemModel", back_populates="schedule", cascade="all, delete-orphan"
+        "MaintenanceItemModel", back_populates="schedule", cascade="all, delete-orphan", lazy="selectin"
     )
 
     def __repr__(self):

@@ -15,54 +15,72 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    Enum as SQLAlchemyEnum,
+    func,
 )
 from sqlalchemy.orm import relationship
+import enum
 
-from packages.api.src.modelsbase import Base, BaseModel
-from packages.api.src.modelsschedule import ScheduleModel  # ScheduleModel을 먼저 import
+from .base import Base, BaseModel
+from .schedule import MaintenanceScheduleModel
+from .maintenance import Maintenance
+from .location import VehicleLocation
 
 
-class VehicleStatus(str, Enum):
-    """차량 상태 열거형"""
+class VehicleType(enum.Enum):
+    CAR = "car"
+    TRUCK = "truck"
+    VAN = "van"
+    BUS = "bus"
+    MOTORCYCLE = "motorcycle"
+    OTHER = "other"
 
+
+class VehicleStatus(enum.Enum):
     ACTIVE = "active"
     MAINTENANCE = "maintenance"
     INACTIVE = "inactive"
-    RECALLED = "recalled"
+    RESERVED = "reserved"
+    INSPECTION_REQUIRED = "inspection_required"  # 법정검사 필요 상태 추가
 
 
-class VehicleModel(Base, BaseModel):
+class Vehicle(Base):
     """차량 모델"""
 
     __tablename__ = "vehicles"
 
-    id = Column(String(36), primary_key=True, index=True)
-    user_id = Column(String(36), nullable=False, index=True)
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    type = Column(SQLAlchemyEnum(VehicleType), index=True, nullable=False, default=VehicleType.CAR)
     make = Column(String(50), nullable=False)
     model = Column(String(50), nullable=False)
     year = Column(Integer, nullable=False)
     vin = Column(String(17), nullable=True, unique=True)
     license_plate = Column(String(20), nullable=True, unique=True)
     color = Column(String(30), nullable=True)
-    status = Column(String(20), default=VehicleStatus.ACTIVE.value, nullable=False)
-    created_at = Column(
-        DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
-    )
-    updated_at = Column(
-        DateTime,
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
-        nullable=False,
-    )
+    status = Column(SQLAlchemyEnum(VehicleStatus), index=True, default=VehicleStatus.ACTIVE)
+    seating_capacity = Column(Integer)
+    fuel_type = Column(String)
+    fuel_efficiency = Column(Float)  # km/L 또는 km/kWh
+    mileage = Column(Float)  # km
+    last_maintenance_date = Column(DateTime)
+    next_maintenance_date = Column(DateTime)
+    last_inspection_date = Column(DateTime)  # 마지막 법정검사일
+    next_inspection_date = Column(DateTime)  # 다음 법정검사일
+    is_available = Column(Boolean, default=True, index=True)
+    notes = Column(String)
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
     # 관계 설정
-    schedules = relationship("ScheduleModel", back_populates="vehicle")
-    owner = relationship("UserModel", back_populates="vehicles")
-    maintenance_records = relationship("MaintenanceModel", back_populates="vehicle")
-    schedules = relationship("MaintenanceScheduleModel", back_populates="vehicle")
+    maintenance_schedules = relationship("MaintenanceScheduleModel", back_populates="vehicle", lazy="selectin")
+    owner = relationship("UserModel", back_populates="vehicles", lazy="selectin")
+    maintenance_records = relationship("Maintenance", back_populates="vehicle", lazy="selectin")
+    locations = relationship("VehicleLocation", back_populates="vehicle", cascade="all, delete-orphan", lazy="selectin")
+    inspections = relationship("VehicleInspection", back_populates="vehicle", cascade="all, delete-orphan", lazy="selectin")  # 법정검사 관계 추가
 
     def __repr__(self):
-        return f"<VehicleModel(id={self.id}, make={self.make}, model={self.model})>"
+        return f"<Vehicle(id={self.id}, make={self.make}, model={self.model})>"
 
     def validate(self) -> List[str]:
         """모델 유효성 검사"""
@@ -93,3 +111,18 @@ class VehicleModel(Base, BaseModel):
         if not self.next_maintenance_date:
             return False
         return self.next_maintenance_date <= datetime.utcnow()
+
+    @property
+    def is_due_for_inspection(self):
+        """차량의 다음 법정검사일이 현재 시간 이전이면 True 반환"""
+        if not self.next_inspection_date:
+            return False
+        return self.next_inspection_date <= datetime.utcnow()
+
+    @property
+    def days_to_inspection(self):
+        """다음 법정검사까지 남은 일수 반환"""
+        if not self.next_inspection_date:
+            return None
+        delta = self.next_inspection_date - datetime.utcnow()
+        return max(0, delta.days)

@@ -1,0 +1,28 @@
+/Users/gongchanghyeon/Desktop/maintenance-monorepo/packages/api/src/main.py:46: DeprecationWarning: 
+        on_event is deprecated, use lifespan event handlers instead.
+
+        Read more about it in the
+        [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+        
+  @app.on_event("startup")
+/Users/gongchanghyeon/Desktop/maintenance-monorepo/packages/api/src/main.py:60: DeprecationWarning: 
+        on_event is deprecated, use lifespan event handlers instead.
+
+        Read more about it in the
+        [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+        
+  @app.on_event("shutdown")
+INFO:__main__:API 애플리케이션이 성공적으로 초기화되었습니다
+INFO:__main__:API 서버 시작: 포트 8083
+INFO:__main__:API 서버를 시작합니다...
+INFO:     Will watch for changes in these directories: ['/Users/gongchanghyeon/Desktop/maintenance-monorepo/packages/api']
+INFO:     Uvicorn running on http://0.0.0.0:8083 (Press CTRL+C to quit)
+INFO:     Started reloader process [97056] using StatReload
+INFO:__mp_main__:API 애플리케이션이 성공적으로 초기화되었습니다
+INFO:src.main:API 애플리케이션이 성공적으로 초기화되었습니다
+INFO:     Started server process [97070]
+INFO:     Waiting for application startup.
+INFO:src.main:애플리케이션 시작: 데이터베이스 연결 초기화
+INFO:src.main:데이터베이스 연결 성공
+INFO:     Application startup complete.
+INFO:     127.0.0.1:59520 - "GET / HTTP/1.1" 200 OK

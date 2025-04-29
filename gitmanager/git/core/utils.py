@@ -1,20 +1,29 @@
 """
-Git 작업을 위한 공통 유틸리티 모듈
+Git 코어 유틸리티 모듈
 
-Git 명령어 실행, 결과 파싱 등의 유틸리티 함수를 제공합니다.
+이 모듈은 Git 작업에 필요한 다양한 유틸리티 함수를 제공합니다.
 """
 
-import logging
 import os
 import re
+import sys
+import uuid
+import shlex
+import json
+import pickle
+import base64
+import logging
+import tempfile
+import platform
 import subprocess
-from contextlib import suppress
-from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple, TypeVar, Union, cast
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+from contextlib import suppress
 
 from gitmanager.git.core.exceptions import (
     GitCommandException,
+    GitNotInstalledError,
     GitRepositoryException,
     GitException,
     create_git_exception
@@ -31,6 +40,147 @@ GIT_COMMAND_RETRY_DELAY = 1
 
 logger = logging.getLogger(__name__)
 
+def mask_sensitive_info(text: str) -> str:
+    """
+    URL에서 인증 정보와 같은 민감한 정보를 마스킹합니다.
+    
+    Args:
+        text: 마스킹할 텍스트
+        
+    Returns:
+        str: 마스킹된 텍스트
+    """
+    # 기본 HTTP/HTTPS 인증 정보 마스킹
+    masked = re.sub(r'(https?://)([^:]+:[^@]+@)', r'\1***:***@', text)
+    # 토큰 마스킹 (예: token=xyz123 -> token=***)
+    masked = re.sub(r'(token=)[^&\s]+', r'\1***', masked)
+    # API 키 마스킹
+    masked = re.sub(r'(api[_-]?key=)[^&\s]+', r'\1***', masked)
+    # 비밀번호 마스킹
+    masked = re.sub(r'(password=)[^&\s]+', r'\1***', masked)
+    # OAuth 토큰 마스킹
+    masked = re.sub(r'(oauth[_-]?token=)[^&\s]+', r'\1***', masked)
+    return masked
+
+# 보안 관련 함수 추가
+def is_safe_path(base_dir: str, path: str) -> bool:
+    """
+    경로 순회 공격을 방지하기 위해 경로의 안전성을 검증합니다.
+    
+    Args:
+        base_dir: 기준 디렉토리 경로
+        path: 검증할 경로
+        
+    Returns:
+        bool: 경로가 안전하면 True, 그렇지 않으면 False
+    """
+    # 절대 경로로 변환
+    base_dir = os.path.abspath(base_dir)
+    path = os.path.abspath(os.path.join(base_dir, os.path.normpath(path)))
+    
+    # 대상 경로가 기준 디렉토리 내에 있는지 확인
+    common_path = os.path.commonpath([base_dir, path])
+    return common_path == base_dir
+
+def safe_serialize(data: Any) -> str:
+    """
+    데이터를 안전하게 직렬화합니다.
+    
+    Args:
+        data: 직렬화할 데이터
+        
+    Returns:
+        str: Base64로 인코딩된 직렬화된 데이터
+    """
+    try:
+        # 민감한 정보 필터링
+        data_copy = _filter_sensitive_info(data)
+        
+        # pickle로 직렬화하고 base64로 인코딩
+        serialized = pickle.dumps(data_copy)
+        encoded = base64.b64encode(serialized).decode('utf-8')
+        return encoded
+    except Exception as e:
+        logger.warning(f"데이터 직렬화 중 오류 발생: {str(e)}")
+        # 기본 JSON 직렬화로 폴백
+        return json.dumps(_make_json_serializable(data))
+
+def safe_deserialize(encoded_data: str) -> Any:
+    """
+    안전하게 직렬화된 데이터를 역직렬화합니다.
+    
+    Args:
+        encoded_data: Base64로 인코딩된 직렬화된 데이터
+        
+    Returns:
+        Any: 역직렬화된 데이터
+    """
+    try:
+        # Base64 디코딩 후 pickle로 역직렬화
+        serialized = base64.b64decode(encoded_data)
+        
+        # 보안: pickle은 신뢰할 수 있는 데이터에만 사용해야 함
+        data = pickle.loads(serialized)
+        return data
+    except Exception as e:
+        logger.warning(f"데이터 역직렬화 중 오류 발생: {str(e)}")
+        try:
+            # JSON 역직렬화로 폴백
+            return json.loads(encoded_data)
+        except:
+            return None
+
+def _filter_sensitive_info(data: Any) -> Any:
+    """
+    민감한 정보를 필터링합니다.
+    
+    Args:
+        data: 필터링할 데이터
+        
+    Returns:
+        Any: 필터링된 데이터
+    """
+    if isinstance(data, str):
+        # URL에서 인증 정보 마스킹
+        return mask_sensitive_info(data)
+    elif isinstance(data, dict):
+        result = {}
+        for key, value in data.items():
+            # 민감한 키 필터링
+            if any(sensitive in key.lower() for sensitive in ['password', 'secret', 'token', 'key', 'auth']):
+                result[key] = '***MASKED***'
+            else:
+                result[key] = _filter_sensitive_info(value)
+        return result
+    elif isinstance(data, (list, tuple)):
+        return [_filter_sensitive_info(item) for item in data]
+    else:
+        return data
+
+def _make_json_serializable(data: Any) -> Any:
+    """
+    JSON으로 직렬화할 수 없는 데이터를 직렬화 가능하게 변환합니다.
+    
+    Args:
+        data: 변환할 데이터
+        
+    Returns:
+        Any: JSON으로 직렬화 가능한 데이터
+    """
+    if isinstance(data, (str, int, float, bool, type(None))):
+        return data
+    elif isinstance(data, (datetime,)):
+        return data.isoformat()
+    elif isinstance(data, bytes):
+        return base64.b64encode(data).decode('utf-8')
+    elif isinstance(data, dict):
+        return {str(k): _make_json_serializable(v) for k, v in data.items()}
+    elif isinstance(data, (list, tuple)):
+        return [_make_json_serializable(item) for item in data]
+    elif hasattr(data, '__dict__'):
+        return _make_json_serializable(data.__dict__)
+    else:
+        return str(data)
 
 def run_git_command(
     args: List[str],

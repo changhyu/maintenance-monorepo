@@ -1,0 +1,103 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = "postgresql://gongchanghyeon:zDYQj96BLxNFR39f@localhost:5432/maintenance"
+}
+
+model Vehicle {
+  id                String              @id @default(uuid())
+  vin               String              @unique
+  make              String
+  model             String
+  year              Int
+  type              VehicleType
+  color             String?
+  plate             String?             @unique
+  mileage           Int?
+  status            VehicleStatus       @default(AVAILABLE)
+  ownerID           String?             @map("owner_id")
+  lastServiceDate   DateTime?           @map("last_service_date")
+  nextServiceDate   DateTime?           @map("next_service_date")
+  createdAt         DateTime            @default(now()) @map("created_at")
+  updatedAt         DateTime            @updatedAt @map("updated_at")
+  
+  // 관계
+  owner             User?               @relation(fields: [ownerID], references: [id], onDelete: SetNull)
+  maintenanceRecords MaintenanceRecord[]
+  
+  @@map("vehicles")
+  @@index([make, model])
+  @@index([status])
+  @@index([ownerID])
+}
+
+enum VehicleType {
+  SEDAN
+  SUV
+  TRUCK
+  VAN
+  ELECTRIC
+  HYBRID
+}
+
+enum VehicleStatus {
+  AVAILABLE
+  MAINTENANCE
+  RESERVED
+  INACTIVE
+}
+
+model MaintenanceRecord {
+  id          String               @id @default(uuid())
+  vehicleID   String               @map("vehicle_id")
+  description String
+  date        DateTime
+  mileage     Int?
+  cost        Float?
+  performedBy String?              @map("performed_by")
+  status      MaintenanceStatus    @default(SCHEDULED)
+  notes       String?
+  createdAt   DateTime             @default(now()) @map("created_at")
+  updatedAt   DateTime             @updatedAt @map("updated_at")
+  
+  // 관계
+  vehicle     Vehicle              @relation(fields: [vehicleID], references: [id], onDelete: Cascade)
+
+  @@map("maintenance_records")
+  @@index([vehicleID])
+  @@index([date])
+  @@index([status])
+}
+
+enum MaintenanceStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model User {
+  id        String      @id @default(uuid())
+  email     String      @unique
+  name      String
+  role      UserRole    @default(USER)
+  active    Boolean     @default(true)
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime    @updatedAt @map("updated_at")
+  
+  // 관계
+  vehicles  Vehicle[]
+  
+  @@map("users")
+  @@index([email])
+  @@index([role])
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  USER
+}

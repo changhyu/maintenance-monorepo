@@ -841,3 +841,83 @@ class ShopImageBatchResponse(BaseModel):
 
 
 ApiResponse = APIResponse
+
+# 위치 관련 스키마
+class LocationBase(BaseModel):
+    """위치 기본 스키마"""
+    name: Optional[str] = None
+    latitude: float
+    longitude: float
+    altitude: Optional[float] = None
+    address: Optional[str] = None
+    postal_code: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    country: Optional[str] = None
+    type: Optional[str] = None  # 위치 유형 (사무실, 창고, 주차장 등)
+    notes: Optional[str] = None
+
+class LocationCreate(LocationBase):
+    """위치 생성 스키마"""
+    pass
+
+class LocationUpdate(BaseModel):
+    """위치 업데이트 스키마"""
+    name: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    altitude: Optional[float] = None
+    address: Optional[str] = None
+    postal_code: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    country: Optional[str] = None
+    type: Optional[str] = None
+    notes: Optional[str] = None
+
+class LocationRead(LocationBase):
+    """위치 조회 스키마"""
+    id: int
+    created_at: datetime
+    updated_at: datetime
+    
+    class Config:
+        orm_mode = True
+
+# 차량 위치 관련 스키마
+class VehicleCoordinates(BaseModel):
+    """차량 좌표 스키마"""
+    latitude: float
+    longitude: float
+    altitude: Optional[float] = None
+
+class VehicleLocationBase(BaseModel):
+    """차량 위치 기본 스키마"""
+    vehicle_id: int
+    latitude: float
+    longitude: float
+    altitude: Optional[float] = None
+    heading: Optional[float] = None  # 진행 방향 (도)
+    speed: Optional[float] = None    # 속도 (km/h)
+    accuracy: Optional[float] = None # 위치 정확도 (미터)
+
+class VehicleLocationCreate(VehicleLocationBase):
+    """차량 위치 생성 스키마"""
+    timestamp: Optional[datetime] = None
+
+class VehicleLocationRead(VehicleLocationBase):
+    """차량 위치 조회 스키마"""
+    id: int
+    timestamp: datetime
+    
+    class Config:
+        orm_mode = True
+
+class VehicleLocationHistory(BaseModel):
+    """차량 위치 이력 스키마"""
+    vehicle_id: int
+    locations: List[VehicleLocationRead]
+    start_time: datetime
+    end_time: datetime
+    total_distance: Optional[float] = None  # 총 이동 거리 (미터)
+    avg_speed: Optional[float] = None       # 평균 속도 (km/h)

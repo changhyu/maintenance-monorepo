@@ -27,8 +27,9 @@ from src.dependencies import get_settings_dependency, lifespan_dependencies
 from src.docs import setup_docs
 from src.utils.concurrency import timed_operation
 
-from packages.api.srccore.config import Settings, get_settings
-from packages.api.srccore.exceptions import setup_exception_handlers
+# 수정된 임포트 경로 - srccore에서 src.core로 변경
+from src.core.config import Settings, get_settings
+from src.core.exceptions import setup_exception_handlers
 
 # 로깅 설정 적용
 logger = setup_logging("api_service")
@@ -86,11 +87,25 @@ async def dependencies_middleware(request: Request, call_next):
             return response
 
 
-# 상태 확인 엔드포인트 (공통 모듈의 기본 엔드포인트 대신 사용자 지정)
+# 기존 헬스 체크 엔드포인트 유지
 @app.get("/api/health")
-async def health_check(settings: Settings = Depends(get_settings_dependency)):
+async def api_health_check(settings: Settings = Depends(get_settings_dependency)):
     """
     서비스 헬스 체크 엔드포인트
+    """
+    return {
+        "status": "ok",
+        "version": settings.VERSION,
+        "environment": settings.ENVIRONMENT,
+        "service": "api",
+    }
+
+
+# 루트 경로 헬스 체크 엔드포인트 추가 (Docker 헬스체크 호환용)
+@app.get("/health")
+async def health_check(settings: Settings = Depends(get_settings_dependency)):
+    """
+    Docker 컨테이너 헬스 체크 엔드포인트
     """
     return {
         "status": "ok",
@@ -106,9 +121,9 @@ logger.info("API 애플리케이션이 성공적으로 초기화되었습니다"
 # 직접 실행될 경우 개발 서버 시작
 if __name__ == "__main__":
     try:
-        # 환경 변수나 설정에서 포트 가져오기
+        # 환경 변수나 설정에서 포트 가져오기 - 기본값을 8080으로 변경
         port = int(
-            os.getenv("PORT", settings.PORT if hasattr(settings, "PORT") else 8000)
+            os.getenv("PORT", settings.API_PORT if hasattr(settings, "API_PORT") else 8080)
         )
 
         # 로거에 기록

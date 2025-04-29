@@ -173,6 +173,55 @@ class ExternalServiceException(BaseAPIException):
         )
 
 
+# 위치 추적 서비스 예외 클래스
+class LocationServiceError(BaseAPIException):
+    """위치 서비스 기본 예외"""
+
+    def __init__(
+        self,
+        message: str = "위치 서비스 오류가 발생했습니다.",
+        error_code: str = ErrorCodes.GENERAL_ERROR,
+        details: Optional[Dict[str, Any]] = None,
+    ):
+        super().__init__(500, message, error_code, details)
+
+
+class DatabaseError(LocationServiceError):
+    """데이터베이스 오류 발생 시 예외"""
+
+    def __init__(
+        self,
+        message: str = "데이터베이스 작업 중 오류가 발생했습니다.",
+        error_code: str = ErrorCodes.DATABASE_ERROR,
+        details: Optional[Dict[str, Any]] = None,
+    ):
+        super().__init__(message, error_code, details)
+
+
+class ExternalAPIError(LocationServiceError):
+    """외부 API 오류 발생 시 예외"""
+
+    def __init__(
+        self,
+        message: str = "외부 API 통신 중 오류가 발생했습니다.",
+        error_code: str = ErrorCodes.EXTERNAL_SERVICE_ERROR,
+        details: Optional[Dict[str, Any]] = None,
+    ):
+        super().__init__(message, error_code, details)
+
+
+class MissingAPIKeyError(ExternalAPIError):
+    """필수 API 키가 누락된 경우 발생하는 예외"""
+
+    def __init__(
+        self,
+        message: str = "필수 API 키가 구성되지 않았습니다.",
+        error_code: str = ErrorCodes.CONFIG_ERROR,
+        details: Optional[Dict[str, Any]] = None,
+    ):
+        super().__init__(message, error_code, details)
+
+
 class GitException(BaseAPIException):
     """Git 관련 기본 예외"""
 
@@ -254,25 +303,31 @@ def log_exception(request: Request, exc: Exception, error_id: str = None) -> Non
         "exception_type": exc_type,
         "exception_message": exc_msg,
         "traceback": exc_traceback,
+        "timestamp": datetime.now().isoformat(),
     }
 
-    # 예외 타입에 따라 로그 레벨 조정
-    if isinstance(exc, (NotFoundException, ValidationException)):
-        logger.warning(f"오류 발생 [ID: {error_id}]: {exc_msg}", extra=log_data)
-    else:
-        logger.error(f"오류 발생 [ID: {error_id}]: {exc_msg}", extra=log_data)
+    # 추가 예외 정보 처리
+    if isinstance(exc, BaseAPIException):
+        log_data.update(
+            {
+                "status_code": exc.status_code,
+                "error_code": exc.error_code,
+                "details": exc.details,
+            }
+        )
 
-    # 중요 오류는 스택 트레이스 포함
-    if not isinstance(
-        exc,
-        (
-            NotFoundException,
-            ValidationException,
-            AuthorizationException,
-            AuthenticationException,
-        ),
+    # 로깅
+    logger.error(
+        f"요청 처리 중 오류 발생 [ID: {error_id}] {exc_type}: {exc_msg}", extra=log_data
+    )
+
+    # 심각한 오류인 경우 알림 발송 가능
+    if not isinstance(exc, (HTTPException, RequestValidationError)) and not isinstance(
+        exc, BaseAPIException
     ):
-        logger.error(f"스택 트레이스 [ID: {error_id}]:\n{exc_traceback}")
+        logger.critical(
+            f"심각한 오류 발생 [ID: {error_id}] {exc_type}: {exc_msg}", extra=log_data
+        )
 
 
 async def api_exception_handler(

@@ -113,16 +113,32 @@ def find_module_path(module_name: str) -> Optional[str]:
     try:
         if "." in module_name:
             parent_module, child_module = module_name.rsplit(".", 1)
-            parent = importlib.import_module(parent_module)
-            module_path = os.path.join(os.path.dirname(parent.__file__), f"{child_module}.py")
+            try:
+                parent = importlib.import_module(parent_module)
+                module_path = os.path.join(os.path.dirname(parent.__file__), f"{child_module}.py")
+            except (ImportError, AttributeError) as e:
+                logger.warning(f"모듈 경로를 찾을 수 없음 ({module_name}): {str(e)}")
+                # importlib.util.find_spec를 사용하여 대체 방법으로 시도
+                spec = importlib.util.find_spec(module_name)
+                if spec and spec.origin:
+                    return spec.origin
+                return None
         else:
-            module = importlib.import_module(module_name)
-            module_path = module.__file__
+            try:
+                module = importlib.import_module(module_name)
+                module_path = module.__file__
+            except (ImportError, AttributeError) as e:
+                logger.warning(f"모듈 경로를 찾을 수 없음 ({module_name}): {str(e)}")
+                # importlib.util.find_spec를 사용하여 대체 방법으로 시도
+                spec = importlib.util.find_spec(module_name)
+                if spec and spec.origin:
+                    return spec.origin
+                return None
         
         if os.path.exists(module_path):
             return module_path
         return None
-    except (ImportError, AttributeError) as e:
+    except Exception as e:
         logger.warning(f"모듈 경로를 찾을 수 없음 ({module_name}): {str(e)}")
         return None
 
@@ -138,7 +154,16 @@ def patch_repo_module(module_path: str) -> bool:
         bool: 패치 적용 성공 여부
     """
     logger.info(f"Repo 모듈 패치 적용 중: {module_path}")
+    
+    # 파일 존재 확인
+    if not os.path.exists(module_path):
+        logger.error(f"패치할 모듈 파일이 존재하지 않습니다: {module_path}")
+        return False
+    
     backup_path = create_backup_file(module_path)
+    if not backup_path:
+        logger.error("백업 파일을 생성할 수 없어 패치를 중단합니다.")
+        return False
     
     try:
         with open(module_path, "r", encoding="utf-8") as f:
@@ -178,7 +203,7 @@ def patch_repo_module(module_path: str) -> bool:
         logger.error(f"Repo 모듈 패치 실패: {str(e)}")
         try:
             # 실패 시 백업 복원
-            if os.path.exists(backup_path):
+            if backup_path and os.path.exists(backup_path):
                 os.replace(backup_path, module_path)
                 logger.info(f"백업에서 복원됨: {module_path}")
         except Exception as restore_error:
@@ -197,7 +222,16 @@ def patch_cmd_module(module_path: str) -> bool:
         bool: 패치 적용 성공 여부
     """
     logger.info(f"CMD 모듈 패치 적용 중: {module_path}")
+    
+    # 파일 존재 확인
+    if not os.path.exists(module_path):
+        logger.error(f"패치할 CMD 모듈 파일이 존재하지 않습니다: {module_path}")
+        return False
+    
     backup_path = create_backup_file(module_path)
+    if not backup_path:
+        logger.error("CMD 모듈 백업 파일을 생성할 수 없어 패치를 중단합니다.")
+        return False
     
     try:
         with open(module_path, "r", encoding="utf-8") as f:
@@ -224,7 +258,7 @@ def patch_cmd_module(module_path: str) -> bool:
         logger.error(f"CMD 모듈 패치 실패: {str(e)}")
         try:
             # 실패 시 백업 복원
-            if os.path.exists(backup_path):
+            if backup_path and os.path.exists(backup_path):
                 os.replace(backup_path, module_path)
                 logger.info(f"백업에서 복원됨: {module_path}")
         except Exception as restore_error:
@@ -243,7 +277,16 @@ def patch_init_module(module_path: str) -> bool:
         bool: 패치 적용 성공 여부
     """
     logger.info(f"Init 모듈 패치 적용 중: {module_path}")
+    
+    # 파일 존재 확인
+    if not os.path.exists(module_path):
+        logger.error(f"패치할 Init 모듈 파일이 존재하지 않습니다: {module_path}")
+        return False
+    
     backup_path = create_backup_file(module_path)
+    if not backup_path:
+        logger.error("Init 모듈 백업 파일을 생성할 수 없어 패치를 중단합니다.")
+        return False
     
     try:
         with open(module_path, "r", encoding="utf-8") as f:
@@ -289,7 +332,7 @@ if sys.version_info >= (3, 10):
         logger.error(f"Init 모듈 패치 실패: {str(e)}")
         try:
             # 실패 시 백업 복원
-            if os.path.exists(backup_path):
+            if backup_path and os.path.exists(backup_path):
                 os.replace(backup_path, module_path)
                 logger.info(f"백업에서 복원됨: {module_path}")
         except Exception as restore_error:
@@ -305,9 +348,19 @@ def create_backup_file(file_path: str) -> str:
         file_path: 백업할 파일 경로
 
     Returns:
-        str: 백업 파일 경로
+        str: 백업 파일 경로 또는 빈 문자열(실패 시)
     """
     from datetime import datetime
+    
+    # 원본 파일이 존재하는지 확인
+    if not os.path.exists(file_path):
+        logger.error(f"백업할 원본 파일이 존재하지 않습니다: {file_path}")
+        return ""
+    
+    # 파일에 대한 쓰기 권한이 있는지 확인
+    if not os.access(os.path.dirname(file_path), os.W_OK):
+        logger.error(f"백업 생성을 위한 쓰기 권한이 없습니다: {file_path}")
+        return ""
     
     backup_path = f"{file_path}.bak_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     try:
@@ -315,6 +368,9 @@ def create_backup_file(file_path: str) -> str:
         shutil.copy2(file_path, backup_path)
         logger.info(f"백업 파일 생성: {backup_path}")
         return backup_path
+    except (IOError, OSError) as e:
+        logger.error(f"파일 백업 생성 중 IO 오류: {str(e)}")
+        return ""
     except Exception as e:
         logger.error(f"백업 파일 생성 실패: {str(e)}")
         return ""

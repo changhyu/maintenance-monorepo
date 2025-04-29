@@ -126,6 +126,15 @@ class GitConfigException(GitException):
     pass
 
 
+class GitStatusException(GitException):
+    """Git 상태 관련 예외
+
+    저장소 상태 조회 및 파일 상태 정보 처리 과정에서 발생하는 예외
+    """
+
+    pass
+
+
 class GitCommandException(GitException):
     """Git 명령어 실행 중 발생한 예외"""
     
@@ -241,6 +250,15 @@ class GitCacheException(GitException):
     pass
 
 
+class GitHooksException(GitException):
+    """Git 훅 관련 예외
+
+    훅 생성, 수정, 삭제, 조회 등의 과정에서 발생하는 예외
+    """
+
+    pass
+
+
 def create_git_exception(ex_type: str, message: str, details: Optional[Dict[str, Any]] = None) -> GitException:
     """
     예외 유형에 따라 적절한 GitException 인스턴스를 생성합니다.
@@ -259,7 +277,13 @@ def create_git_exception(ex_type: str, message: str, details: Optional[Dict[str,
         "config": GitConfigException,
         "network": GitNetworkException,
         "merge": GitMergeException,
-        "cache": GitCacheException
+        "cache": GitCacheException,
+        "hooks": GitHooksException,
+        "branch": GitBranchException,
+        "commit": GitCommitException,
+        "tag": GitTagException,
+        "remote": GitRemoteException,
+        "status": GitStatusException
     }
     
     exception_class = exception_map.get(ex_type, GitException)

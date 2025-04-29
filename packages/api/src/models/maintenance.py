@@ -2,13 +2,16 @@
 정비 관련 데이터베이스 모델 정의
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
+from typing import List, Optional
 
-from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import (
+    Column, DateTime, Enum as SQLEnum, Float, ForeignKey, Integer, String, Text
+)
 from sqlalchemy.orm import relationship
 
-from packages.api.src.modelsbase import Base
+from .base import Base
 
 
 class MaintenanceStatus(str, Enum):
@@ -41,7 +44,7 @@ class PartCondition(str, Enum):
     REFURBISHED = "refurbished"
 
 
-class MaintenanceModel(Base):
+class Maintenance(Base):
     """정비 정보 모델"""
 
     __tablename__ = "maintenance"
@@ -71,16 +74,18 @@ class MaintenanceModel(Base):
     )
 
     # 관계 설정
-    vehicle = relationship("VehicleModel", back_populates="maintenance_records")
+    vehicle = relationship("Vehicle", back_populates="maintenance_records", lazy="selectin")
     documents = relationship(
         "MaintenanceDocumentModel",
         back_populates="maintenance",
         cascade="all, delete-orphan",
+        lazy="selectin"
     )
     parts = relationship(
         "MaintenancePartModel",
         back_populates="maintenance",
         cascade="all, delete-orphan",
+        lazy="selectin"
     )
 
     def __repr__(self):
@@ -118,7 +123,7 @@ class MaintenanceDocumentModel(Base):
     description = Column(String(255))
 
     # 관계 설정
-    maintenance = relationship("MaintenanceModel", back_populates="documents")
+    maintenance = relationship("Maintenance", back_populates="documents")
 
     def __repr__(self):
         return f"<MaintenanceDocument {self.id[:8]} - {self.file_name}>"
@@ -144,7 +149,7 @@ class MaintenancePartModel(Base):
     )  # new, used, refurbished
 
     # 관계 설정
-    maintenance = relationship("MaintenanceModel", back_populates="parts")
+    maintenance = relationship("Maintenance", back_populates="parts")
 
     def __repr__(self):
         return f"<MaintenancePart {self.id[:8]} - {self.name}>"
@@ -156,7 +161,8 @@ class MaintenancePartModel(Base):
 
 
 # 호환성을 위한 별칭 추가
-MaintenanceRecord = MaintenanceModel
+MaintenanceModel = Maintenance
+MaintenanceRecord = Maintenance
 
 
 class MaintenanceArchiveModel(Base):
