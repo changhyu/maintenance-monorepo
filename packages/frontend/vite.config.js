@@ -48,6 +48,13 @@ export default defineConfig(({ command, mode }) => {
       __API_URL__: JSON.stringify(env.VITE_API_URL),
       __DEBUG__: env.VITE_DEBUG === 'true',
       __ENV__: JSON.stringify(env.VITE_ENVIRONMENT)
+    },
+    optimizeDeps: {
+      esbuildOptions: {
+        loader: {
+          '.js': 'jsx'
+        }
+      }
     }
   };
-}); 
+});

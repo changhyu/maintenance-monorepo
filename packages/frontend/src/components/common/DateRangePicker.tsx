@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 
-import { DatePicker, Button, Space } from 'antd';
+import { DatePicker, Button, Space, Typography } from 'antd';
 import locale from 'antd/lib/date-picker/locale/ko_KR';
 import dayjs from 'dayjs';
 
 import type { DatePickerProps, RangePickerProps } from 'antd/es/date-picker';
 
 const { RangePicker } = DatePicker;
+const { Text } = Typography;
 
 export interface DateRange {
   startDate: string | null;
@@ -17,13 +18,14 @@ export interface DateRangePickerProps {
   onChange: (value: DateRange | null) => void;
   value?: DateRange | null;
   defaultValue?: DateRange | null;
+  title?: string;
 }
 
 /**
  * 날짜 범위 선택 컴포넌트
  * 빠른 선택 버튼과 직접 입력 제공
  */
-const DateRangePicker: React.FC<DateRangePickerProps> = ({ onChange, value, defaultValue }) => {
+const DateRangePicker: React.FC<DateRangePickerProps> = ({ onChange, value, defaultValue, title }) => {
   const [selectedDates, setSelectedDates] = useState<DateRange | null>(
     value || defaultValue || null
   );
@@ -76,7 +78,8 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({ onChange, value, defa
   };
 
   return (
-    <Space direction="vertical" size="small">
+    <Space direction="vertical" size="small" style={{ width: '100%' }}>
+      {title && <Text>{title}</Text>}
       <Space>
         <Button size="small" onClick={() => handleQuickSelect(7)}>
           최근 7일

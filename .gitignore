@@ -1,12 +1,7 @@
-# 모노레포 통합 .gitignore 파일
-
-# 의존성 디렉토리
+# Dependencies
 node_modules/
 .pnp/
 .pnp.js
-jspm_packages/
-web_modules/
-bower_components/
 
 # 빌드 결과물
 dist/
