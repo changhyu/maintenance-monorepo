@@ -1,0 +1,3 @@
+version: "1"
+ignore:
+  - "packages/navigation-app/src/utils/shpParser.ts"
