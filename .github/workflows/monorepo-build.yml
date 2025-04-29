@@ -15,7 +15,7 @@ on:
 # 동시 실행 방지
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true  # 새 워크플로우 실행 시 이전 실행 취소
+  cancel-in-progress: true # 새 워크플로우 실행 시 이전 실행 취소
 
 jobs:
   setup:
@@ -25,21 +25,21 @@ jobs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
       deps_graph: ${{ steps.deps-graph.outputs.graph }}
       changed_packages: ${{ steps.changed-packages.outputs.packages }}
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # 전체 Git 히스토리 가져오기
-      
+          fetch-depth: 0 # 전체 Git 히스토리 가져오기
+
       # 의존성 그래프 생성
       - name: Generate dependency graph
         id: deps-graph
         run: |
           npm install -g dependency-cruiser
-          dependency-cruiser --include-only "^packages" --output-type json --output dependency-graph.json .
+          dependency-cruiser --include-only "^packages" --exclude "^(node_modules|\.venv|__pycache__|\.git)" --output-type json --output-to dependency-graph.json --no-config .
           echo "graph=$(cat dependency-graph.json | jq -c .)" >> $GITHUB_OUTPUT
-      
+
       # 변경된 패키지 감지
       - name: Detect changed packages
         id: changed-packages
@@ -69,10 +69,10 @@ jobs:
               CHANGED_PACKAGES=$(echo "$CHANGED_FILES" | awk -F/ '{print $2}' | sort -u | tr '\n' ',' | sed 's/,$//')
             fi
           fi
-          
+
           echo "Changed packages: $CHANGED_PACKAGES"
           echo "packages=$CHANGED_PACKAGES" >> $GITHUB_OUTPUT
-      
+
       # 빌드 매트릭스 설정
       - name: Set build matrix
         id: set-matrix
@@ -88,7 +88,7 @@ jobs:
             # 여기서는 간단하게 구현했지만, 실제로는 의존성 그래프를 분석해야 함
             PACKAGES="${{ steps.changed-packages.outputs.packages }}"
           fi
-          
+
           # 매트릭스 형식으로 변환
           MATRIX_JSON="{\"package\":["
           IFS=',' read -ra PKG_ARRAY <<< "$PACKAGES"
@@ -99,31 +99,31 @@ jobs:
             MATRIX_JSON+="\"${PKG_ARRAY[$i]}\""
           done
           MATRIX_JSON+="]}"
-          
+
           echo "matrix=$MATRIX_JSON" >> $GITHUB_OUTPUT
-  
+
   # 패키지 의존성 설치 및 캐싱
   install-deps:
     name: Install Dependencies
     needs: setup
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-      
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
-      
+
       # 노드 모듈 캐싱
       - name: Cache node modules
         uses: actions/cache@v4
@@ -133,7 +133,7 @@ jobs:
           key: ${{ runner.os }}-node-modules-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-node-modules-
-      
+
       # Python 가상환경 캐싱
       - name: Cache Python virtual environment
         uses: actions/cache@v4
@@ -144,11 +144,11 @@ jobs:
           key: ${{ runner.os }}-python-venv-${{ hashFiles('**/requirements*.txt') }}
           restore-keys: |
             ${{ runner.os }}-python-venv-
-      
+
       # 루트 의존성 설치
       - name: Install root dependencies
         run: npm ci --legacy-peer-deps
-      
+
       # 빌드 캐시 설정
       - name: Cache build output
         uses: actions/cache@v4
@@ -160,32 +160,32 @@ jobs:
           key: ${{ runner.os }}-build-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-build-
-  
+
   # 병렬 빌드 작업
   build:
     name: Build Package
     needs: [setup, install-deps]
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: false  # 한 패키지 빌드 실패 시에도 다른 패키지 계속 빌드
+      fail-fast: false # 한 패키지 빌드 실패 시에도 다른 패키지 계속 빌드
       matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-      
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
-      
+
       # 캐시 복원
       - name: Restore node modules cache
         uses: actions/cache@v4
@@ -193,7 +193,7 @@ jobs:
           path: |
             **/node_modules
           key: ${{ runner.os }}-node-modules-${{ hashFiles('**/package-lock.json') }}
-      
+
       - name: Restore Python virtual environment
         uses: actions/cache@v4
         with:
@@ -201,7 +201,7 @@ jobs:
             .venv
             ~/.cache/pip
           key: ${{ runner.os }}-python-venv-${{ hashFiles('**/requirements*.txt') }}
-      
+
       - name: Restore build cache
         uses: actions/cache@v4
         with:
@@ -210,7 +210,7 @@ jobs:
             **/build
             **/.turbo
           key: ${{ runner.os }}-build-${{ github.sha }}
-      
+
       # 패키지 유형 감지 (Node.js 또는 Python)
       - name: Detect package type
         id: detect-type
@@ -222,23 +222,23 @@ jobs:
           else
             echo "type=unknown" >> $GITHUB_OUTPUT
           fi
-      
+
       # Node.js 패키지 빌드
       - name: Build Node.js package
         if: steps.detect-type.outputs.type == 'node'
         run: |
           echo "Building Node.js package: ${{ matrix.package }}"
-          
+
           # 패키지 의존성 설치 (캐시에 없는 경우)
           if [ ! -d "packages/${{ matrix.package }}/node_modules" ]; then
             cd packages/${{ matrix.package }}
             npm ci
             cd ../..
           fi
-          
+
           # Turbo를 사용한 증분 빌드
           npx turbo run build --filter=${{ matrix.package }} --cache-dir=.turbo
-          
+
           # 빌드 결과물 확인
           if [ -d "packages/${{ matrix.package }}/dist" ] || [ -d "packages/${{ matrix.package }}/build" ]; then
             echo "Build successful!"
@@ -246,28 +246,28 @@ jobs:
             echo "::error::Build failed for package ${{ matrix.package }}"
             exit 1
           fi
-      
+
       # Python 패키지 빌드
       - name: Build Python package
         if: steps.detect-type.outputs.type == 'python'
         run: |
           echo "Building Python package: ${{ matrix.package }}"
-          
+
           # 가상환경 활성화
           python -m venv .venv
           source .venv/bin/activate
-          
+
           # 패키지 의존성 설치
           cd packages/${{ matrix.package }}
           if [ -f "requirements.txt" ]; then
             pip install -r requirements.txt
           fi
-          
+
           # setup.py가 있는 경우 pip 개발 모드로 설치
           if [ -f "setup.py" ]; then
             pip install -e .
           fi
-          
+
           # 패키지 빌드 (setup.py가 있는 경우)
           if [ -f "setup.py" ]; then
             python setup.py build
@@ -275,15 +275,15 @@ jobs:
           else
             echo "No setup.py found, skipping build step"
           fi
-          
+
           cd ../..
-      
+
       # 알 수 없는 패키지 유형 처리
       - name: Handle unknown package type
         if: steps.detect-type.outputs.type == 'unknown'
         run: |
           echo "::warning::Unknown package type for ${{ matrix.package }}, skipping build"
-      
+
       # 빌드 결과물 저장
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -294,21 +294,21 @@ jobs:
             packages/${{ matrix.package }}/build
             packages/${{ matrix.package }}/*.egg-info
           retention-days: 7
-  
+
   # 빌드 결과 요약
   summary:
     name: Build Summary
     needs: [setup, build]
     runs-on: ubuntu-latest
     if: always()
-    
+
     steps:
       - name: Summarize build results
         run: |
           echo "# Monorepo Build Summary" > build-summary.md
           echo "" >> build-summary.md
           echo "## Changed Packages" >> build-summary.md
-          
+
           if [[ -z "${{ needs.setup.outputs.changed_packages }}" ]]; then
             echo "No packages changed in this run." >> build-summary.md
           else
@@ -318,14 +318,14 @@ jobs:
               echo "- $pkg" >> build-summary.md
             done
           fi
-          
+
           echo "" >> build-summary.md
           echo "## Build Results" >> build-summary.md
-          
+
           # 매트릭스에서 빌드된 모든 패키지 상태 확인
           echo "| Package | Status |" >> build-summary.md
           echo "| ------- | ------ |" >> build-summary.md
-          
+
           # 매트릭스에서 각 패키지의 빌드 상태 추출
           PACKAGES=$(echo '${{ needs.setup.outputs.matrix }}' | jq -r '.package[]')
           for pkg in $PACKAGES; do
@@ -336,13 +336,13 @@ jobs:
               echo "| $pkg | ❌ Failed |" >> build-summary.md
             fi
           done
-          
+
           echo "" >> build-summary.md
           echo "## Build Time" >> build-summary.md
           echo "Total build time: ${{ steps.job-time.outputs.minutes }} minutes" >> build-summary.md
-          
+
           cat build-summary.md
-      
+
       # 빌드 요약 업로드
       - name: Upload build summary
         uses: actions/upload-artifact@v4
@@ -350,7 +350,7 @@ jobs:
           name: build-summary
           path: build-summary.md
           retention-days: 7
-      
+
       # PR에 요약 코멘트 남기기
       - name: Comment on PR
         if: github.event_name == 'pull_request'
@@ -360,31 +360,31 @@ jobs:
           script: |
             const fs = require('fs');
             const summary = fs.readFileSync('build-summary.md', 'utf8');
-            
+
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
               body: summary
             });
-  
+
   # 성능 분석 및 최적화 제안
   optimize:
     name: Build Optimization Analysis
     needs: [build, summary]
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       # Turbo의 빌드 성능 리포트 분석
       - name: Analyze build performance
         run: |
           echo "# Build Optimization Suggestions" > optimization-report.md
           echo "" >> optimization-report.md
-          
+
           # 터보레포 성능 데이터가 있다면 분석
           if [ -d ".turbo" ]; then
             echo "## Turbo Build Analysis" >> optimization-report.md
@@ -405,23 +405,23 @@ jobs:
           else
             echo "No Turbo build data found. Using Turbo for incremental builds is recommended." >> optimization-report.md
           fi
-          
+
           # 의존성 그래프 최적화 제안
           echo "## Dependency Graph Optimization" >> optimization-report.md
           echo "" >> optimization-report.md
           echo "- Consider splitting large packages into smaller, more focused ones" >> optimization-report.md
           echo "- Review circular dependencies, which may indicate design issues" >> optimization-report.md
           echo "- Group frequently changed packages together to minimize rebuild cascades" >> optimization-report.md
-          
+
           # 캐싱 전략 제안
           echo "## Caching Strategy Recommendations" >> optimization-report.md
           echo "" >> optimization-report.md
           echo "- Ensure all build outputs are properly cached" >> optimization-report.md
           echo "- Consider using persistent caching for CI/CD" >> optimization-report.md
           echo "- Review package.json scripts for deterministic builds" >> optimization-report.md
-          
+
           cat optimization-report.md
-      
+
       # 최적화 보고서 업로드
       - name: Upload optimization report
         uses: actions/upload-artifact@v4
@@ -429,7 +429,7 @@ jobs:
           name: build-optimization-report
           path: optimization-report.md
           retention-days: 7
-      
+
       # PR에 최적화 제안 코멘트 남기기
       - name: Comment optimization suggestions on PR
         uses: actions/github-script@v7
@@ -438,7 +438,7 @@ jobs:
           script: |
             const fs = require('fs');
             const report = fs.readFileSync('optimization-report.md', 'utf8');
-            
+
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
