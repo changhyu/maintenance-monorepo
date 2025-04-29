@@ -1,0 +1,51 @@
+{
+  "vehicle": {
+    "title": "Vehicle Management",
+    "list": "Vehicle List",
+    "details": "Vehicle Details",
+    "add": "Add Vehicle",
+    "edit": "Edit Vehicle",
+    "delete": "Delete Vehicle",
+    "search": "Search Vehicles",
+    "filters": "Filters",
+    "status": {
+      "active": "Active",
+      "maintenance": "In Maintenance",
+      "outOfService": "Out of Service"
+    },
+    "fields": {
+      "id": "Vehicle ID",
+      "plateNumber": "License Plate",
+      "model": "Model",
+      "type": "Type",
+      "year": "Year",
+      "mileage": "Mileage",
+      "lastMaintenance": "Last Maintenance",
+      "nextMaintenance": "Next Maintenance",
+      "status": "Status",
+      "driver": "Assigned Driver",
+      "department": "Department",
+      "fuelType": "Fuel Type",
+      "fuelEfficiency": "Fuel Efficiency",
+      "purchaseDate": "Purchase Date",
+      "insuranceExpiry": "Insurance Expiry"
+    },
+    "actions": {
+      "view": "View",
+      "edit": "Edit",
+      "delete": "Delete",
+      "schedule": "Schedule Maintenance",
+      "report": "Generate Report",
+      "assign": "Assign Driver"
+    },
+    "messages": {
+      "addSuccess": "Vehicle has been successfully added.",
+      "editSuccess": "Vehicle details have been updated.",
+      "deleteSuccess": "Vehicle has been deleted.",
+      "deleteConfirm": "Are you sure you want to delete this vehicle?",
+      "maintenanceScheduled": "Maintenance has been scheduled successfully.",
+      "assignSuccess": "Driver has been assigned successfully.",
+      "error": "An error occurred. Please try again later."
+    }
+  }
+}

@@ -23,6 +23,10 @@ import {
   TableRow,
   TextField,
   Typography,
+  FormControl,
+  InputLabel,
+  Select,
+  Alert,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -30,102 +34,29 @@ import {
   FilterList as FilterListIcon,
   MoreVert as MoreVertIcon,
   Sort as SortIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  DirectionsCar as CarIcon,
+  Build as MaintenanceIcon,
 } from '@mui/icons-material';
-
-// 차량 타입 정의
-interface Vehicle {
-  id: string;
-  vin: string;
-  make: string;
-  model: string;
-  year: number;
-  licensePlate: string;
-  color?: string;
-  type: string;
-  status: 'active' | 'maintenance' | 'inactive' | 'recalled';
-  mileage: number;
-  lastMaintenance?: string;
-  owner?: string;
-}
-
-// 테스트 데이터
-const mockVehicles: Vehicle[] = [
-  {
-    id: '1',
-    vin: 'JH4DA9370MS016526',
-    make: '현대',
-    model: '소나타',
-    year: 2021,
-    licensePlate: '서울 가 1234',
-    color: '흰색',
-    type: 'sedan',
-    status: 'active',
-    mileage: 15000,
-    lastMaintenance: '2023-03-15',
-    owner: '홍길동',
-  },
-  {
-    id: '2',
-    vin: 'WBADT53452GD13836',
-    make: '기아',
-    model: 'K5',
-    year: 2020,
-    licensePlate: '경기 나 5678',
-    color: '검정',
-    type: 'sedan',
-    status: 'maintenance',
-    mileage: 28000,
-    lastMaintenance: '2023-05-10',
-    owner: '김철수',
-  },
-  {
-    id: '3',
-    vin: '5YJSA1E64MF410149',
-    make: '테슬라',
-    model: '모델 3',
-    year: 2022,
-    licensePlate: '서울 다 9012',
-    color: '빨강',
-    type: 'electric',
-    status: 'active',
-    mileage: 8000,
-    lastMaintenance: '2023-04-20',
-    owner: '이영희',
-  },
-  {
-    id: '4',
-    vin: '5GAKRAKDXFJ123456',
-    make: '쉐보레',
-    model: '트래버스',
-    year: 2019,
-    licensePlate: '부산 라 3456',
-    color: '파랑',
-    type: 'suv',
-    status: 'inactive',
-    mileage: 42000,
-    lastMaintenance: '2022-12-05',
-    owner: '박민수',
-  },
-  {
-    id: '5',
-    vin: 'WAUAH74F77N903876',
-    make: '기아',
-    model: '쏘렌토',
-    year: 2021,
-    licensePlate: '인천 마 7890',
-    color: '회색',
-    type: 'suv',
-    status: 'active',
-    mileage: 18000,
-    lastMaintenance: '2023-02-18',
-    owner: '최정아',
-  },
-];
+import { format } from 'date-fns';
+import { Vehicle, VehicleType, VehicleStatus } from '../../types/vehicle';
+import { VehicleService } from '../../services/vehicleService';
 
 const VehicleList: React.FC = () => {
   const navigate = useNavigate();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [filters, setFilters] = useState({
+    type: '',
+    status: '',
+    search: '',
+    page: 0,
+    limit: 10,
+  });
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [selectedVehicle, setSelectedVehicle] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [searchQuery, setSearchQuery] = useState('');
@@ -139,23 +70,64 @@ const VehicleList: React.FC = () => {
     vehicleId: string | null;
   }>({ element: null, vehicleId: null });
 
-  useEffect(() => {
-    // API 호출 시뮬레이션
-    const fetchVehicles = async () => {
-      try {
-        // API 호출 대신 목업 데이터 사용
-        setTimeout(() => {
-          setVehicles(mockVehicles);
-          setLoading(false);
-        }, 1000);
-      } catch (error) {
-        console.error('차량 목록 로딩 실패:', error);
-        setLoading(false);
-      }
-    };
+  const vehicleService = VehicleService.getInstance();
 
-    fetchVehicles();
-  }, []);
+  useEffect(() => {
+    loadVehicles();
+  }, [filters]);
+
+  const loadVehicles = async () => {
+    try {
+      setLoading(true);
+      const data = await vehicleService.getAllVehicles({
+        type: filters.type as VehicleType,
+        status: filters.status as VehicleStatus,
+        search: filters.search,
+        page: filters.page + 1,
+        limit: filters.limit,
+      });
+      setVehicles(data);
+    } catch (error) {
+      console.error('차량 목록을 불러오는데 실패했습니다:', error);
+      setError('차량 목록을 불러오는데 실패했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, vehicleId: string) => {
+    event.stopPropagation();
+    setAnchorEl(event.currentTarget);
+    setSelectedVehicle(vehicleId);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+    setSelectedVehicle(null);
+  };
+
+  const handleDelete = async () => {
+    if (!selectedVehicle) return;
+
+    try {
+      await vehicleService.deleteVehicle(selectedVehicle);
+      await loadVehicles();
+    } catch (error) {
+      console.error('차량 삭제에 실패했습니다:', error);
+      setError('차량 삭제에 실패했습니다.');
+    }
+    handleMenuClose();
+  };
+
+  const getStatusColor = (status: VehicleStatus) => {
+    const colors = {
+      [VehicleStatus.ACTIVE]: 'success',
+      [VehicleStatus.MAINTENANCE]: 'warning',
+      [VehicleStatus.INACTIVE]: 'error',
+      [VehicleStatus.RESERVED]: 'info',
+    };
+    return colors[status];
+  };
 
   // 검색 필터링
   const filteredVehicles = vehicles.filter(
@@ -270,6 +242,14 @@ const VehicleList: React.FC = () => {
     return <Chip size="small" color={color} label={label} />;
   };
 
+  if (error) {
+    return (
+      <Alert severity="error" sx={{ m: 2 }}>
+        {error}
+      </Alert>
+    );
+  }
+
   return (
     <Box>
       <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -289,7 +269,7 @@ const VehicleList: React.FC = () => {
       <Card sx={{ mb: 3 }}>
         <CardContent>
           <Grid container spacing={2} alignItems="center">
-            <Grid item xs={12} md={6}>
+            <Grid item xs={12} md={4}>
               <TextField
                 fullWidth
                 placeholder="차량 검색 (제조사, 모델, 번호판, VIN 등)"
@@ -306,62 +286,39 @@ const VehicleList: React.FC = () => {
                 size="small"
               />
             </Grid>
-            <Grid item xs={12} md={6} sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-              <Button
-                variant="outlined"
-                startIcon={<FilterListIcon />}
-                onClick={handleFilterMenuOpen}
-                color={filterStatus ? 'primary' : 'inherit'}
-              >
-                {filterStatus ? `상태: ${filterStatus}` : '필터'}
-              </Button>
-              <Menu
-                anchorEl={filterMenuAnchor}
-                open={Boolean(filterMenuAnchor)}
-                onClose={handleFilterMenuClose}
-              >
-                <MenuItem onClick={() => handleFilterSelect(null)}>
-                  모든 상태
-                </MenuItem>
-                <MenuItem onClick={() => handleFilterSelect('active')}>
-                  활성
-                </MenuItem>
-                <MenuItem onClick={() => handleFilterSelect('maintenance')}>
-                  정비 중
-                </MenuItem>
-                <MenuItem onClick={() => handleFilterSelect('inactive')}>
-                  비활성
-                </MenuItem>
-                <MenuItem onClick={() => handleFilterSelect('recalled')}>
-                  리콜
-                </MenuItem>
-              </Menu>
-
-              <Button
-                variant="outlined"
-                startIcon={<SortIcon />}
-                onClick={handleSortMenuOpen}
-              >
-                정렬
-              </Button>
-              <Menu
-                anchorEl={sortMenuAnchor}
-                open={Boolean(sortMenuAnchor)}
-                onClose={handleSortMenuClose}
-              >
-                <MenuItem onClick={() => handleSortSelect('make')}>
-                  제조사 {sortField === 'make' && (sortDirection === 'asc' ? '↓' : '↑')}
-                </MenuItem>
-                <MenuItem onClick={() => handleSortSelect('model')}>
-                  모델 {sortField === 'model' && (sortDirection === 'asc' ? '↓' : '↑')}
-                </MenuItem>
-                <MenuItem onClick={() => handleSortSelect('year')}>
-                  연식 {sortField === 'year' && (sortDirection === 'asc' ? '↓' : '↑')}
-                </MenuItem>
-                <MenuItem onClick={() => handleSortSelect('mileage')}>
-                  주행거리 {sortField === 'mileage' && (sortDirection === 'asc' ? '↓' : '↑')}
-                </MenuItem>
-              </Menu>
+            <Grid item xs={12} md={4}>
+              <FormControl fullWidth>
+                <InputLabel>차량 유형</InputLabel>
+                <Select
+                  value={filters.type}
+                  label="차량 유형"
+                  onChange={(e) => setFilters({ ...filters, type: e.target.value })}
+                >
+                  <MenuItem value="">전체</MenuItem>
+                  {Object.values(VehicleType).map((type) => (
+                    <MenuItem key={type} value={type}>
+                      {type}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <FormControl fullWidth>
+                <InputLabel>상태</InputLabel>
+                <Select
+                  value={filters.status}
+                  label="상태"
+                  onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+                >
+                  <MenuItem value="">전체</MenuItem>
+                  {Object.values(VehicleStatus).map((status) => (
+                    <MenuItem key={status} value={status}>
+                      {status}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
             </Grid>
           </Grid>
         </CardContent>
@@ -460,46 +417,35 @@ const VehicleList: React.FC = () => {
       )}
 
       <Menu
-        anchorEl={actionMenuAnchor.element}
-        open={Boolean(actionMenuAnchor.element)}
-        onClose={handleActionMenuClose}
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleMenuClose}
       >
         <MenuItem
           onClick={() => {
-            navigate(`/vehicles/${actionMenuAnchor.vehicleId}`);
-            handleActionMenuClose();
+            handleMenuClose();
+            if (selectedVehicle) {
+              navigate(`/vehicles/${selectedVehicle}/edit`);
+            }
           }}
         >
-          상세 정보
+          <EditIcon fontSize="small" sx={{ mr: 1 }} />
+          수정
+        </MenuItem>
+        <MenuItem onClick={handleDelete}>
+          <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
+          삭제
         </MenuItem>
         <MenuItem
-          onClick={(e) => {
-            e.stopPropagation();
-            navigate(`/vehicles/${actionMenuAnchor.vehicleId}/edit`);
-            handleActionMenuClose();
+          onClick={() => {
+            handleMenuClose();
+            if (selectedVehicle) {
+              navigate(`/maintenance/new/${selectedVehicle}`);
+            }
           }}
         >
-          수정하기
-        </MenuItem>
-        <Divider />
-        <MenuItem
-          onClick={(e) => {
-            e.stopPropagation();
-            navigate(`/vehicles/${actionMenuAnchor.vehicleId}/maintenance/new`);
-            handleActionMenuClose();
-          }}
-        >
+          <MaintenanceIcon fontSize="small" sx={{ mr: 1 }} />
           정비 등록
-        </MenuItem>
-        <MenuItem
-          onClick={(e) => {
-            e.stopPropagation();
-            handleActionMenuClose();
-            // 상태 변경 로직 구현 필요
-            alert('차량 상태 변경 기능은 추후 구현할 예정입니다.');
-          }}
-        >
-          상태 변경
         </MenuItem>
       </Menu>
     </Box>

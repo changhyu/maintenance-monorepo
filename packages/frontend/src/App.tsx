@@ -1,118 +1,73 @@
-import { useState, useEffect, useCallback } from 'react';
-import { BrowserRouter } from 'react-router-dom';
-import { 
-  ThemeProvider as MuiThemeProvider, 
-  CssBaseline, 
-  Box,
-  CircularProgress
-} from '@mui/material';
-import { createAppTheme } from './theme';
-
-// 컴포넌트
-import OfflineNotice from './components/OfflineNotice';
-import NotificationCenter from './components/NotificationCenter';
+import React, { Suspense } from 'react';
+import { ThemeProvider } from '@mui/material/styles';
+import CssBaseline from '@mui/material/CssBaseline';
+import { LocalizationProvider } from '@mui/x-date-pickers';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { ko } from 'date-fns/locale';
+import { theme } from './theme';
+import { CircularProgress, Box, Typography, Button } from '@mui/material';
 import AppRoutes from './routes';
 
-// 커스텀 훅
-import { useDarkMode } from './context/AppContext';
-import { useAuth } from './context/AuthContext';
+// 로딩 중 표시할 컴포넌트
+const LoadingFallback = () => (
+  <Box 
+    sx={{ 
+      display: 'flex', 
+      flexDirection: 'column',
+      justifyContent: 'center', 
+      alignItems: 'center', 
+      height: '100vh' 
+    }}
+  >
+    <CircularProgress size={60} />
+    <Typography variant="h6" sx={{ mt: 2 }}>
+      로딩 중...
+    </Typography>
+  </Box>
+);
 
-// 유틸리티
-import { validateRequiredEnv } from './utils/validateEnv';
-import { webSocketService } from './services/websocket';
+// 에러 발생 시 표시할 컴포넌트
+export const ErrorFallback = ({ error }: { error: Error }) => (
+  <Box 
+    sx={{ 
+      display: 'flex', 
+      flexDirection: 'column',
+      justifyContent: 'center', 
+      alignItems: 'center', 
+      height: '100vh',
+      p: 3,
+      textAlign: 'center'
+    }}
+  >
+    <Typography variant="h4" color="error" gutterBottom>
+      오류가 발생했습니다.
+    </Typography>
+    <Typography variant="body1">
+      {error.message || '알 수 없는 오류가 발생했습니다.'}
+    </Typography>
+    <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+      페이지를 새로고침하거나 나중에 다시 시도해주세요.
+    </Typography>
+    <Button 
+      variant="contained" 
+      onClick={() => window.location.reload()} 
+      sx={{ mt: 3 }}
+    >
+      새로고침
+    </Button>
+  </Box>
+);
 
-// Context Provider
-import { RootProvider } from './context/RootProvider';
-
-// 메인 앱 컨텐츠 컴포넌트
-const AppContent = () => {
-  const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const { darkMode } = useDarkMode();
-  const { state: authState, login } = useAuth();
-  
-  // 테마 설정
-  const theme = createAppTheme(darkMode ? 'dark' : 'light');
-
-  // 환경 변수 검증
-  useEffect(() => {
-    try {
-      validateRequiredEnv();
-      setIsLoading(false);
-    } catch (error) {
-      console.error('환경 변수 검증 오류:', error);
-      setIsLoading(false);
-    }
-  }, []);
-
-  // 온라인/오프라인 상태 감지
-  useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-    
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
-  
-  // WebSocket 초기화
-  useEffect(() => {
-    if (authState.status === 'authenticated') {
-      const token = localStorage.getItem('auth_token');
-      
-      try {
-        webSocketService.initialize(token || undefined);
-      } catch (error) {
-        console.error('WebSocket 초기화 오류:', error);
-      }
-    }
-  }, [authState.status]);
-
-  // 로그인 처리 핸들러
-  const handleLogin = useCallback(async (email: string, password: string) => {
-    return await login(email, password);
-  }, [login]);
-
-  if (isLoading) {
-    return (
-      <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          height: '100vh'
-        }}
-      >
-        <CircularProgress />
-      </Box>
-    );
-  }
-
+const App: React.FC = () => {
   return (
-    <MuiThemeProvider theme={theme}>
-      <CssBaseline />
-      {!isOnline && <OfflineNotice />}
-      <NotificationCenter />
-      <BrowserRouter>
-        <AppRoutes 
-          isAuthenticated={authState.status === 'authenticated'} 
-          isLoading={authState.status === 'loading'}
-          onLogin={handleLogin} 
-        />
-      </BrowserRouter>
-    </MuiThemeProvider>
-  );
-};
-
-const App = () => {
-  return (
-    <RootProvider>
-      <AppContent />
-    </RootProvider>
+    <ThemeProvider theme={theme}>
+      <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={ko}>
+        <CssBaseline />
+        <Suspense fallback={<LoadingFallback />}>
+          <AppRoutes />
+        </Suspense>
+      </LocalizationProvider>
+    </ThemeProvider>
   );
 };
 

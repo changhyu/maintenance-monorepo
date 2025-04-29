@@ -1,5 +1,5 @@
 import { errorLogger } from '../utils/errorLogger';
-import { securityUtils } from '../utils/securityUtils';
+import securityUtils from '../utils/securityUtils';
 
 import { BaseService, ServiceOptions } from './BaseService';
 
@@ -62,7 +62,7 @@ export class MaintenanceService extends BaseService {
 
         // 여기에 실제 데이터베이스 저장 로직이 들어갈 것입니다
         const newRecord: MaintenanceRecord = {
-          id: securityUtils.generateToken(16),
+          id: securityUtils.generateRandomString(16), // generateToken을 generateRandomString으로 대체
           vehicleId: String(sanitized.vehicleId || ''),
           type: String(sanitized.type || ''),
           description: String(sanitized.description || ''),

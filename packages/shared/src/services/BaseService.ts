@@ -1,6 +1,6 @@
 import { getCache, setCache } from '../utils/cacheUtils';
 import { errorLogger } from '../utils/errorLogger';
-import { securityUtils } from '../utils/securityUtils';
+import securityUtils from '../utils/securityUtils';
 
 export interface ServiceOptions {
   cacheDuration?: number;

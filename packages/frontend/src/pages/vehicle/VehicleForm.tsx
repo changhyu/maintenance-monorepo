@@ -29,6 +29,9 @@ import {
 } from '@mui/icons-material';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { Vehicle, VehicleType, VehicleStatus, FuelType } from '../../types/vehicle';
+import { VehicleService } from '../../services/vehicleService';
 
 // 차량 타입 정의 (임시)
 interface Vehicle {
@@ -159,74 +162,77 @@ const initialVehicle: Vehicle = {
 const VehicleForm: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(id ? true : false);
-  const [submitLoading, setSubmitLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isEdit, setIsEdit] = useState(Boolean(id));
-  
-  const formik = useFormik({
-    initialValues: initialVehicle,
-    validationSchema: validationSchema,
-    onSubmit: async (values) => {
-      try {
-        setSubmitLoading(true);
-        setError(null);
-        
-        // 실제로는 API 호출
-        console.log('차량 저장:', values);
-        
-        // API 호출 시뮬레이션
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        setSubmitLoading(false);
-        navigate(isEdit ? `/vehicles/${id}` : '/vehicles');
-      } catch (err) {
-        setError('차량 정보 저장 중 오류가 발생했습니다.');
-        setSubmitLoading(false);
-        console.error(err);
-      }
-    }
+  const [formData, setFormData] = useState<Partial<Vehicle>>({
+    registrationNumber: '',
+    vin: '',
+    manufacturer: '',
+    model: '',
+    year: new Date().getFullYear(),
+    type: VehicleType.TRUCK,
+    status: VehicleStatus.ACTIVE,
+    mileage: 0,
+    fuelType: FuelType.DIESEL,
+    capacity: 0,
   });
 
-  useEffect(() => {
-    // 수정 모드일 경우 기존 차량 정보 불러오기
-    const fetchVehicle = async () => {
-      if (id) {
-        try {
-          // 실제로는 API 호출
-          // API 호출 시뮬레이션
-          setTimeout(() => {
-            const vehicle = mockVehicles[id];
-            if (vehicle) {
-              // Formik의 값을 설정
-              formik.setValues(vehicle);
-            }
-            setLoading(false);
-          }, 1000);
-        } catch (err) {
-          setError('차량 정보를 불러오는데 실패했습니다.');
-          setLoading(false);
-          console.error(err);
-        }
-      }
-    };
+  const vehicleService = VehicleService.getInstance();
 
-    fetchVehicle();
+  useEffect(() => {
+    if (id) {
+      loadVehicle();
+    }
   }, [id]);
 
+  const loadVehicle = async () => {
+    try {
+      setLoading(true);
+      const data = await vehicleService.getVehicleById(id);
+      setFormData(data);
+    } catch (error) {
+      console.error('차량 정보를 불러오는데 실패했습니다:', error);
+      setError('차량 정보를 불러오는데 실패했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    try {
+      setLoading(true);
+      if (id) {
+        await vehicleService.updateVehicle(id, formData);
+      } else {
+        await vehicleService.createVehicle(formData as Omit<Vehicle, 'id' | 'createdAt' | 'updatedAt'>);
+      }
+      navigate('/vehicles');
+    } catch (error) {
+      console.error('차량 저장에 실패했습니다:', error);
+      setError('차량 정보 저장에 실패했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleChange = (field: keyof Vehicle) => (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    setFormData({
+      ...formData,
+      [field]: e.target.value,
+    });
+  };
+
   if (loading) {
-    return (
-      <Box sx={{ width: '100%' }}>
-        <LinearProgress />
-        <Typography sx={{ mt: 2 }} variant="body1">
-          차량 정보를 불러오는 중...
-        </Typography>
-      </Box>
-    );
+    return <LinearProgress />;
   }
 
   return (
-    <Box>
+    <Box component="form" onSubmit={handleSubmit} sx={{ p: 3 }}>
       <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Button 
           startIcon={<ArrowBackIcon />} 
@@ -235,7 +241,7 @@ const VehicleForm: React.FC = () => {
           {id ? '차량 상세로 돌아가기' : '차량 목록으로 돌아가기'}
         </Button>
         <Typography variant="h4" component="h1">
-          {isEdit ? '차량 정보 수정' : '새 차량 등록'}
+          {id ? '차량 정보 수정' : '새 차량 등록'}
         </Typography>
       </Box>
 
@@ -245,342 +251,194 @@ const VehicleForm: React.FC = () => {
         </Alert>
       )}
 
-      <form onSubmit={formik.handleSubmit}>
-        <Grid container spacing={3}>
-          {/* 기본 정보 카드 */}
-          <Grid size={{ xs: 12, md: 6 }}>
-            <Card sx={{ mb: 3 }}>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-                  <Avatar sx={{ mr: 2, bgcolor: 'primary.main' }}>
-                    <CarIcon />
-                  </Avatar>
-                  <Typography variant="h6">기본 정보</Typography>
-                </Box>
+      <Card>
+        <CardContent>
+          <Grid container spacing={3}>
+            {/* 기본 정보 */}
+            <Grid item xs={12}>
+              <Typography variant="h6" gutterBottom>
+                기본 정보
+              </Typography>
+            </Grid>
 
-                <Grid container spacing={2}>
-                  <Grid size={{ xs: 12, sm: 6 }}>
-                    <FormControl fullWidth error={Boolean(formik.touched.make && formik.errors.make)}>
-                      <FormLabel>제조사*</FormLabel>
-                      <Select
-                        name="make"
-                        value={formik.values.make}
-                        onChange={formik.handleChange}
-                        onBlur={formik.handleBlur}
-                        displayEmpty
-                        error={Boolean(formik.touched.make && formik.errors.make)}
-                      >
-                        <MenuItem value="" disabled>
-                          제조사 선택
-                        </MenuItem>
-                        {carMakes.map(make => (
-                          <MenuItem key={make} value={make}>
-                            {make}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                      {formik.touched.make && formik.errors.make && (
-                        <FormHelperText error>{formik.errors.make}</FormHelperText>
-                      )}
-                    </FormControl>
-                  </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                required
+                fullWidth
+                label="차량 번호"
+                value={formData.registrationNumber}
+                onChange={handleChange('registrationNumber')}
+              />
+            </Grid>
 
-                  <Grid size={{ xs: 12, sm: 6 }}>
-                    <FormControl fullWidth error={Boolean(formik.touched.model && formik.errors.model)}>
-                      <FormLabel>모델*</FormLabel>
-                      <TextField
-                        name="model"
-                        value={formik.values.model}
-                        onChange={formik.handleChange}
-                        onBlur={formik.handleBlur}
-                        placeholder="모델명"
-                        error={Boolean(formik.touched.model && formik.errors.model)}
-                        helperText={formik.touched.model && formik.errors.model}
-                      />
-                    </FormControl>
-                  </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                required
+                fullWidth
+                label="차대 번호(VIN)"
+                value={formData.vin}
+                onChange={handleChange('vin')}
+              />
+            </Grid>
 
-                  <Grid size={{ xs: 12, sm: 6 }}>
-                    <FormControl fullWidth error={Boolean(formik.touched.year && formik.errors.year)}>
-                      <FormLabel>연식*</FormLabel>
-                      <TextField
-                        name="year"
-                        type="number"
-                        value={formik.values.year}
-                        onChange={formik.handleChange}
-                        onBlur={formik.handleBlur}
-                        inputProps={{ min: 1900, max: currentYear + 1 }}
-                        error={Boolean(formik.touched.year && formik.errors.year)}
-                        helperText={formik.touched.year && formik.errors.year}
-                      />
-                    </FormControl>
-                  </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                required
+                fullWidth
+                label="제조사"
+                value={formData.manufacturer}
+                onChange={handleChange('manufacturer')}
+              />
+            </Grid>
 
-                  <Grid size={{ xs: 12, sm: 6 }}>
-                    <FormControl fullWidth>
-                      <FormLabel>색상</FormLabel>
-                      <TextField
-                        name="color"
-                        value={formik.values.color}
-                        onChange={formik.handleChange}
-                        placeholder="색상"
-                      />
-                    </FormControl>
-                  </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                required
+                fullWidth
+                label="모델명"
+                value={formData.model}
+                onChange={handleChange('model')}
+              />
+            </Grid>
 
-                  <Grid size={{ xs: 12, sm: 6 }}>
-                    <FormControl fullWidth error={Boolean(formik.touched.licensePlate && formik.errors.licensePlate)}>
-                      <FormLabel>번호판*</FormLabel>
-                      <TextField
-                        name="licensePlate"
-                        value={formik.values.licensePlate}
-                        onChange={formik.handleChange}
-                        onBlur={formik.handleBlur}
-                        placeholder="번호판"
-                        error={Boolean(formik.touched.licensePlate && formik.errors.licensePlate)}
-                        helperText={formik.touched.licensePlate && formik.errors.licensePlate}
-                      />
-                    </FormControl>
-                  </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                required
+                fullWidth
+                type="number"
+                label="연식"
+                value={formData.year}
+                onChange={handleChange('year')}
+                InputProps={{ inputProps: { min: 1900, max: new Date().getFullYear() + 1 } }}
+              />
+            </Grid>
 
-                  <Grid size={{ xs: 12, sm: 6 }}>
-                    <FormControl fullWidth error={Boolean(formik.touched.vin && formik.errors.vin)}>
-                      <FormLabel>VIN*</FormLabel>
-                      <TextField
-                        name="vin"
-                        value={formik.values.vin}
-                        onChange={formik.handleChange}
-                        onBlur={formik.handleBlur}
-                        placeholder="Vehicle Identification Number"
-                        inputProps={{ maxLength: 17 }}
-                        error={Boolean(formik.touched.vin && formik.errors.vin)}
-                        helperText={formik.touched.vin && formik.errors.vin}
-                      />
-                    </FormControl>
-                  </Grid>
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth required>
+                <FormLabel>차량 유형</FormLabel>
+                <Select
+                  value={formData.type}
+                  label="차량 유형"
+                  onChange={(e) => setFormData({ ...formData, type: e.target.value as VehicleType })}
+                >
+                  {Object.values(VehicleType).map((type) => (
+                    <MenuItem key={type} value={type}>
+                      {type}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
 
-                  <Grid size={{ xs: 12, sm: 6 }}>
-                    <FormControl fullWidth error={Boolean(formik.touched.mileage && formik.errors.mileage)}>
-                      <FormLabel>주행거리*</FormLabel>
-                      <TextField
-                        name="mileage"
-                        type="number"
-                        value={formik.values.mileage}
-                        onChange={formik.handleChange}
-                        onBlur={formik.handleBlur}
-                        inputProps={{ min: 0 }}
-                        InputProps={{
-                          endAdornment: <InputAdornment position="end">km</InputAdornment>,
-                        }}
-                        error={Boolean(formik.touched.mileage && formik.errors.mileage)}
-                        helperText={formik.touched.mileage && formik.errors.mileage}
-                      />
-                    </FormControl>
-                  </Grid>
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth required>
+                <FormLabel>상태</FormLabel>
+                <Select
+                  value={formData.status}
+                  label="상태"
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value as VehicleStatus })}
+                >
+                  {Object.values(VehicleStatus).map((status) => (
+                    <MenuItem key={status} value={status}>
+                      {status}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
 
-                  <Grid size={{ xs: 12, sm: 6 }}>
-                    <FormControl fullWidth error={Boolean(formik.touched.type && formik.errors.type)}>
-                      <FormLabel>차량 유형*</FormLabel>
-                      <Select
-                        name="type"
-                        value={formik.values.type}
-                        onChange={formik.handleChange}
-                        onBlur={formik.handleBlur}
-                        error={Boolean(formik.touched.type && formik.errors.type)}
-                      >
-                        {vehicleTypes.map(type => (
-                          <MenuItem key={type.value} value={type.value}>
-                            {type.label}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                      {formik.touched.type && formik.errors.type && (
-                        <FormHelperText error>{formik.errors.type}</FormHelperText>
-                      )}
-                    </FormControl>
-                  </Grid>
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth required>
+                <FormLabel>연료 유형</FormLabel>
+                <Select
+                  value={formData.fuelType}
+                  label="연료 유형"
+                  onChange={(e) => setFormData({ ...formData, fuelType: e.target.value as FuelType })}
+                >
+                  {Object.values(FuelType).map((type) => (
+                    <MenuItem key={type} value={type}>
+                      {type}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
 
-                  <Grid size={{ xs: 12 }}>
-                    <FormControl fullWidth>
-                      <FormLabel>차량 상태*</FormLabel>
-                      <RadioGroup
-                        name="status"
-                        value={formik.values.status}
-                        onChange={formik.handleChange}
-                        row
-                      >
-                        <FormControlLabel
-                          value="active"
-                          control={<Radio />}
-                          label="활성"
-                        />
-                        <FormControlLabel
-                          value="maintenance"
-                          control={<Radio />}
-                          label="정비 중"
-                        />
-                        <FormControlLabel
-                          value="inactive"
-                          control={<Radio />}
-                          label="비활성"
-                        />
-                        <FormControlLabel
-                          value="recalled"
-                          control={<Radio />}
-                          label="리콜"
-                        />
-                      </RadioGroup>
-                    </FormControl>
-                  </Grid>
-                </Grid>
-              </CardContent>
-            </Card>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                required
+                fullWidth
+                type="number"
+                label="적재 용량(kg)"
+                value={formData.capacity}
+                onChange={handleChange('capacity')}
+                InputProps={{ inputProps: { min: 0 } }}
+              />
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <TextField
+                required
+                fullWidth
+                type="number"
+                label="현재 주행거리(km)"
+                value={formData.mileage}
+                onChange={handleChange('mileage')}
+                InputProps={{ inputProps: { min: 0 } }}
+              />
+            </Grid>
+
+            {/* 문서 정보 */}
+            <Grid item xs={12}>
+              <Typography variant="h6" gutterBottom sx={{ mt: 3 }}>
+                문서 정보
+              </Typography>
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <DatePicker
+                label="보험 만료일"
+                value={formData.insuranceExpiryDate}
+                onChange={(date) =>
+                  setFormData({
+                    ...formData,
+                    insuranceExpiryDate: date,
+                  })
+                }
+              />
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <DatePicker
+                label="등록증 만료일"
+                value={formData.registrationExpiryDate}
+                onChange={(date) =>
+                  setFormData({
+                    ...formData,
+                    registrationExpiryDate: date,
+                  })
+                }
+              />
+            </Grid>
           </Grid>
 
-          {/* 추가 정보 카드 */}
-          <Grid size={{ xs: 12, md: 6 }}>
-            <Card sx={{ mb: 3 }}>
-              <CardContent>
-                <Typography variant="h6" sx={{ mb: 3 }}>
-                  추가 정보
-                </Typography>
-
-                <Grid container spacing={2}>
-                  <Grid size={{ xs: 12 }}>
-                    <FormControl fullWidth>
-                      <FormLabel>소유자</FormLabel>
-                      <TextField
-                        name="owner"
-                        value={formik.values.owner || ''}
-                        onChange={formik.handleChange}
-                        placeholder="소유자 이름"
-                      />
-                    </FormControl>
-                  </Grid>
-
-                  <Grid size={{ xs: 12, sm: 6 }}>
-                    <FormControl fullWidth>
-                      <FormLabel>구매일</FormLabel>
-                      <TextField
-                        name="purchaseDate"
-                        type="date"
-                        value={formik.values.purchaseDate || ''}
-                        onChange={formik.handleChange}
-                        InputLabelProps={{
-                          shrink: true,
-                        }}
-                      />
-                    </FormControl>
-                  </Grid>
-
-                  <Grid size={{ xs: 12, sm: 6 }}>
-                    <FormControl fullWidth>
-                      <FormLabel>보험 만료일</FormLabel>
-                      <TextField
-                        name="insuranceExpiry"
-                        type="date"
-                        value={formik.values.insuranceExpiry || ''}
-                        onChange={formik.handleChange}
-                        InputLabelProps={{
-                          shrink: true,
-                        }}
-                      />
-                    </FormControl>
-                  </Grid>
-
-                  <Grid size={{ xs: 12, sm: 6 }}>
-                    <FormControl fullWidth>
-                      <FormLabel>연료 유형</FormLabel>
-                      <Select
-                        name="fuelType"
-                        value={formik.values.fuelType || ''}
-                        onChange={formik.handleChange}
-                        displayEmpty
-                      >
-                        <MenuItem value="" disabled>
-                          연료 유형 선택
-                        </MenuItem>
-                        {fuelTypes.map(type => (
-                          <MenuItem key={type.value} value={type.value}>
-                            {type.label}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  </Grid>
-
-                  <Grid size={{ xs: 12, sm: 6 }}>
-                    <FormControl fullWidth>
-                      <FormLabel>변속기</FormLabel>
-                      <Select
-                        name="transmission"
-                        value={formik.values.transmission || ''}
-                        onChange={formik.handleChange}
-                        displayEmpty
-                      >
-                        <MenuItem value="" disabled>
-                          변속기 유형 선택
-                        </MenuItem>
-                        {transmissionTypes.map(type => (
-                          <MenuItem key={type.value} value={type.value}>
-                            {type.label}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  </Grid>
-
-                  <Grid size={{ xs: 12, sm: 6 }}>
-                    <FormControl fullWidth>
-                      <FormLabel>엔진</FormLabel>
-                      <TextField
-                        name="engineSize"
-                        value={formik.values.engineSize || ''}
-                        onChange={formik.handleChange}
-                        placeholder="엔진 크기 (예: 2.0L)"
-                      />
-                    </FormControl>
-                  </Grid>
-
-                  <Grid size={{ xs: 12 }}>
-                    <FormControl fullWidth>
-                      <FormLabel>메모</FormLabel>
-                      <TextField
-                        name="notes"
-                        value={formik.values.notes || ''}
-                        onChange={formik.handleChange}
-                        placeholder="차량에 대한 추가 메모"
-                        multiline
-                        rows={4}
-                      />
-                    </FormControl>
-                  </Grid>
-                </Grid>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
-
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
-          <Button 
-            variant="contained"
-            color="secondary"
-            onClick={() => navigate(id ? `/vehicles/${id}` : '/vehicles')}
-            sx={{ mr: 2 }}
-          >
-            취소
-          </Button>
-          <Button
-            variant="contained"
-            color="primary"
-            type="submit"
-            disabled={submitLoading || !formik.isValid || !formik.dirty}
-            startIcon={<SaveIcon />}
-          >
-            {submitLoading ? '저장 중...' : (isEdit ? '수정 완료' : '차량 등록')}
-          </Button>
-        </Box>
-      </form>
+          <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+            <Button
+              variant="outlined"
+              onClick={() => navigate('/vehicles')}
+            >
+              취소
+            </Button>
+            <Button
+              variant="contained"
+              type="submit"
+              disabled={loading}
+            >
+              {id ? '수정' : '등록'}
+            </Button>
+          </Box>
+        </CardContent>
+      </Card>
     </Box>
   );
 };

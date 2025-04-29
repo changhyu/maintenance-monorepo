@@ -1,0 +1,91 @@
+/* 토스트 애니메이션 스타일 */
+.toast-enter {
+  opacity: 0;
+  transform: translateY(-20px);
+}
+
+.toast-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 300ms, transform 300ms;
+}
+
+.toast-exit {
+  opacity: 1;
+}
+
+.toast-exit-active {
+  opacity: 0;
+  transform: translateY(-20px);
+  transition: opacity 300ms, transform 300ms;
+}
+
+/* 위치에 따른 슬라이드 애니메이션 */
+@keyframes slideInTop {
+  from {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInBottom {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideOutTop {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+}
+
+@keyframes slideOutBottom {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+}
+
+.animate-toast-slide-down {
+  animation: slideInTop 0.3s ease forwards;
+}
+
+.animate-toast-slide-up {
+  animation: slideInBottom 0.3s ease forwards;
+}
+
+.toast-container [data-status="removing"].animate-toast-slide-down {
+  animation: slideOutTop 0.3s ease forwards;
+}
+
+.toast-container [data-status="removing"].animate-toast-slide-up {
+  animation: slideOutBottom 0.3s ease forwards;
+}
+
+/* 토스트 스타일 추가 */
+.toast {
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.toast-container {
+  z-index: 9999;
+} 

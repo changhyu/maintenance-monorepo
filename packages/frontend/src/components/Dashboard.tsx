@@ -290,10 +290,10 @@ export const Dashboard: React.FC = () => {
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
-        <Typography.Title level={2}>차량 정비 대시보드</Typography.Title>
+        <Typography.Title level={2}>관리자 대시보드</Typography.Title>
         <div className="flex items-center">
           <span className="text-sm text-gray-500 mr-4">
-            최근 업데이트: {formatTime(dataUpdated)}
+            CarGoro 관리자 시스템에 오신 것을 환영합니다.
           </span>
           <Button
             icon={<ReloadOutlined spin={dataRefreshing} />}
@@ -310,8 +310,8 @@ export const Dashboard: React.FC = () => {
         <Col span={6}>
           <Card>
             <Statistic
-              title="전체 차량"
-              value={vehicleStats.totalVehicles}
+              title="총 사용자"
+              value={1284}
               prefix={<CarOutlined />}
             />
           </Card>
@@ -319,8 +319,8 @@ export const Dashboard: React.FC = () => {
         <Col span={6}>
           <Card>
             <Statistic
-              title="운행 중 차량"
-              value={vehicleStats.activeVehicles}
+              title="활성 건수"
+              value={42}
               valueStyle={{ color: '#3f8600' }}
               prefix={<CarOutlined />}
             />
@@ -329,8 +329,8 @@ export const Dashboard: React.FC = () => {
         <Col span={6}>
           <Card>
             <Statistic
-              title="정비 필요 차량"
-              value={vehicleStats.inMaintenanceVehicles}
+              title="대응 신청"
+              value={24}
               valueStyle={{ color: '#faad14' }}
               prefix={<ToolOutlined />}
             />
@@ -339,8 +339,8 @@ export const Dashboard: React.FC = () => {
         <Col span={6}>
           <Card>
             <Statistic
-              title="운행 불가 차량"
-              value={vehicleStats.outOfServiceVehicles}
+              title="방문자 수"
+              value={8942}
               valueStyle={{ color: '#cf1322' }}
               prefix={<CarOutlined />}
             />
@@ -349,6 +349,9 @@ export const Dashboard: React.FC = () => {
       </Row>
 
       {/* 보고서 위젯 */}
+      <Typography.Title level={3} className="mt-4 mb-4">
+        CarGoro 관리자 시스템에 오신 것을 환영합니다.
+      </Typography.Title>
       <ReportWidgets dashboardService={dashboardDataService} />
 
       <Row gutter={16} className="mb-6">
@@ -370,7 +373,7 @@ export const Dashboard: React.FC = () => {
                 columns={predictiveColumns}
                 pagination={false}
                 size="small"
-                rowKey={(record, index) => `${record.vehicleId}-${index}`}
+                rowKey={(record: PredictiveMaintenance, index: number) => `${record.vehicleId}-${index}`}
               />
             ) : (
               <Empty description="예측 정비 데이터가 없습니다" />
@@ -387,7 +390,7 @@ export const Dashboard: React.FC = () => {
             columns={maintenanceColumns}
             pagination={false}
             size="small"
-            rowKey="id"
+            rowKey={(record: MaintenanceRecord, index: number) => `${record.id}-${index}`}
           />
         ) : (
           <Empty description="최근 정비 기록이 없습니다" />

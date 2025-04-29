@@ -22,17 +22,6 @@ export const STORES = {
 const LS_PREFIX = 'vehicleMaintenance_';
 
 /**
- * LocalStorage에 데이터 저장 (IndexedDB 대체용)
- */
-const saveToLocalStorage = (key: string, data: any): void => {
-  try {
-    localStorage.setItem(`${LS_PREFIX}${key}`, JSON.stringify(data));
-  } catch (error) {
-    console.error('LocalStorage 저장 실패:', error);
-  }
-};
-
-/**
  * LocalStorage에서 데이터 조회 (IndexedDB 대체용)
  */
 const getFromLocalStorage = (key: string): any => {

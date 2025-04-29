@@ -1,104 +1,75 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
+import { Box } from '@mui/material';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import ko from 'date-fns/locale/ko';
 
-import { DatePicker, Button, Space, Typography } from 'antd';
-import locale from 'antd/lib/date-picker/locale/ko_KR';
-import dayjs from 'dayjs';
-
-import type { DatePickerProps, RangePickerProps } from 'antd/es/date-picker';
-
-const { RangePicker } = DatePicker;
-const { Text } = Typography;
-
-export interface DateRange {
-  startDate: string | null;
-  endDate: string | null;
+interface DateRangePickerProps {
+  value: [Date | null, Date | null];
+  onChange: (value: [Date | null, Date | null]) => void;
+  disabled?: boolean;
+  error?: boolean;
+  helperText?: string;
 }
 
-export interface DateRangePickerProps {
-  onChange: (value: DateRange | null) => void;
-  value?: DateRange | null;
-  defaultValue?: DateRange | null;
-  title?: string;
-}
+const DateRangePicker: React.FC<DateRangePickerProps> = ({
+  value,
+  onChange,
+  disabled = false,
+  error = false,
+  helperText,
+}) => {
+  const [startDate, endDate] = value;
 
-/**
- * 날짜 범위 선택 컴포넌트
- * 빠른 선택 버튼과 직접 입력 제공
- */
-const DateRangePicker: React.FC<DateRangePickerProps> = ({ onChange, value, defaultValue, title }) => {
-  const [selectedDates, setSelectedDates] = useState<DateRange | null>(
-    value || defaultValue || null
-  );
-
-  // value prop이 변경되면 내부 상태 업데이트
-  useEffect(() => {
-    if (value !== undefined) {
-      setSelectedDates(value);
-    }
-  }, [value]);
-
-  // 날짜 범위 변경 처리
-  const handleDateChange = (dates: RangePickerProps['value']) => {
-    if (dates && dates[0] && dates[1]) {
-      const newRange = {
-        startDate: dates[0].format('YYYY-MM-DD'),
-        endDate: dates[1].format('YYYY-MM-DD')
-      };
-      setSelectedDates(newRange);
-      onChange(newRange);
+  const handleStartDateChange = (date: Date | null) => {
+    if (endDate && date && date > endDate) {
+      onChange([endDate, date]);
     } else {
-      setSelectedDates(null);
-      onChange(null);
+      onChange([date, endDate]);
     }
   };
 
-  // 빠른 선택 버튼 처리
-  const handleQuickSelect = (days: number) => {
-    const endDate = dayjs();
-    const startDate = dayjs().subtract(days, 'day');
-
-    const newRange = {
-      startDate: startDate.format('YYYY-MM-DD'),
-      endDate: endDate.format('YYYY-MM-DD')
-    };
-
-    setSelectedDates(newRange);
-    onChange(newRange);
-  };
-
-  // 선택된 날짜를 dayjs 객체로 변환
-  const getDayjsValue = () => {
-    if (selectedDates && selectedDates.startDate && selectedDates.endDate) {
-      return [dayjs(selectedDates.startDate), dayjs(selectedDates.endDate)] as [
-        dayjs.Dayjs,
-        dayjs.Dayjs
-      ];
+  const handleEndDateChange = (date: Date | null) => {
+    if (startDate && date && date < startDate) {
+      onChange([date, startDate]);
+    } else {
+      onChange([startDate, date]);
     }
-    return null;
   };
 
   return (
-    <Space direction="vertical" size="small" style={{ width: '100%' }}>
-      {title && <Text>{title}</Text>}
-      <Space>
-        <Button size="small" onClick={() => handleQuickSelect(7)}>
-          최근 7일
-        </Button>
-        <Button size="small" onClick={() => handleQuickSelect(30)}>
-          최근 30일
-        </Button>
-        <Button size="small" onClick={() => handleQuickSelect(90)}>
-          최근 90일
-        </Button>
-      </Space>
-      <RangePicker
-        locale={locale}
-        value={getDayjsValue()}
-        onChange={handleDateChange}
-        allowClear={true}
-        style={{ width: '100%' }}
-      />
-    </Space>
+    <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={ko}>
+      <Box display="flex" gap={2}>
+        <DatePicker
+          label="시작일"
+          value={startDate}
+          onChange={handleStartDateChange}
+          disabled={disabled}
+          slotProps={{
+            textField: {
+              fullWidth: true,
+              error,
+              helperText,
+            },
+          }}
+        />
+        <DatePicker
+          label="종료일"
+          value={endDate}
+          onChange={handleEndDateChange}
+          disabled={disabled}
+          minDate={startDate || undefined}
+          slotProps={{
+            textField: {
+              fullWidth: true,
+              error,
+              helperText,
+            },
+          }}
+        />
+      </Box>
+    </LocalizationProvider>
   );
 };
 

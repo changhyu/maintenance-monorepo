@@ -1,6 +1,5 @@
 generator client {
   provider = "prisma-client-js"
-  output   = "../node_modules/.prisma/client"
 }
 
 datasource db {
@@ -9,38 +8,27 @@ datasource db {
 }
 
 model Vehicle {
-  id                String              @id @default(uuid())
-  vin               String              @unique
-  make              String
-  model             String
-  year              Int
-  type              VehicleType
-  color             String?
-  plate             String?             @unique
-  mileage           Int?
-  status            VehicleStatus       @default(AVAILABLE)
-  ownerID           String?             @map("owner_id")
-  lastServiceDate   DateTime?           @map("last_service_date")
-  nextServiceDate   DateTime?           @map("next_service_date")
-  createdAt         DateTime            @default(now()) @map("created_at")
-  updatedAt         DateTime            @updatedAt @map("updated_at")
+  id        String        @id @default(uuid())
+  vin       String        @unique
+  make      String
+  model     String
+  year      Int
+  type      VehicleType
+  color     String?
+  plate     String?
+  mileage   Int?
+  status    VehicleStatus @default(ACTIVE)
+  ownerID   String?       @map("owner_id")
+  createdAt DateTime?     @default(now()) @map("created_at")
+  updatedAt DateTime?     @updatedAt @map("updated_at")
   
   // 관계
-  owner             User?               @relation(fields: [ownerID], references: [id], onDelete: SetNull)
+  owner     User?        @relation(fields: [ownerID], references: [id], onDelete: SetNull)
   maintenanceRecords MaintenanceRecord[]
-  vehicleDocuments  VehicleDocument[]
-  telemetry         Telemetry?
-  documents         Document[]
-  predictions       Prediction[]
-  telemetryHistory  TelemetryHistory[]
-  todos             Todo[]
-
+  telemetries Telemetry[]
+  vehicleDocuments VehicleDocument[]
+  
   @@map("vehicles")
-  @@index([make, model])
-  @@index([status])
-  @@index([ownerID])
-  @@index([lastServiceDate])
-  @@index([nextServiceDate])
 }
 
 enum VehicleType {
@@ -53,41 +41,14 @@ enum VehicleType {
 }
 
 enum VehicleStatus {
-  AVAILABLE
+  ACTIVE
   MAINTENANCE
   RESERVED
   INACTIVE
   RECALLED
 }
 
-model MaintenanceRecord {
-  id          String               @id @default(uuid())
-  vehicleID   String               @map("vehicle_id")
-  description String
-  date        DateTime
-  mileage     Int?
-  cost        Float?
-  performedBy String?              @map("performed_by")
-  status      MaintenanceStatus    @default(SCHEDULED)
-  notes       String?
-  createdAt   DateTime             @default(now()) @map("created_at")
-  updatedAt   DateTime             @updatedAt @map("updated_at")
-  
-  // 관계
-  vehicle     Vehicle              @relation(fields: [vehicleID], references: [id], onDelete: Cascade)
-  parts       MaintenancePart[]
-  maintenanceDocuments MaintenanceDocument[]
-  documents   Document[]
-
-  @@map("maintenance_records")
-  @@index([vehicleID])
-  @@index([date])
-  @@index([status])
-  @@index([vehicleID, status])
-  @@index([vehicleID, date])
-  @@index([date, status])
-}
-
+/// Maintenance 관련 타입 추가
 enum MaintenanceStatus {
   SCHEDULED
   IN_PROGRESS
@@ -95,405 +56,270 @@ enum MaintenanceStatus {
   CANCELLED
 }
 
-model MaintenancePart {
-  id              String            @id @default(uuid())
-  maintenanceID   String            @map("maintenance_id")
-  name            String
-  partNumber      String?           @map("part_number")
-  quantity        Int               @default(1)
-  unitCost        Float?            @map("unit_cost")
-  totalCost       Float?            @map("total_cost")
-  
-  // 관계
-  maintenance     MaintenanceRecord @relation(fields: [maintenanceID], references: [id], onDelete: Cascade)
-
-  @@map("maintenance_parts")
-  @@index([maintenanceID])
-  @@index([partNumber])
+model MaintenanceRecord {
+  id           String             @id @default(uuid())
+  vehicle      Vehicle            @relation(fields: [vehicleID], references: [id], onDelete: Cascade)
+  vehicleID    String             @map("vehicle_id")
+  description  String
+  date         DateTime
+  mileage      Int?
+  cost         Float?
+  performedBy  String?            @map("performed_by")
+  status       MaintenanceStatus  @default(SCHEDULED)
+  notes        String?            @map("notes")
+  parts        MaintenancePart[]
+  documents    MaintenanceDocument[]
+  genericDocuments Document[] @relation("MaintenanceRecordDocuments")
+  createdAt    DateTime           @default(now()) @map("created_at")
+  updatedAt    DateTime           @updatedAt @map("updated_at")
+  @@map("maintenance_records")
 }
 
-model VehicleDocument {
-  id          String    @id @default(uuid())
-  vehicleID   String    @map("vehicle_id")
-  name        String
-  type        String
-  fileURL     String    @map("file_url")
-  uploadDate  DateTime  @default(now()) @map("upload_date")
-  expiryDate  DateTime? @map("expiry_date")
-  size        Int?
-  
-  // 관계
-  vehicle     Vehicle   @relation(fields: [vehicleID], references: [id], onDelete: Cascade)
-  
-  @@map("vehicle_documents")
-  @@index([vehicleID])
-  @@index([uploadDate])
-  @@index([expiryDate])
-  @@index([type])
+model MaintenancePart {
+  id            String             @id @default(uuid())
+  maintenance   MaintenanceRecord  @relation(fields: [maintenanceID], references: [id], onDelete: Cascade)
+  maintenanceID String             @map("maintenance_id")
+  name          String
+  partNumber    String?            @map("part_number")
+  quantity      Int
+  unitCost      Float?             @map("unit_cost")
+  totalCost     Float?             @map("total_cost")
+  @@map("maintenance_parts")
 }
 
 model MaintenanceDocument {
-  id            String           @id @default(uuid())
-  maintenanceID String           @map("maintenance_id")
-  name          String
-  type          String
-  fileURL       String           @map("file_url")
-  uploadDate    DateTime         @default(now()) @map("upload_date")
-  size          Int?
-  
-  // 관계
-  maintenance   MaintenanceRecord @relation(fields: [maintenanceID], references: [id], onDelete: Cascade)
-  
+  id            String             @id @default(uuid())
+  maintenance   MaintenanceRecord  @relation(fields: [maintenanceID], references: [id], onDelete: Cascade)
+  maintenanceID String             @map("maintenance_id")
+  url           String
+  name          String?
+  createdAt     DateTime           @default(now()) @map("created_at")
+  updatedAt     DateTime           @updatedAt @map("updated_at")
   @@map("maintenance_documents")
-  @@index([maintenanceID])
-  @@index([uploadDate])
-  @@index([type])
 }
 
-model Telemetry {
-  id              String    @id @default(uuid())
-  vehicleID       String    @unique @map("vehicle_id")
-  connectionStatus String    @map("connection_status")
-  lastPing        DateTime? @map("last_ping")
-  batteryLevel    Float?    @map("battery_level")
-  fuelLevel       Float?    @map("fuel_level")
-  engineTemp      Float?    @map("engine_temp")
-  oilLevel        Float?    @map("oil_level")
-  latitude        Float?
-  longitude       Float?
-  diagnosticCodes String[]  @map("diagnostic_codes")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
-  
-  // 관계
-  vehicle         Vehicle   @relation(fields: [vehicleID], references: [id], onDelete: Cascade)
-
-  @@map("telemetry")
-  @@index([connectionStatus])
-  @@index([lastPing])
-}
-
-model TelemetryHistory {
-  id            String    @id @default(uuid())
-  vehicleId     String    @map("vehicle_id")
-  timestamp     DateTime  @default(now())
-  batteryLevel  Float?    @map("battery_level")
-  fuelLevel     Float?    @map("fuel_level")
-  engineTemp    Float?    @map("engine_temp")
-  oilLevel      Float?    @map("oil_level")
-  latitude      Float?
-  longitude     Float?
-  mileage       Int?
-  diagnosticCodes String[] @map("diagnostic_codes")
-  tirePressure  Json?     @map("tire_pressure")
-  brakeHealth   Float?    @map("brake_health")
-  anomalyDetected Boolean  @default(false) @map("anomaly_detected")
-  
-  // 관계
-  vehicle       Vehicle    @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
-  
-  @@map("telemetry_history")
-  @@index([vehicleId])
-  @@index([timestamp])
-  @@index([anomalyDetected])
-}
-
-model User {
-  id        String      @id @default(uuid())
-  email     String      @unique
-  name      String
-  password  String
-  role      UserRole    @default(CUSTOMER)
-  isActive  Boolean     @default(true) @map("is_active")
-  createdAt DateTime    @default(now()) @map("created_at")
-  updatedAt DateTime    @updatedAt @map("updated_at")
-  
-  // 관계
-  vehicles      Vehicle[]
-  profile       UserProfile?
-  todos         Todo[]
-  notifications Notification[]
-  todoTemplates TodoTemplate[]
-  documents     Document[]
-  predictions   Prediction[]
-  mobileDevices MobileDevice[]
-  securityLogs  SecurityAuditLog[]
-
-  @@map("users")
-  @@index([email])
-  @@index([role])
-  @@index([isActive])
-}
-
+/// 사용자 역할 enum 추가
 enum UserRole {
   ADMIN
   MANAGER
-  TECHNICIAN
-  CUSTOMER
+  USER
+}
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  name         String
+  passwordHash String    @map("password_hash")
+  role         UserRole? @default(USER) @map("role")
+  isActive     Boolean?  @default(true) @map("is_active")
+  createdAt    DateTime? @default(now()) @map("created_at")
+  updatedAt    DateTime? @updatedAt @map("updated_at")
+  
+  // 관계
+  vehicles     Vehicle[]
+  profile      UserProfile?    @relation("UserProfileRelation")
+  notifications Notification[]
+  todos        Todo[]
+  mobileDevices MobileDevice[]
+  securityAuditLogs SecurityAuditLog[]
+  predictions  Prediction[]
+  todoTemplates TodoTemplate[]  @relation("UserTodoTemplates")
+  
+  @@map("users")
 }
 
 model UserProfile {
   id        String   @id @default(uuid())
-  userID    String   @unique @map("user_id")
+  user      User     @relation("UserProfileRelation", fields: [userId], references: [id], onDelete: Cascade)
+  userId    String   @unique @map("user_id")
   phone     String?
   address   String?
   company   String?
   avatarURL String?  @map("avatar_url")
-  
-  // 관계
-  user      User     @relation(fields: [userID], references: [id], onDelete: Cascade)
-
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
   @@map("user_profiles")
-  @@index([userID])
-  @@index([phone])
 }
 
-model Todo {
-  id          String    @id @default(uuid())
-  title       String
-  description String?
-  completed   Boolean   @default(false)
-  dueDate     DateTime? @map("due_date")
-  priority    String    @default("medium")
-  status      String    @default("pending")
-  vehicleId   String?   @map("vehicle_id")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
-  userId      String?   @map("user_id")
-  
-  // 관계
-  vehicle     Vehicle?  @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
-  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
-  
-  @@map("todos")
-  @@index([vehicleId])
-  @@index([userId])
-  @@index([dueDate])
-  @@index([priority])
-  @@index([status])
-  @@index([completed])
-  @@index([userId, completed])
-  @@index([vehicleId, completed])
-  @@index([userId, status])
-  @@index([dueDate, priority])
-  @@index([userId, vehicleId, completed])
-}
-
-// 알림 관련 모델
 model Notification {
-  id          String    @id @default(uuid())
-  userId      String    @map("user_id")
-  title       String
-  content     String
-  type        String    @default("info") // info, warning, error, success
-  isRead      Boolean   @default(false) @map("is_read")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  
-  // 관계
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String   @map("user_id")
+  message   String
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at")
   @@map("notifications")
-  @@index([userId])
-  @@index([type])
-  @@index([isRead])
-  @@index([createdAt])
 }
 
-// 템플릿 관련 모델
 model TodoTemplate {
-  id          String    @id @default(uuid())
-  name        String
-  description String?
-  category    String    @default("general")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
-  userId      String?   @map("user_id")
-  
-  // 관계
-  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
-  items       TodoTemplateItem[]
-  
+  id        String           @id @default(uuid())
+  user      User             @relation("UserTodoTemplates", fields: [userId], references: [id], onDelete: Cascade)
+  userId    String           @map("user_id")
+  title     String
+  items     TodoTemplateItem[]
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
   @@map("todo_templates")
-  @@index([userId])
-  @@index([category])
 }
 
 model TodoTemplateItem {
-  id            String       @id @default(uuid())
-  templateId    String       @map("template_id")
-  title         String
-  description   String?
-  priority      String       @default("medium")
-  status        String?
-  dueDate       String?      @map("due_date")
-  order         Int          @default(0)
-  
-  // 관계
-  template      TodoTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  
+  id         String        @id @default(uuid())
+  template   TodoTemplate  @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  templateId String        @map("template_id")
+  content    String
+  createdAt  DateTime      @default(now()) @map("created_at")
   @@map("todo_template_items")
-  @@index([templateId])
-  @@index([priority])
 }
 
-// 문서 관리 시스템 모델
-model Document {
-  id            String    @id @default(uuid())
-  name          String
-  originalName  String
-  mimeType      String
-  size          Int
-  path          String
-  content       String?   @db.Text
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
-  userId        String    @map("user_id")
-  vehicleId     String?   @map("vehicle_id")
-  maintenanceId String?   @map("maintenance_id")
-  
-  // 관계
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  vehicle       Vehicle?  @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
-  maintenance   MaintenanceRecord? @relation(fields: [maintenanceId], references: [id], onDelete: SetNull)
-  metadata      DocumentMetadata?
-  tags          DocumentTag[]
-  
-  @@map("documents")
-  @@index([userId])
-  @@index([vehicleId])
-  @@index([maintenanceId])
-  @@index([createdAt])
-  @@index([mimeType])
-}
-
-model DocumentMetadata {
-  id            String    @id @default(uuid())
-  documentId    String    @unique @map("document_id")
-  title         String?
-  description   String?
-  author        String?
-  language      String?
-  pageCount     Int?      @map("page_count")
-  creationDate  DateTime? @map("creation_date")
-  ocrStatus     String?   @map("ocr_status")  // pending, processing, completed, failed
-  ocrConfidence Float?    @map("ocr_confidence")
-  extractedData Json?     @map("extracted_data")
-  
-  // 관계
-  document      Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  
-  @@map("document_metadata")
-  @@index([documentId])
-  @@index([ocrStatus])
-}
-
-model DocumentTag {
-  id          String    @id @default(uuid())
-  documentId  String    @map("document_id")
-  name        String
-  value       String?
-  source      String    @default("user")  // user, ai, system
-  confidence  Float?
-  createdAt   DateTime  @default(now()) @map("created_at")
-  
-  // 관계
-  document    Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  
-  @@unique([documentId, name, value])
-  @@map("document_tags")
-  @@index([documentId])
-  @@index([name])
-  @@index([source])
-}
-
-// 머신러닝 모델
-model PredictionModel {
-  id            String    @id @default(uuid())
-  name          String
-  version       String
-  type          String    // maintenance, part_lifetime, anomaly_detection
-  description   String?
-  accuracy      Float?
-  trainedDate   DateTime  @map("trained_date")
-  isActive      Boolean   @default(true) @map("is_active")
-  modelPath     String    @map("model_path")
-  configPath    String    @map("config_path")
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
-  
-  // 관계
-  predictions   Prediction[]
-  
-  @@map("prediction_models")
-  @@unique([name, version])
-  @@index([type])
-  @@index([isActive])
+model Todo {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String   @map("user_id")
+  title     String
+  completed Boolean  @default(false)
+  dueDate   DateTime? @map("due_date")
+  createdAt DateTime @default(now()) @map("created_at")
+  @@map("todos")
 }
 
 model Prediction {
-  id            String    @id @default(uuid())
-  modelId       String    @map("model_id")
-  vehicleId     String    @map("vehicle_id")
-  userId        String    @map("user_id")
-  result        Json
-  confidence    Float
-  createdAt     DateTime  @default(now())
-  
-  // 관계
-  model         PredictionModel @relation(fields: [modelId], references: [id])
-  vehicle       Vehicle    @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
-  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  id          String   @id @default(uuid())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String   @map("user_id")
+  data        Json
+  predictedAt DateTime @default(now()) @map("predicted_at")
   @@map("predictions")
-  @@index([modelId])
-  @@index([vehicleId])
-  @@index([userId])
-  @@index([createdAt])
 }
 
-// 모바일 앱 관련 모델
 model MobileDevice {
-  id            String    @id @default(uuid())
-  userId        String    @map("user_id")
-  deviceId      String    @map("device_id")
-  platform      String    // ios, android
-  osVersion     String    @map("os_version")
-  appVersion    String    @map("app_version")
-  pushToken     String?   @map("push_token")
-  lastActive    DateTime  @default(now()) @map("last_active")
-  createdAt     DateTime  @default(now()) @map("created_at")
-  
-  // 관계
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  id           String   @id @default(uuid())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId       String   @map("user_id")
+  deviceToken  String   @map("device_token")
+  platform     String
+  createdAt    DateTime @default(now()) @map("created_at")
   @@map("mobile_devices")
-  @@unique([userId, deviceId])
-  @@index([userId])
-  @@index([deviceId])
-  @@index([platform])
-  @@index([lastActive])
 }
 
-// 보안 감사 로깅
 model SecurityAuditLog {
-  id            String    @id @default(uuid())
-  eventType     String    @map("event_type")
-  userId        String?   @map("user_id")
-  ipAddress     String    @map("ip_address")
-  userAgent     String?   @map("user_agent")
-  resourceType  String?   @map("resource_type")
-  resourceId    String?   @map("resource_id")
-  action        String
-  details       Json?
-  status        String    // success, failure
-  timestamp     DateTime  @default(now())
-  
-  // 관계
-  user          User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
-  
+  id        String   @id @default(uuid())
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId    String?  @map("user_id")
+  action    String
+  timestamp DateTime @default(now())
+  details   Json?
   @@map("security_audit_logs")
-  @@index([eventType])
-  @@index([userId])
-  @@index([timestamp])
-  @@index([status])
-  @@index([resourceType, resourceId])
+}
+
+model Telemetry {
+  id         String             @id @default(uuid())
+  vehicle    Vehicle            @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  vehicleId  String             @map("vehicle_id")
+  data       Json
+  timestamp  DateTime           @default(now())
+  histories  TelemetryHistory[]
+  @@map("telemetries")
+}
+
+model TelemetryHistory {
+  id           String    @id @default(uuid())
+  telemetry    Telemetry @relation(fields: [telemetryId], references: [id], onDelete: Cascade)
+  telemetryId  String    @map("telemetry_id")
+  data         Json
+  recordedAt   DateTime  @default(now()) @map("recorded_at")
+  @@map("telemetry_histories")
+}
+
+model VehicleDocument {
+  id         String   @id @default(uuid())
+  vehicle    Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  vehicleId  String   @map("vehicle_id")
+  url        String
+  description String?
+  createdAt  DateTime @default(now()) @map("created_at")
+  @@map("vehicle_documents")
+}
+
+model Document {
+  id            String             @id @default(uuid())
+  maintenance   MaintenanceRecord? @relation("MaintenanceRecordDocuments", fields: [maintenanceID], references: [id], onDelete: Cascade)
+  maintenanceID String?            @map("maintenance_id")
+  url           String
+  name          String?
+  createdAt     DateTime           @default(now()) @map("created_at")
+  updatedAt     DateTime           @updatedAt @map("updated_at")
+  @@map("documents")
+}
+
+model AdminSettings {
+  id              String   @id @default(uuid())
+  key             String   @unique
+  value           String
+  description     String?
+  lastModifiedBy  String?  @map("last_modified_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  
+  @@map("admin_settings")
+}
+
+model AdminAuditLog {
+  id          String    @id @default(uuid())
+  userId      String?   @map("user_id")
+  action      String
+  resource    String
+  resourceId  String?   @map("resource_id")
+  details     Json?
+  ip          String?
+  userAgent   String?   @map("user_agent")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  
+  @@map("admin_audit_logs")
+}
+
+model SystemMetrics {
+  id          String    @id @default(uuid())
+  metric      String
+  value       Float
+  unit        String?
+  timestamp   DateTime  @default(now())
+  
+  @@map("system_metrics")
+}
+
+model BackupLog {
+  id          String    @id @default(uuid())
+  filename    String
+  size        Int
+  status      String
+  startedAt   DateTime  @map("started_at")
+  completedAt DateTime? @map("completed_at")
+  errorMsg    String?   @map("error_msg")
+  
+  @@map("backup_logs")
+}
+
+model UserLoginHistory {
+  id          String    @id @default(uuid())
+  userId      String    @map("user_id")
+  ip          String?
+  userAgent   String?   @map("user_agent")
+  success     Boolean   @default(true)
+  failReason  String?   @map("fail_reason")
+  timestamp   DateTime  @default(now())
+  
+  @@map("user_login_history")
+}
+
+model AdminDashboardWidget {
+  id          String    @id @default(uuid())
+  name        String
+  type        String
+  config      Json
+  position    Int
+  enabled     Boolean   @default(true)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  
+  @@map("admin_dashboard_widgets")
 }

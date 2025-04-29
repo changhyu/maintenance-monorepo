@@ -1,6 +1,6 @@
 import { notification } from 'antd';
 import { ApiClient } from '../../../api-client/src/client';
-import { NotificationCreate, NotificationType } from '../types/notification';
+import { NotificationCreate, NotificationType, NotificationChannel, NotificationPriority } from '../types/notification';
 import { notificationService } from './notificationService';
 
 /**
@@ -47,10 +47,10 @@ export interface LatLng {
 /**
  * 위치 인터페이스
  */
-export interface Location extends Coordinates {
-  address: string;
+export interface Location {
+  latitude: number;
+  longitude: number;
   name?: string;
-  placeId?: string;
 }
 
 /**
@@ -103,12 +103,12 @@ export interface MapBounds {
  * 경로 단계 인터페이스
  */
 export interface RouteStep {
-  startLocation: Coordinates;
-  endLocation: Coordinates;
+  instruction: string;
   distance: number;
   duration: number;
-  instructions: string;
   maneuver?: string;
+  startLocation: Location;
+  endLocation: Location;
 }
 
 /**
@@ -215,7 +215,7 @@ export interface GeofenceMonitoringOptions {
   alertOnExit?: boolean;
   alertOnDwell?: boolean;
   dwellThreshold?: number; // 밀리초 단위, 특정 시간 이상 체류 시 알림
-  notificationChannels?: Array<'EMAIL' | 'SMS' | 'PUSH' | 'SYSTEM'>;
+  notificationChannels?: NotificationChannel[];
 }
 
 export interface GeofenceOptions {
@@ -776,8 +776,7 @@ export class MapService {
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
       Math.cos(this.toRadians(point1.latitude)) *
         Math.cos(this.toRadians(point2.latitude)) *
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2);
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   }
@@ -1014,18 +1013,19 @@ export class MapService {
    */
   private async sendGeofenceAlert(
     eventDetails: GeofenceEventDetails,
-    channels: Array<'EMAIL' | 'SMS' | 'PUSH' | 'SYSTEM'> = ['SYSTEM']
+    channels: NotificationChannel[] = [NotificationChannel.APP]
   ): Promise<boolean> {
     try {
       // 알림 생성 데이터 준비
       const notificationData: NotificationCreate = {
+        userId: 'system', // 시스템 사용자 ID
         type: NotificationType.GEOFENCE_ALERT,
         title: `지오펜스 알림: ${eventDetails.eventType}`,
         message: `차량(${eventDetails.vehicleId})이 지오펜스(${eventDetails.geofenceId})를 ${
           eventDetails.eventType === 'ENTER' ? '진입' : eventDetails.eventType === 'EXIT' ? '이탈' : '체류'
         }했습니다.`,
-        severity: 'medium',
-        data: {
+        priority: NotificationPriority.MEDIUM,
+        metadata: {
           geofenceId: eventDetails.geofenceId,
           vehicleId: eventDetails.vehicleId,
           location: eventDetails.location,
@@ -1039,7 +1039,7 @@ export class MapService {
       const result = await notificationService.createNotification(notificationData);
 
       // UI 알림 표시 (SYSTEM 채널인 경우)
-      if (channels.includes('SYSTEM')) {
+      if (channels.includes(NotificationChannel.APP)) {
         notification.info({
           message: notificationData.title,
           description: notificationData.message

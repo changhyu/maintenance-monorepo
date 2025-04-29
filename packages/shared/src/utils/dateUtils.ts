@@ -29,7 +29,7 @@ export function parseDate(dateString: string): Date {
  * @param locale 지역 설정 (기본값: 'ko-KR')
  * @returns 현지화된 날짜 문자열
  */
-export function formatDateLocale(date: Date, locale: string = 'ko-KR'): string {
+export function formatDateLocale(date: Date, locale = 'ko-KR'): string {
   return date.toLocaleDateString(locale);
 }
 
@@ -108,7 +108,7 @@ export function isFuture(date: Date): boolean {
  * @param locale 지역 설정 (기본값: 'ko-KR')
  * @returns 월 이름
  */
-export function getMonthName(date: Date, locale: string = 'ko-KR'): string {
+export function getMonthName(date: Date, locale = 'ko-KR'): string {
   return date.toLocaleString(locale, { month: 'long' });
 }
 
@@ -118,6 +118,6 @@ export function getMonthName(date: Date, locale: string = 'ko-KR'): string {
  * @param locale 지역 설정 (기본값: 'ko-KR')
  * @returns 요일 이름
  */
-export function getDayName(date: Date, locale: string = 'ko-KR'): string {
+export function getDayName(date: Date, locale = 'ko-KR'): string {
   return date.toLocaleString(locale, { weekday: 'long' });
 }

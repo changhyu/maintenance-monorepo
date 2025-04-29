@@ -1,0 +1,85 @@
+{
+  "app": {
+    "name": "차량 정비 관리",
+    "description": "효율적인 차량 정비 관리 시스템",
+    "copyright": "© 2023 차량 정비 관리 시스템"
+  },
+  "actions": {
+    "add": "추가",
+    "edit": "편집",
+    "delete": "삭제",
+    "save": "저장",
+    "cancel": "취소",
+    "close": "닫기",
+    "search": "검색",
+    "filter": "필터",
+    "refresh": "새로고침",
+    "back": "뒤로",
+    "next": "다음",
+    "prev": "이전",
+    "confirm": "확인",
+    "submit": "제출",
+    "reset": "초기화",
+    "upload": "업로드",
+    "download": "다운로드",
+    "print": "인쇄"
+  },
+  "messages": {
+    "loading": "로딩 중...",
+    "error": "오류가 발생했습니다.",
+    "notFound": "페이지를 찾을 수 없습니다.",
+    "serverError": "서버 오류가 발생했습니다.",
+    "networkError": "네트워크 연결 오류가 발생했습니다.",
+    "unauthorized": "접근 권한이 없습니다.",
+    "sessionExpired": "세션이 만료되었습니다. 다시 로그인해 주세요.",
+    "dataNotFound": "데이터를 찾을 수 없습니다.",
+    "saveSuccess": "성공적으로 저장되었습니다.",
+    "deleteSuccess": "성공적으로 삭제되었습니다.",
+    "updateSuccess": "성공적으로 업데이트되었습니다.",
+    "createSuccess": "성공적으로 생성되었습니다."
+  },
+  "navigation": {
+    "home": "홈",
+    "dashboard": "대시보드",
+    "vehicles": "차량 관리",
+    "maintenance": "정비 기록",
+    "schedule": "정비 일정",
+    "shops": "정비소",
+    "settings": "설정",
+    "profile": "내 프로필",
+    "logout": "로그아웃",
+    "reports": "리포트",
+    "help": "도움말"
+  },
+  "filters": {
+    "all": "전체",
+    "active": "활성",
+    "inactive": "비활성",
+    "completed": "완료됨",
+    "pending": "대기 중",
+    "date": "날짜",
+    "status": "상태",
+    "type": "유형",
+    "category": "카테고리",
+    "sortBy": "정렬 기준",
+    "sortOrder": "정렬 순서",
+    "ascending": "오름차순",
+    "descending": "내림차순"
+  },
+  "time": {
+    "now": "방금 전",
+    "today": "오늘",
+    "yesterday": "어제",
+    "tomorrow": "내일",
+    "days": "{{count}}일",
+    "weeks": "{{count}}주",
+    "months": "{{count}}개월",
+    "years": "{{count}}년"
+  },
+  "offline": {
+    "message": "인터넷 연결이 끊어졌습니다.",
+    "reconnecting": "재연결 중...",
+    "offline": "오프라인 모드",
+    "cached": "캐시된 데이터 보기"
+  }
+}

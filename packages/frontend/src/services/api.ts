@@ -45,9 +45,9 @@ api.interceptors.response.use(
     // 서버에서 새 CSRF 토큰을 받았을 경우 메타 태그 업데이트
     const newCsrfToken = response.headers['x-csrf-token'];
     if (newCsrfToken) {
-      let metaTag = document.querySelector('meta[name="csrf-token"]');
+      let metaTag = document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement;
       if (!metaTag) {
-        metaTag = document.createElement('meta');
+        metaTag = document.createElement('meta') as HTMLMetaElement;
         metaTag.name = 'csrf-token';
         document.head.appendChild(metaTag);
       }

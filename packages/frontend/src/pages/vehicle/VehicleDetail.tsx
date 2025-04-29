@@ -24,6 +24,7 @@ import {
   DialogContent,
   DialogContentText,
   DialogTitle,
+  Alert,
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -31,7 +32,15 @@ import {
   Build as BuildIcon,
   DirectionsCar as CarIcon,
   Delete as DeleteIcon,
+  Person as PersonIcon,
+  Speed as SpeedIcon,
+  LocalGasStation as FuelIcon,
+  Event as EventIcon,
+  Description as DocumentIcon,
 } from '@mui/icons-material';
+import { format } from 'date-fns';
+import { Vehicle, VehicleStatus, VehicleStats } from '../../types/vehicle';
+import { VehicleService } from '../../services/vehicleService';
 
 // 차량 타입 정의 (임시)
 interface Vehicle {
@@ -158,33 +167,41 @@ function TabPanel(props: TabPanelProps) {
 const VehicleDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
+  const [stats, setStats] = useState<VehicleStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [maintenanceRecords, setMaintenanceRecords] = useState<MaintenanceRecord[]>([]);
   const [tabValue, setTabValue] = useState(0);
   const [deleteDialog, setDeleteDialog] = useState(false);
   const [statusDialog, setStatusDialog] = useState(false);
   const [newStatus, setNewStatus] = useState<string | null>(null);
 
-  useEffect(() => {
-    // API 호출 시뮬레이션
-    const fetchData = async () => {
-      try {
-        setTimeout(() => {
-          if (id && mockVehicles[id]) {
-            setVehicle(mockVehicles[id]);
-            setMaintenanceRecords(mockMaintenance.filter(m => m.vehicleId === id));
-          }
-          setLoading(false);
-        }, 1000);
-      } catch (error) {
-        console.error('차량 상세 정보 로딩 실패:', error);
-        setLoading(false);
-      }
-    };
+  const vehicleService = VehicleService.getInstance();
 
-    fetchData();
+  useEffect(() => {
+    if (id) {
+      loadVehicleData(id);
+    }
   }, [id]);
+
+  const loadVehicleData = async (vehicleId: string) => {
+    try {
+      setLoading(true);
+      const [vehicleData, statsData] = await Promise.all([
+        vehicleService.getVehicleById(vehicleId),
+        vehicleService.getVehicleStats(vehicleId),
+      ]);
+      setVehicle(vehicleData);
+      setStats(statsData);
+      setMaintenanceRecords(mockMaintenance.filter(m => m.vehicleId === vehicleId));
+    } catch (error) {
+      console.error('차량 정보를 불러오는데 실패했습니다:', error);
+      setError('차량 정보를 불러오는데 실패했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
@@ -207,14 +224,16 @@ const VehicleDetail: React.FC = () => {
     setNewStatus(null);
   };
 
-  const handleDeleteClick = () => {
-    setDeleteDialog(true);
-  };
+  const handleDelete = async () => {
+    if (!id || !window.confirm('정말로 이 차량을 삭제하시겠습니까?')) return;
 
-  const confirmDelete = () => {
-    // 실제로는 API 호출로 차량 삭제
-    navigate('/vehicles');
-    setDeleteDialog(false);
+    try {
+      await vehicleService.deleteVehicle(id);
+      navigate('/vehicles');
+    } catch (error) {
+      console.error('차량 삭제에 실패했습니다:', error);
+      setError('차량 삭제에 실패했습니다.');
+    }
   };
 
   const getStatusChip = (status: string) => {
@@ -251,62 +270,60 @@ const VehicleDetail: React.FC = () => {
   };
 
   if (loading) {
+    return <LinearProgress />;
+  }
+
+  if (error) {
     return (
-      <Box sx={{ width: '100%' }}>
-        <LinearProgress />
-        <Typography sx={{ mt: 2 }} variant="body1">
-          차량 정보를 불러오는 중...
-        </Typography>
-      </Box>
+      <Alert severity="error" sx={{ m: 2 }}>
+        {error}
+      </Alert>
     );
   }
 
-  if (!vehicle) {
+  if (!vehicle || !stats) {
     return (
-      <Box>
-        <Button
-          startIcon={<ArrowBackIcon />}
-          onClick={() => navigate('/vehicles')}
-          sx={{ mb: 3 }}
-        >
-          차량 목록으로 돌아가기
-        </Button>
-        <Typography variant="h5" component="h1">
-          차량을 찾을 수 없습니다.
-        </Typography>
-      </Box>
+      <Alert severity="info" sx={{ m: 2 }}>
+        차량 정보를 찾을 수 없습니다.
+      </Alert>
     );
   }
 
   return (
-    <Box>
+    <Box sx={{ p: 3 }}>
       <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Button startIcon={<ArrowBackIcon />} onClick={() => navigate('/vehicles')}>
-          차량 목록으로 돌아가기
-        </Button>
-        <Box>
+        <Typography variant="h4" component="h1">
+          차량 상세 정보
+        </Typography>
+        <Box sx={{ display: 'flex', gap: 1 }}>
           <Button
             variant="outlined"
-            color="primary"
             startIcon={<BuildIcon />}
-            onClick={() => navigate(`/vehicles/${id}/maintenance/new`)}
-            sx={{ mr: 1 }}
+            onClick={() => navigate(`/maintenance/new/${id}`)}
           >
             정비 등록
           </Button>
           <Button
             variant="contained"
-            color="primary"
             startIcon={<EditIcon />}
             onClick={() => navigate(`/vehicles/${id}/edit`)}
           >
-            수정하기
+            수정
+          </Button>
+          <Button
+            variant="outlined"
+            color="error"
+            startIcon={<DeleteIcon />}
+            onClick={handleDelete}
+          >
+            삭제
           </Button>
         </Box>
       </Box>
 
       <Grid container spacing={3}>
-        <Grid item xs={12} md={4}>
+        {/* 기본 정보 */}
+        <Grid item xs={12} md={6}>
           <Card>
             <CardHeader 
               title={
@@ -319,11 +336,6 @@ const VehicleDetail: React.FC = () => {
                 <Avatar sx={{ bgcolor: 'primary.main' }}>
                   <CarIcon />
                 </Avatar>
-              }
-              action={
-                <IconButton aria-label="delete" onClick={handleDeleteClick}>
-                  <DeleteIcon />
-                </IconButton>
               }
             />
             <CardContent>
@@ -368,167 +380,123 @@ const VehicleDetail: React.FC = () => {
           </Card>
         </Grid>
 
-        <Grid item xs={12} md={8}>
-          <Paper>
-            <Tabs
-              value={tabValue}
-              onChange={handleTabChange}
-              indicatorColor="primary"
-              textColor="primary"
-            >
-              <Tab label="상세 정보" />
-              <Tab label="정비 이력" />
-              <Tab label="문서" />
-            </Tabs>
-
-            <TabPanel value={tabValue} index={0}>
-              <Grid container spacing={3}>
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="subtitle1" gutterBottom>
-                    소유자
-                  </Typography>
-                  <Typography variant="body1" sx={{ mb: 2 }}>
-                    {vehicle.owner || '-'}
-                  </Typography>
-
-                  <Typography variant="subtitle1" gutterBottom>
-                    구매 일자
-                  </Typography>
-                  <Typography variant="body1" sx={{ mb: 2 }}>
-                    {formatDate(vehicle.purchaseDate)}
-                  </Typography>
-
-                  <Typography variant="subtitle1" gutterBottom>
-                    보험 만료일
-                  </Typography>
-                  <Typography variant="body1" sx={{ mb: 2 }}>
-                    {formatDate(vehicle.insuranceExpiry)}
-                  </Typography>
-                </Grid>
-
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="subtitle1" gutterBottom>
-                    연료 유형
-                  </Typography>
-                  <Typography variant="body1" sx={{ mb: 2 }}>
-                    {vehicle.fuelType || '-'}
-                  </Typography>
-
-                  <Typography variant="subtitle1" gutterBottom>
-                    변속기
-                  </Typography>
-                  <Typography variant="body1" sx={{ mb: 2 }}>
-                    {vehicle.transmission || '-'}
-                  </Typography>
-
-                  <Typography variant="subtitle1" gutterBottom>
-                    엔진
-                  </Typography>
-                  <Typography variant="body1" sx={{ mb: 2 }}>
-                    {vehicle.engineSize || '-'}
-                  </Typography>
-                </Grid>
-
-                {vehicle.notes && (
-                  <Grid item xs={12}>
-                    <Typography variant="subtitle1" gutterBottom>
-                      메모
-                    </Typography>
-                    <Paper variant="outlined" sx={{ p: 2 }}>
-                      <Typography variant="body1">{vehicle.notes}</Typography>
-                    </Paper>
-                  </Grid>
-                )}
-              </Grid>
-            </TabPanel>
-
-            <TabPanel value={tabValue} index={1}>
-              <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
-                <Button
-                  variant="contained"
-                  startIcon={<BuildIcon />}
-                  onClick={() => navigate(`/vehicles/${id}/maintenance/new`)}
-                >
-                  새 정비 등록
-                </Button>
-              </Box>
-
+        {/* 운행 정보 */}
+        <Grid item xs={12} md={6}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                운행 정보
+              </Typography>
               <List>
-                {maintenanceRecords.map((record) => (
-                  <React.Fragment key={record.id}>
-                    <ListItem 
-                      alignItems="flex-start"
-                      secondaryAction={
-                        <Box>
-                          <Typography variant="body2" color="text.secondary">
-                            {new Intl.NumberFormat('ko-KR', {
-                              style: 'currency',
-                              currency: 'KRW',
-                              maximumFractionDigits: 0,
-                            }).format(record.cost)}
-                          </Typography>
-                          <Button
-                            size="small"
-                            onClick={() => navigate(`/maintenance/${record.id}`)}
-                          >
-                            상세 보기
-                          </Button>
-                        </Box>
-                      }
-                    >
-                      <ListItemText
-                        primary={
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Typography variant="body1" fontWeight="medium">
-                              {record.type}
-                            </Typography>
-                            {record.status === 'completed' ? (
-                              <Chip size="small" color="success" label="완료" />
-                            ) : record.status === 'scheduled' ? (
-                              <Chip size="small" color="info" label="예약됨" />
-                            ) : (
-                              <Chip size="small" color="warning" label="진행 중" />
-                            )}
-                          </Box>
-                        }
-                        secondary={
-                          <>
-                            <Typography
-                              component="span"
-                              variant="body2"
-                              color="text.primary"
-                            >
-                              {formatDate(record.date)}
-                            </Typography>
-                            {" — "}
-                            {record.description}
-                            {record.shop && <div>정비소: {record.shop}</div>}
-                          </>
-                        }
-                      />
-                    </ListItem>
-                    <Divider component="li" />
-                  </React.Fragment>
-                ))}
-                {maintenanceRecords.length === 0 && (
-                  <ListItem>
-                    <ListItemText
-                      primary="정비 이력이 없습니다"
-                      secondary="새 정비 이력을 등록하려면 '새 정비 등록' 버튼을 클릭하세요."
-                    />
-                  </ListItem>
-                )}
+                <ListItem>
+                  <ListItemText
+                    primary="현재 주행거리"
+                    secondary={`${vehicle.mileage.toLocaleString()}km`}
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText
+                    primary="배정된 운전자"
+                    secondary={vehicle.driverId || '배정된 운전자 없음'}
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText
+                    primary="최근 정비일"
+                    secondary={
+                      vehicle.lastMaintenanceDate
+                        ? format(new Date(vehicle.lastMaintenanceDate), 'yyyy-MM-dd')
+                        : '정비 이력 없음'
+                    }
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText
+                    primary="다음 정비 예정일"
+                    secondary={
+                      vehicle.nextMaintenanceDate
+                        ? format(new Date(vehicle.nextMaintenanceDate), 'yyyy-MM-dd')
+                        : '예정된 정비 없음'
+                    }
+                  />
+                </ListItem>
               </List>
-            </TabPanel>
+            </CardContent>
+          </Card>
+        </Grid>
 
-            <TabPanel value={tabValue} index={2}>
-              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200 }}>
-                <Typography variant="body1" color="text.secondary">
-                  등록된 문서가 없습니다.
-                </Typography>
-              </Box>
-            </TabPanel>
-          </Paper>
+        {/* 통계 정보 */}
+        <Grid item xs={12}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                운행 통계
+              </Typography>
+              <Grid container spacing={3}>
+                <Grid item xs={12} sm={6} md={4}>
+                  <Box sx={{ textAlign: 'center' }}>
+                    <Typography variant="h4">{stats.totalDistance.toLocaleString()}km</Typography>
+                    <Typography color="text.secondary">총 주행거리</Typography>
+                  </Box>
+                </Grid>
+                <Grid item xs={12} sm={6} md={4}>
+                  <Box sx={{ textAlign: 'center' }}>
+                    <Typography variant="h4">{stats.fuelEfficiency.toFixed(1)}km/L</Typography>
+                    <Typography color="text.secondary">평균 연비</Typography>
+                  </Box>
+                </Grid>
+                <Grid item xs={12} sm={6} md={4}>
+                  <Box sx={{ textAlign: 'center' }}>
+                    <Typography variant="h4">{stats.maintenanceCount}회</Typography>
+                    <Typography color="text.secondary">정비 횟수</Typography>
+                  </Box>
+                </Grid>
+                <Grid item xs={12} sm={6} md={4}>
+                  <Box sx={{ textAlign: 'center' }}>
+                    <Typography variant="h4">{stats.totalCost.toLocaleString()}원</Typography>
+                    <Typography color="text.secondary">총 비용</Typography>
+                  </Box>
+                </Grid>
+                <Grid item xs={12} sm={6} md={4}>
+                  <Box sx={{ textAlign: 'center' }}>
+                    <Typography variant="h4">{stats.incidentCount}회</Typography>
+                    <Typography color="text.secondary">사고 건수</Typography>
+                  </Box>
+                </Grid>
+                <Grid item xs={12} sm={6} md={4}>
+                  <Box sx={{ textAlign: 'center' }}>
+                    <Typography variant="h4">{(stats.utilizationRate * 100).toFixed(1)}%</Typography>
+                    <Typography color="text.secondary">가동률</Typography>
+                  </Box>
+                </Grid>
+              </Grid>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* 문서 정보 */}
+        <Grid item xs={12}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                문서 정보
+              </Typography>
+              <List>
+                <ListItem>
+                  <ListItemText
+                    primary="보험 만료일"
+                    secondary={format(new Date(vehicle.insuranceExpiryDate), 'yyyy-MM-dd')}
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText
+                    primary="등록증 만료일"
+                    secondary={format(new Date(vehicle.registrationExpiryDate), 'yyyy-MM-dd')}
+                  />
+                </ListItem>
+              </List>
+            </CardContent>
+          </Card>
         </Grid>
       </Grid>
 
@@ -546,7 +514,7 @@ const VehicleDetail: React.FC = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteDialog(false)}>취소</Button>
-          <Button onClick={confirmDelete} color="error">
+          <Button onClick={handleDelete} color="error">
             삭제
           </Button>
         </DialogActions>

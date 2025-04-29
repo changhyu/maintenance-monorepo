@@ -5,6 +5,8 @@ import './index.css';
 import { BrowserRouter } from 'react-router-dom';
 import config from './config';
 import { validateRequiredEnv } from './utils/validateEnv';
+import { QueryProvider } from './providers/QueryProvider';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 // 필수 환경 변수 검증
 try {
@@ -50,10 +52,25 @@ if (config.pwaSettings.enableServiceWorker && 'serviceWorker' in navigator) {
   });
 }
 
+// 개발 환경에서는 React 성능 측정 도구 설정
+if (process.env.NODE_ENV === 'development') {
+  import('./reportWebVitals')
+    .then(({ reportWebVitals }) => {
+      reportWebVitals(console.log);
+    })
+    .catch(error => {
+      console.error('Web Vitals 로딩 실패:', error);
+    });
+}
+
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <QueryProvider>
+          <App />
+        </QueryProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
   </React.StrictMode>
 );

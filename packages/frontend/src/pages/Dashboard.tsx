@@ -1,408 +1,627 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   Box,
-  Grid,
   Card,
   CardContent,
-  CardHeader,
-  Typography,
-  Button,
+  Container,
   Divider,
-  LinearProgress,
+  Grid,
+  IconButton,
   List,
   ListItem,
-  ListItemText,
   ListItemIcon,
-  Avatar,
+  ListItemText,
+  Paper,
+  Stack,
+  Typography,
   useTheme,
+  Button,
 } from '@mui/material';
 import {
   DirectionsCar as CarIcon,
-  Build as MaintenanceIcon,
+  Build as ToolIcon,
+  Notifications as NotificationIcon,
+  Assignment as TaskIcon,
+  MoreVert as MoreVertIcon,
   Warning as WarningIcon,
-  CheckCircle as CheckCircleIcon,
+  Check as CheckIcon,
   Schedule as ScheduleIcon,
+  LocalGasStation as GasIcon,
+  Speed as SpeedIcon,
+  Timeline as TimelineIcon,
+  TrendingUp as TrendingUpIcon,
+  TrendingDown as TrendingDownIcon,
+  CalendarToday as CalendarIcon,
+  Map as MapIcon,
+  Navigation as NavigationIcon,
 } from '@mui/icons-material';
+import { Link as RouterLink } from 'react-router-dom';
 
-// 차트 컴포넌트 임포트 (필요시 추후 구현)
-import { DashboardChart } from '../components/dashboard/DashboardChart';
-// API 클라이언트
-import apiClient from '../api-client';
-import logger from '../utils/logger';
+// Import charts and other components
+import MileageChart from '../components/charts/MileageChart';
+import FuelConsumptionChart from '../components/charts/FuelConsumptionChart';
+import SpeedAnalysisChart from '../components/charts/SpeedAnalysisChart';
+import UpcomingInspectionsWidget from '../components/dashboard/UpcomingInspectionsWidget';
+import { useInspectionService } from '../hooks/useInspectionService';
 
-// 대시보드 데이터 타입 정의
-interface DashboardData {
-  vehicles: {
-    total: number;
-    active: number;
-    maintenance: number;
-    inactive: number;
-  };
-  maintenance: {
-    completed: number;
-    scheduled: number;
-    inProgress: number;
-    overdue: number;
-  };
-  upcomingMaintenance: Array<{
-    id: string;
-    vehicleId: string;
-    vehicleName: string;
-    date: string;
-    type: string;
-    priority: string;
-  }>;
-  recentMaintenance: Array<{
-    id: string;
-    vehicleName: string;
-    date: string;
-    type: string;
-    cost: number;
-  }>;
+// Define TypeScript interfaces
+interface SummaryData {
+  id: string;
+  title: string;
+  value: string;
+  icon: React.ReactNode;
+  color: string;
+  change: string;
+  changeIcon?: React.ReactNode;
+  changeColor?: string;
+}
+
+interface ChartOption {
+  value: string;
+  label: string;
+  icon: React.ReactNode;
+}
+
+interface MaintenanceSchedule {
+  id: string;
+  title: string;
+  vehicleName: string;
+  date: string;
+  completed: boolean;
+  overdue: boolean;
+}
+
+interface Notification {
+  id: string;
+  title: string;
+  message: string;
+  time: string;
+  icon: React.ReactNode;
+  read: boolean;
+}
+
+interface Task {
+  id: string;
+  title: string;
+  assignee: string;
+  due: string;
+}
+
+interface VehicleStatus {
+  id: string;
+  label: string;
+  value: string;
+  icon: React.ReactNode;
 }
 
 const Dashboard: React.FC = () => {
-  const navigate = useNavigate();
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  // API에서 데이터를 가져오는 효과
+  const [selectedChartOption, setSelectedChartOption] = useState<string>('mileage');
+  const theme = useTheme();
+  const { upcomingInspections, getUpcomingInspections } = useInspectionService();
+  
   useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true);
-      setError(null);
-      
-      try {
-        // 대시보드 데이터 API 호출
-        const response = await apiClient.get<DashboardData>('/dashboard');
-        setDashboardData(response.data);
-      } catch (error) {
-        logger.error('대시보드 데이터 로딩 실패:', error);
-        setError('대시보드 데이터를 불러오는데 실패했습니다.');
-        
-        // API 실패 시 기본 대시보드 데이터로 초기화 (실제 배포 시 제거)
-        setDashboardData({
-          vehicles: {
-            total: 0,
-            active: 0,
-            maintenance: 0,
-            inactive: 0,
-          },
-          maintenance: {
-            completed: 0,
-            scheduled: 0,
-            inProgress: 0,
-            overdue: 0,
-          },
-          upcomingMaintenance: [],
-          recentMaintenance: []
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchData();
+    // 대시보드 로드시 다가오는 법정검사 일정 조회
+    getUpcomingInspections(30);
   }, []);
-
-  const getStatusColor = (priority: string): string => {
-    switch (priority.toLowerCase()) {
-      case 'high':
-        return 'error.main';
-      case 'medium':
-        return 'warning.main';
-      default:
-        return 'info.main';
+  
+  // Sample data for summary cards
+  const summaryData: SummaryData[] = [
+    {
+      id: '1',
+      title: '전체 차량',
+      value: '24대',
+      icon: <CarIcon style={{ color: theme.palette.primary.main }} />,
+      color: theme.palette.primary.main,
+      change: '2대 증가',
+      changeIcon: <TrendingUpIcon fontSize="small" sx={{ mr: 0.5 }} />,
+      changeColor: 'success.main'
+    },
+    {
+      id: '2',
+      title: '정비 예정',
+      value: '7대',
+      icon: <ToolIcon style={{ color: theme.palette.warning.main }} />,
+      color: theme.palette.warning.main,
+      change: '최근 30일',
+      changeIcon: undefined,
+    },
+    {
+      id: '3',
+      title: '법정검사 필요',
+      value: `${upcomingInspections.length}대`,
+      icon: <CalendarIcon style={{ color: theme.palette.info.main }} />,
+      color: theme.palette.info.main,
+      change: '30일 이내',
+      changeIcon: undefined,
+    },
+    {
+      id: '4',
+      title: '일일 연료비',
+      value: '₩ 458,000',
+      icon: <GasIcon style={{ color: theme.palette.error.main }} />,
+      color: theme.palette.error.main,
+      change: '5% 감소',
+      changeIcon: <TrendingDownIcon fontSize="small" sx={{ mr: 0.5 }} />,
+      changeColor: 'success.main'
     }
-  };
+  ];
 
-  const formatDate = (dateString: string): string => {
-    const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'long', day: 'numeric' };
-    return new Date(dateString).toLocaleDateString('ko-KR', options);
-  };
+  // Chart options
+  const chartOptions: ChartOption[] = [
+    { value: 'mileage', label: '주행거리', icon: <TimelineIcon /> },
+    { value: 'fuel', label: '연료 소비량', icon: <GasIcon /> },
+    { value: 'speed', label: '속도 분석', icon: <SpeedIcon /> }
+  ];
 
-  const formatCurrency = (amount: number): string => {
-    return new Intl.NumberFormat('ko-KR', {
-      style: 'currency',
-      currency: 'KRW',
-      currencyDisplay: 'symbol',
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
+  // Maintenance schedule data
+  const maintenanceSchedule: MaintenanceSchedule[] = [
+    {
+      id: '1',
+      title: '엔진 오일 교체',
+      vehicleName: '트럭 A-1234',
+      date: '2025-05-02',
+      completed: false,
+      overdue: false
+    },
+    {
+      id: '2',
+      title: '브레이크 패드 교체',
+      vehicleName: '버스 B-5678',
+      date: '2025-04-25',
+      completed: false,
+      overdue: true
+    },
+    {
+      id: '3',
+      title: '정기 점검',
+      vehicleName: '승합차 C-9012',
+      date: '2025-04-20',
+      completed: true,
+      overdue: false
+    }
+  ];
 
-  // 데이터가 없는 경우 표시할 컴포넌트
-  if (!isLoading && !dashboardData) {
-    return (
-      <Box sx={{ textAlign: 'center', py: 5 }}>
-        <Typography variant="h5" color="text.secondary" gutterBottom>
-          {error || '대시보드 데이터를 불러올 수 없습니다.'}
-        </Typography>
-        <Button 
-          variant="contained" 
-          color="primary" 
-          onClick={() => window.location.reload()}
-          sx={{ mt: 2 }}
-        >
-          다시 시도
-        </Button>
-      </Box>
-    );
-  }
+  // Notifications
+  const notifications: Notification[] = [
+    {
+      id: '1',
+      title: '차량 점검 알림',
+      message: '트럭 A-1234의 다음 정기 점검이 3일 후로 예정되어 있습니다.',
+      time: '10분 전',
+      icon: <ScheduleIcon color="primary" />,
+      read: false
+    },
+    {
+      id: '2',
+      title: '연료 소비량 이상',
+      message: '버스 B-5678의 연료 소비량이 평균보다 15% 높게 측정되었습니다.',
+      time: '2시간 전',
+      icon: <WarningIcon color="error" />,
+      read: false
+    },
+    {
+      id: '3',
+      title: '정비 완료',
+      message: '승합차 C-9012의 정기 점검이 완료되었습니다.',
+      time: '어제',
+      icon: <CheckIcon color="success" />,
+      read: true
+    }
+  ];
+
+  // Active tasks
+  const activeTasks: Task[] = [
+    {
+      id: '1',
+      title: '트럭 A-1234 운행 일지 작성',
+      assignee: '김철수',
+      due: '오늘'
+    },
+    {
+      id: '2',
+      title: '버스 B-5678 연료 소비량 분석',
+      assignee: '이영희',
+      due: '내일'
+    },
+    {
+      id: '3',
+      title: '2025년 5월 정비 계획 수립',
+      assignee: '박지민',
+      due: '3일 후'
+    }
+  ];
+
+  // Vehicle status data
+  const vehicleStatusData: VehicleStatus[] = [
+    {
+      id: '1',
+      label: '운행 중',
+      value: '18대',
+      icon: <CarIcon color="success" fontSize="large" />
+    },
+    {
+      id: '2',
+      label: '정비 중',
+      value: '3대',
+      icon: <ToolIcon color="warning" fontSize="large" />
+    },
+    {
+      id: '3',
+      label: '문제 발생',
+      value: '2대',
+      icon: <WarningIcon color="error" fontSize="large" />
+    },
+    {
+      id: '4',
+      label: '대기 상태',
+      value: '1대',
+      icon: <ScheduleIcon color="info" fontSize="large" />
+    }
+  ];
 
   return (
-    <Box>
-      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <Container maxWidth="xl">
+      <Box sx={{ my: 4 }}>
         <Typography variant="h4" component="h1" gutterBottom>
           대시보드
         </Typography>
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={() => navigate('/maintenance/new')}
-        >
-          + 새 정비 등록
-        </Button>
-      </Box>
+        
+        {/* 요약 정보 카드 */}
+        <Grid container spacing={3} sx={{ mb: 4 }}>
+          {summaryData.map((item) => (
+            <Grid component="div" key={item.id} sx={{ gridColumn: { xs: 'span 12', sm: 'span 6', md: 'span 3' } }}>
+              <Card 
+                sx={{ 
+                  height: '100%',
+                  borderLeft: '4px solid',
+                  borderColor: item.color
+                }}
+              >
+                <CardContent>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography 
+                      color="textSecondary" 
+                      variant="body2" 
+                      component="div" 
+                      gutterBottom
+                    >
+                      {item.title}
+                    </Typography>
+                    <Box sx={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center',
+                      backgroundColor: `${item.color}22`,
+                      borderRadius: '50%',
+                      width: 40,
+                      height: 40
+                    }}>
+                      {item.icon}
+                    </Box>
+                  </Box>
+                  <Typography variant="h5" component="div">
+                    {item.value}
+                  </Typography>
+                  <Typography 
+                    color={item.changeColor || 'textSecondary'} 
+                    variant="body2"
+                    sx={{ 
+                      display: 'flex', 
+                      alignItems: 'center',
+                      mt: 1
+                    }}
+                  >
+                    {item.changeIcon}
+                    {item.change}
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
 
-      {isLoading ? (
-        <LinearProgress sx={{ mb: 4 }} />
-      ) : dashboardData && (
+        {/* 내비게이션 앱 바로가기 카드 */}
+        <Paper sx={{ p: 2, mb: 3, borderRadius: 2, bgcolor: theme.palette.primary.main, color: 'white' }}>
+          <Grid container alignItems="center" spacing={2}>
+            <Grid item xs={12} md={8}>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: { xs: 2, md: 0 } }}>
+                <NavigationIcon sx={{ fontSize: 48, mr: 2 }} />
+                <Box>
+                  <Typography variant="h5" component="div" gutterBottom>
+                    도시 교통 내비게이션
+                  </Typography>
+                  <Typography variant="body1">
+                    UTIC 데이터 기반 실시간 교통 정보, 경로 계산 및 알림을 제공하는 내비게이션 서비스를 이용해보세요.
+                  </Typography>
+                </Box>
+              </Box>
+            </Grid>
+            <Grid item xs={12} md={4} sx={{ textAlign: { xs: 'left', md: 'right' } }}>
+              <Button
+                variant="contained"
+                size="large"
+                component={RouterLink}
+                to="/navigation"
+                startIcon={<MapIcon />}
+                sx={{ 
+                  bgcolor: 'white', 
+                  color: theme.palette.primary.main,
+                  '&:hover': {
+                    bgcolor: 'rgba(255,255,255,0.8)',
+                  }
+                }}
+              >
+                내비게이션 시작하기
+              </Button>
+            </Grid>
+          </Grid>
+        </Paper>
+
         <Grid container spacing={3}>
-          {/* 차량 현황 요약 */}
-          <Grid item xs={12} md={6} lg={3}>
-            <Card>
-              <CardContent>
-                <Typography color="textSecondary" gutterBottom>
-                  총 차량
-                </Typography>
-                <Typography variant="h4">
-                  {dashboardData.vehicles.total}
-                </Typography>
-                <Box sx={{ display: 'flex', mt: 2, gap: 1 }}>
-                  <Box>
-                    <Typography variant="caption" color="textSecondary">
-                      활성
-                    </Typography>
-                    <Typography variant="body2" color="success.main" sx={{ fontWeight: 'medium' }}>
-                      {dashboardData.vehicles.active}
-                    </Typography>
-                  </Box>
-                  <Box sx={{ mx: 1 }}>
-                    <Typography variant="caption" color="textSecondary">
-                      정비 중
-                    </Typography>
-                    <Typography variant="body2" color="warning.main" sx={{ fontWeight: 'medium' }}>
-                      {dashboardData.vehicles.maintenance}
-                    </Typography>
-                  </Box>
-                  <Box>
-                    <Typography variant="caption" color="textSecondary">
-                      비활성
-                    </Typography>
-                    <Typography variant="body2" color="error.main" sx={{ fontWeight: 'medium' }}>
-                      {dashboardData.vehicles.inactive}
-                    </Typography>
-                  </Box>
+          {/* 차트 영역 */}
+          <Grid component="div" sx={{ gridColumn: { xs: 'span 12', md: 'span 8' } }}>
+            <Paper sx={{ p: 2, mb: 3, height: '400px' }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="h6">차량 운행 분석</Typography>
+                <Box>
+                  {chartOptions.map(option => (
+                    <IconButton 
+                      key={option.value}
+                      size="small"
+                      color={selectedChartOption === option.value ? 'primary' : 'default'}
+                      onClick={() => setSelectedChartOption(option.value)}
+                    >
+                      {option.icon}
+                    </IconButton>
+                  ))}
                 </Box>
-              </CardContent>
-              <Divider />
-              <Box sx={{ p: 1 }}>
-                <Button size="small" onClick={() => navigate('/vehicles')}>
-                  차량 목록 보기
-                </Button>
               </Box>
-            </Card>
-          </Grid>
-
-          {/* 정비 현황 요약 */}
-          <Grid item xs={12} md={6} lg={3}>
-            <Card>
-              <CardContent>
-                <Typography color="textSecondary" gutterBottom>
-                  정비 현황
-                </Typography>
-                <Typography variant="h4">
-                  {dashboardData.maintenance.completed}
-                </Typography>
-                <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
-                  완료된 정비
-                </Typography>
-                <Box sx={{ display: 'flex', mt: 2, gap: 1 }}>
-                  <Box>
-                    <Typography variant="caption" color="textSecondary">
-                      예정됨
-                    </Typography>
-                    <Typography variant="body2" color="info.main" sx={{ fontWeight: 'medium' }}>
-                      {dashboardData.maintenance.scheduled}
-                    </Typography>
-                  </Box>
-                  <Box sx={{ mx: 1 }}>
-                    <Typography variant="caption" color="textSecondary">
-                      진행 중
-                    </Typography>
-                    <Typography variant="body2" color="warning.main" sx={{ fontWeight: 'medium' }}>
-                      {dashboardData.maintenance.inProgress}
-                    </Typography>
-                  </Box>
-                  <Box>
-                    <Typography variant="caption" color="textSecondary">
-                      지연됨
-                    </Typography>
-                    <Typography variant="body2" color="error.main" sx={{ fontWeight: 'medium' }}>
-                      {dashboardData.maintenance.overdue}
-                    </Typography>
-                  </Box>
-                </Box>
-              </CardContent>
-              <Divider />
-              <Box sx={{ p: 1 }}>
-                <Button size="small" onClick={() => navigate('/maintenance')}>
-                  정비 이력 보기
-                </Button>
+              
+              {/* 차트 컴포넌트 */}
+              <Box sx={{ height: 'calc(100% - 50px)' }}>
+                {selectedChartOption === 'mileage' && <MileageChart />}
+                {selectedChartOption === 'fuel' && <FuelConsumptionChart />}
+                {selectedChartOption === 'speed' && <SpeedAnalysisChart />}
               </Box>
-            </Card>
-          </Grid>
-
-          {/* 월간 비용 추이 */}
-          <Grid item xs={12} md={6} lg={3}>
-            <Card>
-              <CardContent>
-                <Typography color="textSecondary" gutterBottom>
-                  이번 달 정비 비용
+            </Paper>
+            
+            <Paper sx={{ p: 2, mb: 3 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="h6">다가오는 법정검사</Typography>
+                <Typography 
+                  variant="body2" 
+                  color="primary" 
+                  component={RouterLink} 
+                  to="/inspections"
+                  sx={{ textDecoration: 'none' }}
+                >
+                  모든 법정검사 보기
                 </Typography>
-                <Typography variant="h4">
-                  {formatCurrency(1250000)}
-                </Typography>
-                <Typography variant="body2" color="success.main" sx={{ mt: 1 }}>
-                  ↓ 지난달 대비 12% 감소
-                </Typography>
-              </CardContent>
-              <Divider />
-              <Box sx={{ p: 1 }}>
-                <Button size="small" onClick={() => navigate('/reports')}>
-                  비용 보고서 보기
-                </Button>
               </Box>
-            </Card>
-          </Grid>
-
-          {/* 차량 종류 */}
-          <Grid item xs={12} md={6} lg={3}>
-            <Card>
-              <CardContent>
-                <Typography color="textSecondary" gutterBottom>
-                  차량 종류
-                </Typography>
-                <Box sx={{ mt: 1 }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                    <Typography variant="body2">승용차</Typography>
-                    <Typography variant="body2">7대</Typography>
-                  </Box>
-                  <LinearProgress variant="determinate" value={58} sx={{ mb: 1 }} />
-                  
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                    <Typography variant="body2">SUV</Typography>
-                    <Typography variant="body2">3대</Typography>
-                  </Box>
-                  <LinearProgress variant="determinate" value={25} color="secondary" sx={{ mb: 1 }} />
-                  
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                    <Typography variant="body2">트럭</Typography>
-                    <Typography variant="body2">2대</Typography>
-                  </Box>
-                  <LinearProgress variant="determinate" value={17} color="success" sx={{ mb: 1 }} />
-                </Box>
-              </CardContent>
-              <Divider />
-              <Box sx={{ p: 1 }}>
-                <Button size="small" onClick={() => navigate('/vehicles')}>
-                  차량 목록 보기
-                </Button>
+              
+              <Box sx={{ height: '240px', overflow: 'auto' }}>
+                <UpcomingInspectionsWidget days={30} limit={3} />
               </Box>
-            </Card>
-          </Grid>
-
-          {/* 차트 및 그래프 */}
-          <Grid item xs={12} lg={8}>
-            <Card>
-              <CardHeader title="정비 비용 추이" />
-              <CardContent>
-                <DashboardChart />
-              </CardContent>
-            </Card>
-          </Grid>
-
-          {/* 예정된 정비 목록 */}
-          <Grid item xs={12} lg={4}>
-            <Card sx={{ height: '100%' }}>
-              <CardHeader title="예정된 정비" action={
-                <Button size="small" onClick={() => navigate('/maintenance?filter=scheduled')}>
-                  모두 보기
-                </Button>
-              } />
+            </Paper>
+            
+            <Paper sx={{ p: 2, height: '300px' }}>
+              <Typography variant="h6" gutterBottom>정비 일정</Typography>
               <List>
-                {dashboardData.upcomingMaintenance.map((item) => (
-                  <ListItem key={item.id} onClick={() => navigate(`/maintenance/${item.id}`)} sx={{ cursor: 'pointer' }}>
+                {maintenanceSchedule.map((schedule) => (
+                  <ListItem 
+                    key={schedule.id} 
+                    divider 
+                    secondaryAction={
+                      <IconButton edge="end">
+                        <MoreVertIcon />
+                      </IconButton>
+                    }
+                  >
                     <ListItemIcon>
-                      <Avatar sx={{ bgcolor: getStatusColor(item.priority) }}>
-                        <ScheduleIcon />
-                      </Avatar>
+                      {schedule.completed ? (
+                        <CheckIcon color="success" />
+                      ) : schedule.overdue ? (
+                        <WarningIcon color="error" />
+                      ) : (
+                        <ScheduleIcon color="primary" />
+                      )}
                     </ListItemIcon>
                     <ListItemText
-                      primary={item.vehicleName}
-                      secondary={`${formatDate(item.date)} - ${item.type}`}
+                      primary={schedule.title}
+                      secondary={
+                        <React.Fragment>
+                          <Typography
+                            component="span"
+                            variant="body2"
+                            color="text.primary"
+                          >
+                            {schedule.vehicleName}
+                          </Typography>
+                          {` — ${schedule.date}`}
+                        </React.Fragment>
+                      }
                     />
                   </ListItem>
                 ))}
-                {dashboardData.upcomingMaintenance.length === 0 && (
-                  <ListItem>
+              </List>
+            </Paper>
+          </Grid>
+          
+          {/* 오른쪽 사이드 영역 */}
+          <Grid component="div" sx={{ gridColumn: { xs: 'span 12', md: 'span 4' } }}>
+            {/* 최근 알림 */}
+            <Paper sx={{ p: 2, mb: 3 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="h6">최근 알림</Typography>
+                <Typography 
+                  variant="body2" 
+                  color="primary" 
+                  component={RouterLink} 
+                  to="/notifications"
+                  sx={{ textDecoration: 'none' }}
+                >
+                  모두 보기
+                </Typography>
+              </Box>
+              
+              <List>
+                {notifications.map((notification) => (
+                  <ListItem 
+                    key={notification.id} 
+                    alignItems="flex-start"
+                    sx={{
+                      mb: 1,
+                      borderRadius: 1,
+                      backgroundColor: notification.read ? 'transparent' : 'action.hover',
+                      border: '1px solid',
+                      borderColor: 'divider'
+                    }}
+                  >
+                    <ListItemIcon>
+                      {notification.icon}
+                    </ListItemIcon>
                     <ListItemText
-                      primary="예정된 정비가 없습니다."
-                      secondary="새 정비를 예약하세요."
+                      primary={notification.title}
+                      secondary={
+                        <>
+                          <Typography
+                            variant="body2"
+                            color="text.primary"
+                            sx={{ mb: 0.5 }}
+                          >
+                            {notification.message}
+                          </Typography>
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                          >
+                            {notification.time}
+                          </Typography>
+                        </>
+                      }
                     />
                   </ListItem>
-                )}
+                ))}
               </List>
-            </Card>
-          </Grid>
-
-          {/* 최근 완료된 정비 */}
-          <Grid item xs={12}>
-            <Card>
-              <CardHeader title="최근 완료된 정비" />
-              <List sx={{ pt: 0 }}>
-                {dashboardData.recentMaintenance.map((item) => (
-                  <React.Fragment key={item.id}>
-                    <ListItem onClick={() => navigate(`/maintenance/${item.id}`)} sx={{ cursor: 'pointer' }}>
+            </Paper>
+            
+            {/* 활성 작업 */}
+            <Paper sx={{ p: 2 }}>
+              <Typography variant="h6" gutterBottom>
+                활성 작업
+              </Typography>
+              
+              {activeTasks.length > 0 ? (
+                <List>
+                  {activeTasks.map((task) => (
+                    <ListItem 
+                      key={task.id} 
+                      secondaryAction={
+                        <Typography variant="caption" color="text.secondary">
+                          {task.due}
+                        </Typography>
+                      }
+                    >
                       <ListItemIcon>
-                        <Avatar sx={{ bgcolor: 'success.main' }}>
-                          <CheckCircleIcon />
-                        </Avatar>
+                        <TaskIcon color="info" />
                       </ListItemIcon>
                       <ListItemText
-                        primary={item.vehicleName}
-                        secondary={`${formatDate(item.date)} - ${item.type}`}
+                        primary={task.title}
+                        secondary={`담당: ${task.assignee}`}
                       />
-                      <Typography variant="body2">
-                        {formatCurrency(item.cost)}
-                      </Typography>
                     </ListItem>
-                    <Divider component="li" />
-                  </React.Fragment>
+                  ))}
+                </List>
+              ) : (
+                <Box sx={{ py: 2, textAlign: 'center' }}>
+                  <Typography color="text.secondary" variant="body2">
+                    현재 활성화된 작업이 없습니다.
+                  </Typography>
+                </Box>
+              )}
+              
+              <Divider sx={{ my: 2 }} />
+              
+              <Stack direction="row" spacing={1}>
+                <Box 
+                  component={RouterLink} 
+                  to="/tasks/create"
+                  sx={{ 
+                    flex: 1, 
+                    textAlign: 'center',
+                    p: 1,
+                    borderRadius: 1,
+                    border: '1px dashed',
+                    borderColor: 'primary.main',
+                    color: 'primary.main',
+                    textDecoration: 'none',
+                    '&:hover': {
+                      backgroundColor: 'primary.light',
+                      color: 'primary.contrastText'
+                    }
+                  }}
+                >
+                  작업 추가
+                </Box>
+                <Box 
+                  component={RouterLink} 
+                  to="/tasks"
+                  sx={{ 
+                    flex: 1, 
+                    textAlign: 'center',
+                    p: 1,
+                    borderRadius: 1,
+                    border: '1px dashed',
+                    borderColor: 'text.secondary',
+                    color: 'text.secondary',
+                    textDecoration: 'none',
+                    '&:hover': {
+                      backgroundColor: 'action.hover',
+                    }
+                  }}
+                >
+                  모든 작업
+                </Box>
+              </Stack>
+            </Paper>
+          </Grid>
+          
+          {/* 추가적인 통계 정보 */}
+          <Grid component="div" sx={{ gridColumn: 'span 12' }}>
+            <Paper sx={{ p: 2, mt: 3 }}>
+              <Typography variant="h6" gutterBottom>
+                차량 상태 요약
+              </Typography>
+              
+              <Grid container spacing={2}>
+                {vehicleStatusData.map((status) => (
+                  <Grid component="div" key={status.id} sx={{ gridColumn: { xs: 'span 12', sm: 'span 6', md: 'span 3' } }}>
+                    <Box sx={{ 
+                      p: 2, 
+                      border: '1px solid', 
+                      borderColor: 'divider',
+                      borderRadius: 1,
+                      display: 'flex',
+                      alignItems: 'center'
+                    }}>
+                      {status.icon}
+                      <Box sx={{ ml: 2 }}>
+                        <Typography variant="body2" color="text.secondary">
+                          {status.label}
+                        </Typography>
+                        <Typography variant="h6">
+                          {status.value}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Grid>
                 ))}
-              </List>
-            </Card>
+              </Grid>
+            </Paper>
           </Grid>
         </Grid>
-      )}
-      {error && (
-        <Typography color="error" sx={{ mt: 2 }}>
-          {error}
-        </Typography>
-      )}
-    </Box>
+      </Box>
+    </Container>
   );
 };
 

@@ -13,7 +13,7 @@ export const shopService = {
   async getShops(filter?: ShopFilter): Promise<Shop[]> {
     const params = filter ? { ...filter } : {};
     const response = await api.get('/shops', { params });
-    return response.data;
+    return response.data as Shop[];
   },
 
   /**
@@ -23,7 +23,7 @@ export const shopService = {
    */
   async getShopById(shopId: string): Promise<Shop> {
     const response = await api.get(`/shops/${shopId}`);
-    return response.data;
+    return response.data as Shop;
   },
 
   /**
@@ -33,7 +33,7 @@ export const shopService = {
    */
   async createShop(shopData: ShopCreate): Promise<Shop> {
     const response = await api.post('/shops', shopData);
-    return response.data;
+    return response.data as Shop;
   },
 
   /**
@@ -44,7 +44,7 @@ export const shopService = {
    */
   async updateShop(shopId: string, updateData: ShopUpdate): Promise<Shop> {
     const response = await api.put(`/shops/${shopId}`, updateData);
-    return response.data;
+    return response.data as Shop;
   },
 
   /**
@@ -54,7 +54,7 @@ export const shopService = {
    */
   async deleteShop(shopId: string): Promise<boolean> {
     const response = await api.delete(`/shops/${shopId}`);
-    return response.data.success;
+    return (response.data as { success: boolean }).success;
   },
 
   /**
@@ -65,7 +65,7 @@ export const shopService = {
    */
   async getShopReviews(shopId: string, params?: { page?: number; limit?: number; sort?: string }): Promise<ShopReview[]> {
     const response = await api.get(`/shops/${shopId}/reviews`, { params });
-    return response.data;
+    return response.data as ShopReview[];
   },
 
   /**
@@ -76,7 +76,7 @@ export const shopService = {
    */
   async createShopReview(shopId: string, reviewData: Omit<ShopReview, 'id' | 'shopId' | 'createdAt' | 'updatedAt'>): Promise<ShopReview> {
     const response = await api.post(`/shops/${shopId}/reviews`, reviewData);
-    return response.data;
+    return response.data as ShopReview;
   },
 
   /**
@@ -87,10 +87,10 @@ export const shopService = {
    * @param filter 필터 옵션
    * @returns 정비소 목록
    */
-  async findNearbyShops(latitude: number, longitude: number, radius: number = 10, filter?: Partial<ShopFilter>): Promise<Shop[]> {
+  async findNearbyShops(latitude: number, longitude: number, radius = 10, filter?: Partial<ShopFilter>): Promise<Shop[]> {
     const params = { latitude, longitude, radius, ...filter };
     const response = await api.get('/shops/nearby', { params });
-    return response.data;
+    return response.data as Shop[];
   },
 
   /**
@@ -98,9 +98,9 @@ export const shopService = {
    * @param limit 조회할 정비소 수
    * @returns 추천 정비소 목록
    */
-  async getFeaturedShops(limit: number = 5): Promise<Shop[]> {
+  async getFeaturedShops(limit = 5): Promise<Shop[]> {
     const response = await api.get('/shops/featured', { params: { limit } });
-    return response.data;
+    return response.data as Shop[];
   },
 
   /**
@@ -113,7 +113,7 @@ export const shopService = {
   async checkShopAvailability(shopId: string, serviceDate: string, serviceTime?: string): Promise<{ available: boolean; availableSlots?: string[] }> {
     const params = { serviceDate, serviceTime };
     const response = await api.get(`/shops/${shopId}/availability`, { params });
-    return response.data;
+    return response.data as { available: boolean; availableSlots?: string[] };
   },
 
   /**
@@ -132,7 +132,7 @@ export const shopService = {
       }
     });
     
-    return response.data.imageUrl;
+    return (response.data as { imageUrl: string }).imageUrl;
   },
 
   /**
@@ -144,7 +144,7 @@ export const shopService = {
   async searchShops(query: string, filter?: Partial<ShopFilter>): Promise<Shop[]> {
     const params = { query, ...filter };
     const response = await api.get('/shops/search', { params });
-    return response.data;
+    return response.data as Shop[];
   },
 
   /**
@@ -161,6 +161,12 @@ export const shopService = {
     periodData: Array<{ date: string; revenue: number; serviceCount: number }>;
   }> {
     const response = await api.get(`/shops/${shopId}/statistics`, { params: { period } });
-    return response.data;
+    return response.data as {
+      revenue: number;
+      serviceCount: number;
+      averageRating: number;
+      customerCount: number;
+      periodData: Array<{ date: string; revenue: number; serviceCount: number }>;
+    };
   }
-}; 
+};

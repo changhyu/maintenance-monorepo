@@ -1,0 +1,89 @@
+{
+  "app": {
+    "name": "Vehicle Maintenance",
+    "description": "Efficient vehicle maintenance management system",
+    "copyright": "© 2023 Vehicle Maintenance Management System"
+  },
+  "actions": {
+    "add": "Add",
+    "edit": "Edit",
+    "delete": "Delete",
+    "save": "Save",
+    "cancel": "Cancel",
+    "close": "Close",
+    "search": "Search",
+    "filter": "Filter",
+    "refresh": "Refresh",
+    "back": "Back",
+    "next": "Next",
+    "prev": "Previous",
+    "confirm": "Confirm",
+    "submit": "Submit",
+    "reset": "Reset",
+    "upload": "Upload",
+    "download": "Download",
+    "print": "Print"
+  },
+  "messages": {
+    "loading": "Loading...",
+    "error": "An error has occurred.",
+    "notFound": "Page not found.",
+    "serverError": "Server error has occurred.",
+    "networkError": "Network connection error has occurred.",
+    "unauthorized": "You don't have access permissions.",
+    "sessionExpired": "Your session has expired. Please log in again.",
+    "dataNotFound": "Data not found.",
+    "saveSuccess": "Successfully saved.",
+    "deleteSuccess": "Successfully deleted.",
+    "updateSuccess": "Successfully updated.",
+    "createSuccess": "Successfully created."
+  },
+  "navigation": {
+    "home": "Home",
+    "dashboard": "Dashboard",
+    "vehicles": "Vehicles",
+    "maintenance": "Maintenance Records",
+    "schedule": "Maintenance Schedule",
+    "shops": "Repair Shops",
+    "settings": "Settings",
+    "profile": "My Profile",
+    "logout": "Logout",
+    "reports": "Reports",
+    "help": "Help"
+  },
+  "filters": {
+    "all": "All",
+    "active": "Active",
+    "inactive": "Inactive",
+    "completed": "Completed",
+    "pending": "Pending",
+    "date": "Date",
+    "status": "Status",
+    "type": "Type",
+    "category": "Category",
+    "sortBy": "Sort by",
+    "sortOrder": "Sort order",
+    "ascending": "Ascending",
+    "descending": "Descending"
+  },
+  "time": {
+    "now": "Just now",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "tomorrow": "Tomorrow",
+    "days": "{{count}} days",
+    "days_one": "{{count}} day",
+    "weeks": "{{count}} weeks",
+    "weeks_one": "{{count}} week",
+    "months": "{{count}} months",
+    "months_one": "{{count}} month",
+    "years": "{{count}} years",
+    "years_one": "{{count}} year"
+  },
+  "offline": {
+    "message": "You are offline.",
+    "reconnecting": "Reconnecting...",
+    "offline": "Offline mode",
+    "cached": "View cached data"
+  }
+}

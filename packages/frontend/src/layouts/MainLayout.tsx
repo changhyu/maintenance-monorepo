@@ -28,6 +28,10 @@ import {
   Notifications as NotificationsIcon,
   AccountCircle,
   ChevronLeft as ChevronLeftIcon,
+  Announcement as AnnouncementIcon,
+  Newspaper as NewsIcon,
+  Navigation as NavigationIcon,
+  Hdd as HddIcon,
 } from '@mui/icons-material';
 import OfflineNotice from '../components/OfflineNotice';
 
@@ -54,6 +58,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     { text: '차량 관리', path: '/vehicles', icon: <CarIcon /> },
     { text: '정비 관리', path: '/maintenance', icon: <MaintenanceIcon /> },
     { text: '정비소', path: '/shops', icon: <ShopIcon /> },
+    { text: '공지사항', path: '/notices', icon: <AnnouncementIcon /> },
+    { text: '자동차 뉴스', path: '/news', icon: <NewsIcon /> },
+    { text: '내비게이션', path: '/navigation', icon: <NavigationIcon /> },
+    { text: '시스템 모니터', path: '/system-monitor', icon: <HddIcon /> },
   ];
 
   const handleDrawerToggle = () => {

@@ -3,7 +3,7 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
 import { useTheme } from '../../components/ThemeContext';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth, useAuthStatus, useAuthUser } from '../../context/AuthContext';
 
 // 내비게이션 항목 타입
 interface NavItem {
@@ -22,7 +22,10 @@ const navItems: NavItem[] = [
 
 const Header: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
-  const { isAuthenticated, user, logout } = useAuth();
+  const { logout } = useAuth();
+  const authStatus = useAuthStatus();
+  const user = useAuthUser();
+  const isAuthenticated = authStatus === 'authenticated';
   const location = useLocation();
 
   return (
@@ -71,7 +74,7 @@ const Header: React.FC = () => {
             <div className="flex items-center space-x-2">
               <span className="text-gray-700 dark:text-gray-300">{user?.name || '사용자'}</span>
               <button
-                onClick={logout}
+                onClick={() => logout()}
                 className="py-1 px-3 bg-red-600 hover:bg-red-700 text-white rounded"
               >
                 로그아웃

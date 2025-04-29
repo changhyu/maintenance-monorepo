@@ -1,0 +1,11 @@
+{
+  "name": "maintenance-frontend",
+  "version": 2,
+  "framework": "vite",
+  "buildCommand": "cd ../.. && npm install && npm run build",
+  "outputDirectory": "dist",
+  "routes": [
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/index.html" }
+  ]
+}

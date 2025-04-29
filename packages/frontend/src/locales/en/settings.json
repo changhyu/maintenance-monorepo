@@ -1,0 +1,64 @@
+{
+  "settings": {
+    "title": "Settings",
+    "general": "General Settings",
+    "account": "Account Settings",
+    "notifications": "Notification Settings",
+    "appearance": "Appearance Settings",
+    "language": "Language Settings",
+    "security": "Security Settings",
+    "advanced": "Advanced Settings",
+    "system": "System Settings",
+    "preferences": {
+      "title": "Preferences",
+      "theme": "Theme",
+      "darkMode": "Dark Mode",
+      "lightMode": "Light Mode",
+      "systemDefault": "System Default",
+      "fontSize": "Font Size",
+      "dateFormat": "Date Format",
+      "timeFormat": "Time Format"
+    },
+    "account": {
+      "profile": "Profile",
+      "changePassword": "Change Password",
+      "twoFactor": "Two-Factor Authentication",
+      "linkedAccounts": "Linked Accounts",
+      "deleteAccount": "Delete Account",
+      "currentPassword": "Current Password",
+      "newPassword": "New Password",
+      "confirmPassword": "Confirm Password"
+    },
+    "notifications": {
+      "email": "Email Notifications",
+      "push": "Push Notifications",
+      "sms": "SMS Notifications",
+      "inApp": "In-App Notifications",
+      "maintenance": "Maintenance Notifications",
+      "schedule": "Schedule Notifications",
+      "system": "System Notifications"
+    },
+    "system": {
+      "general": "General",
+      "users": "User Management",
+      "roles": "Role Management",
+      "departments": "Department Management",
+      "backup": "Backup and Restore",
+      "logs": "System Logs",
+      "updates": "Updates"
+    },
+    "actions": {
+      "save": "Save",
+      "cancel": "Cancel",
+      "reset": "Reset",
+      "import": "Import",
+      "export": "Export"
+    },
+    "messages": {
+      "saveSuccess": "Settings saved successfully.",
+      "resetSuccess": "Settings reset to default values.",
+      "passwordChanged": "Password has been changed successfully.",
+      "error": "An error occurred while saving settings."
+    }
+  }
+}

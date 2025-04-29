@@ -1,0 +1,178 @@
+{
+  "root": true,
+  "env": {
+    "browser": true,
+    "es2021": true,
+    "node": true,
+    "jest": true
+  },
+  "extends": [
+    "eslint:recommended",
+    "plugin:react/recommended",
+    "plugin:react-hooks/recommended",
+    "plugin:@typescript-eslint/recommended",
+    "plugin:jsx-a11y/recommended",
+    "plugin:import/errors",
+    "plugin:import/warnings",
+    "plugin:import/typescript",
+    "prettier"
+  ],
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "ecmaFeatures": {
+      "jsx": true
+    },
+    "ecmaVersion": 2023,
+    "sourceType": "module",
+    "project": ["./tsconfig.local.json"]
+  },
+  "plugins": [
+    "react",
+    "react-hooks",
+    "@typescript-eslint",
+    "jsx-a11y",
+    "import",
+    "prettier"
+  ],
+  "settings": {
+    "react": {
+      "version": "detect"
+    },
+    "import/resolver": {
+      "node": {
+        "extensions": [".js", ".jsx", ".ts", ".tsx"],
+        "paths": ["src"]
+      },
+      "typescript": {
+        "alwaysTryTypes": true,
+        "project": ["./tsconfig.local.json"]
+      }
+    },
+    "import/ignore": ["node_modules", "dist", ".json$", ".(scss|less|css|styl)$"]
+  },
+  "rules": {
+    "react-hooks/rules-of-hooks": "error",
+    "no-console": "off",
+    "no-var": "error",
+    "prefer-const": "error",
+    "@typescript-eslint/no-explicit-any": "off",
+    "@typescript-eslint/explicit-module-boundary-types": "off",
+    "@typescript-eslint/no-unused-vars": "off",
+    "@typescript-eslint/ban-ts-comment": "off",
+    "@typescript-eslint/ban-types": "off",
+    "@typescript-eslint/no-non-null-assertion": "off",
+    "@typescript-eslint/no-empty-interface": "off",
+    "@typescript-eslint/no-var-requires": "off",
+    "@typescript-eslint/no-inferrable-types": "off",
+    "@typescript-eslint/no-namespace": "off",
+    "@typescript-eslint/no-empty-function": "off",
+    "import/no-unresolved": "off",
+    "import/named": "off",
+    "import/default": "off",
+    "import/no-absolute-path": "off",
+    "import/no-self-import": "off",
+    "import/no-named-as-default": "off",
+    "import/namespace": "off",
+    "import/no-duplicates": "off",
+    "react-hooks/exhaustive-deps": "warn",
+    "jsx-a11y/anchor-is-valid": "off",
+    "jsx-a11y/click-events-have-key-events": "off",
+    "jsx-a11y/no-static-element-interactions": "off",
+    "jsx-a11y/label-has-associated-control": "off",
+    "jsx-a11y/no-noninteractive-element-interactions": "off",
+    "jsx-a11y/alt-text": "off",
+    "jsx-a11y/interactive-supports-focus": "off",
+    "react/prop-types": "off",
+    "react/react-in-jsx-scope": "off",
+    "react/display-name": "off",
+    "react/jsx-key": "off",
+    "no-unused-vars": "off",
+    "prettier/prettier": "off",
+    "import/extensions": "off",
+    "no-case-declarations": "off",
+    "@typescript-eslint/ban-types": "warn",
+    "@typescript-eslint/ban-ts-comment": "warn",
+    "@typescript-eslint/no-non-null-assertion": "warn",
+    "@typescript-eslint/no-empty-function": "warn",
+    "@typescript-eslint/no-empty-interface": "warn",
+    "@typescript-eslint/no-namespace": "warn",
+    "@typescript-eslint/no-inferrable-types": "warn",
+    "@typescript-eslint/no-var-requires": "warn",
+    "@typescript-eslint/no-this-alias": "warn",
+    "@typescript-eslint/no-unsafe-assignment": "off",
+    "@typescript-eslint/no-unsafe-member-access": "off",
+    "@typescript-eslint/no-unsafe-call": "off",
+    "@typescript-eslint/no-unsafe-return": "off",
+    "@typescript-eslint/no-unsafe-argument": "off",
+    "react/jsx-filename-extension": ["warn", { "extensions": [".jsx", ".tsx"] }],
+    "import/order": "off"
+  },
+  "overrides": [
+    {
+      "files": ["**/*.test.tsx", "**/*.test.ts", "**/*.spec.tsx", "**/*.spec.ts"],
+      "rules": {
+        "@typescript-eslint/no-explicit-any": "off",
+        "@typescript-eslint/no-non-null-assertion": "off",
+        "import/no-extraneous-dependencies": "off"
+      }
+    },
+    {
+      "files": [
+        "*.config.js",
+        "*.config.ts",
+        "vite.config.js",
+        "vite.config.ts",
+        "tailwind.config.js",
+        "postcss.config.js"
+      ],
+      "rules": {
+        "@typescript-eslint/no-var-requires": "off",
+        "import/no-extraneous-dependencies": "off"
+      }
+    },
+    {
+      "files": ["**/index.js", "**/index.ts", "**/index.tsx"],
+      "rules": {
+        "import/export": "off"
+      }
+    },
+    {
+      "files": ["**/*.d.ts"],
+      "rules": {
+        "@typescript-eslint/ban-types": "off",
+        "@typescript-eslint/no-explicit-any": "off",
+        "import/no-duplicates": "off",
+        "import/order": "off",
+        "no-undef": "off"
+      }
+    },
+    {
+      "files": ["**/components/**/*.tsx", "**/pages/**/*.tsx"],
+      "rules": {
+        "react/jsx-key": "off",
+        "react/display-name": "off"
+      }
+    },
+    {
+      "files": ["**/services/**/*.ts", "**/services/**/*.tsx"],
+      "rules": {
+        "@typescript-eslint/no-unsafe-assignment": "off",
+        "@typescript-eslint/no-unsafe-member-access": "off",
+        "@typescript-eslint/no-unsafe-call": "off",
+        "@typescript-eslint/no-unsafe-return": "off",
+        "@typescript-eslint/no-unsafe-argument": "off",
+        "@typescript-eslint/no-explicit-any": "off",
+        "@typescript-eslint/explicit-module-boundary-types": "off",
+        "@typescript-eslint/restrict-template-expressions": "off",
+        "@typescript-eslint/no-non-null-assertion": "off",
+        "no-case-declarations": "off"
+      }
+    }
+  ],
+  "globals": {
+    "window": "readonly",
+    "document": "readonly",
+    "google": "readonly",
+    "NodeJS": "readonly"
+  }
+}

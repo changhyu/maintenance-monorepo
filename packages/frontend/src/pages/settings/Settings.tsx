@@ -41,7 +41,11 @@ function TabPanel(props: TabPanelProps) {
   );
 }
 
-const Settings: React.FC = () => {
+interface SettingsProps {
+  children: React.ReactNode;
+}
+
+const Settings: React.FC<SettingsProps> = ({ children }) => {
   const [tabValue, setTabValue] = useState(0);
   const { darkMode, toggleDarkMode } = useDarkMode();
   const { language, setLanguage } = useLanguage();

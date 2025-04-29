@@ -2,47 +2,49 @@
  * 알림 상태 enum
  */
 export enum NotificationStatus {
+  UNREAD = 'unread',
+  READ = 'read',
+  ARCHIVED = 'archived',
   SUCCESS = 'success',
   ERROR = 'error',
   WARNING = 'warning',
-  INFO = 'info',
-  UNREAD = 'unread',
-  READ = 'read'
+  INFO = 'info'
 }
 
 /**
  * 알림 타입 enum
  */
 export enum NotificationType {
+  ERROR = 'error',
+  WARNING = 'warning',
+  SUCCESS = 'success',
+  INFO = 'info',
   MAINTENANCE = 'maintenance',
   VEHICLE = 'vehicle',
+  DRIVER = 'driver',
   SYSTEM = 'system',
   APPOINTMENT = 'appointment',
   SERVICE = 'service',
   RECALL = 'recall',
   PAYMENT = 'payment',
   MESSAGE = 'message',
-  ACCOUNT = 'account'
+  OTHER = 'other'
 }
 
 /**
  * 알림 우선순위 enum
  */
-export enum NotificationPriority {
-  LOW = 'low',
-  MEDIUM = 'medium',
-  HIGH = 'high',
-  URGENT = 'urgent'
-}
+export type NotificationPriority = 'high' | 'medium' | 'low';
 
 /**
  * 알림 카테고리 enum
  */
 export enum NotificationCategory {
-  TASK = 'task',
-  ALERT = 'alert',
-  UPDATE = 'update',
-  REMINDER = 'reminder'
+  MAINTENANCE = 'maintenance',
+  VEHICLE = 'vehicle',
+  DRIVER = 'driver',
+  SYSTEM = 'system',
+  OTHER = 'other'
 }
 
 /**
@@ -74,22 +76,20 @@ export interface Notification {
   id: string;
   title: string;
   message: string;
-  status: NotificationStatus;
   type: NotificationType;
-  priority: NotificationPriority;
   category: NotificationCategory;
-  createdAt: Date;
-  expiresAt?: Date;
+  priority: NotificationPriority;
+  status: NotificationStatus;
   isRead: boolean;
-  isArchived?: boolean;
-  isMuted?: boolean;
+  createdAt: string;
   link?: string;
-  actions?: NotificationAction[];
   metadata?: Record<string, any>;
-  userId: string;
-  groupId?: string;
   thumbnail?: string;
-  sound?: string;
+  icon?: string;
+  actionText?: string;
+  secondaryActionText?: string;
+  expiresAt?: string;
+  scheduledAt?: string;
 }
 
 /**
@@ -309,4 +309,14 @@ export interface NotificationAction {
   icon?: string;
   variant?: 'text' | 'outlined' | 'contained';
   color?: 'primary' | 'secondary' | 'success' | 'error' | 'warning' | 'info';
+}
+
+/**
+ * 알림 서비스 인터페이스
+ */
+export interface NotificationService {
+  getNotifications: (params: any) => Promise<Notification[]>;
+  markAsRead: (id: string) => Promise<void>;
+  markAllAsRead: () => Promise<void>;
+  deleteNotification: (id: string) => Promise<void>;
 }

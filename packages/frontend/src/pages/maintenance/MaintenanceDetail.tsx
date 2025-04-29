@@ -24,6 +24,12 @@ import {
   DialogContentText,
   DialogTitle,
   Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -39,7 +45,11 @@ import {
   EventAvailable as DateIcon,
   Build as BuildIcon,
   Receipt as ReceiptIcon,
+  Speed as SpeedIcon,
 } from '@mui/icons-material';
+import { format } from 'date-fns';
+import { Maintenance, MaintenanceStatus, MaintenancePart } from '../../types/maintenance';
+import { MaintenanceService } from '../../services/maintenanceService';
 
 // 정비 기록 타입 정의 (임시)
 interface MaintenanceRecord {
@@ -50,7 +60,7 @@ interface MaintenanceRecord {
   type: string;
   description: string;
   date: string;
-  status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
+  status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled' | 'delayed';
   cost: number;
   technician?: string;
   shop?: string;
@@ -156,58 +166,123 @@ const mockMaintenanceRecords: Record<string, MaintenanceRecord> = {
 const MaintenanceDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [maintenance, setMaintenance] = useState<Maintenance | null>(null);
   const [loading, setLoading] = useState(true);
-  const [maintenanceRecord, setMaintenanceRecord] = useState<MaintenanceRecord | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [deleteDialog, setDeleteDialog] = useState(false);
   const [statusChangeDialog, setStatusChangeDialog] = useState<{
     open: boolean;
-    status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled' | null;
+    status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled' | 'delayed' | null;
   }>({ open: false, status: null });
 
-  useEffect(() => {
-    // API 호출 시뮬레이션
-    const fetchData = async () => {
-      try {
-        setTimeout(() => {
-          if (id && mockMaintenanceRecords[id]) {
-            setMaintenanceRecord(mockMaintenanceRecords[id]);
-          }
-          setLoading(false);
-        }, 1000);
-      } catch (error) {
-        console.error('정비 상세 정보 로딩 실패:', error);
-        setLoading(false);
-      }
-    };
+  const maintenanceService = MaintenanceService.getInstance();
 
-    fetchData();
+  useEffect(() => {
+    if (id) {
+      loadMaintenanceData(id);
+    }
   }, [id]);
 
-  const handleDeleteClick = () => {
-    setDeleteDialog(true);
+  const loadMaintenanceData = async (maintenanceId: string) => {
+    try {
+      setLoading(true);
+      const data = await maintenanceService.getMaintenanceById(maintenanceId);
+      setMaintenance(data);
+    } catch (error) {
+      console.error('정비 정보를 불러오는데 실패했습니다:', error);
+      setError('정비 정보를 불러오는데 실패했습니다.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const confirmDelete = () => {
-    // 실제로는 API 호출로 정비 기록 삭제
-    navigate('/maintenance');
-    setDeleteDialog(false);
+  const handleDelete = async () => {
+    if (!id || !window.confirm('정말로 이 정비 기록을 삭제하시겠습니까?')) return;
+
+    try {
+      await maintenanceService.deleteMaintenance(id);
+      navigate('/maintenance');
+    } catch (error) {
+      console.error('정비 기록 삭제에 실패했습니다:', error);
+      setError('정비 기록 삭제에 실패했습니다.');
+    }
   };
 
-  const handleStatusChange = (status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled') => {
+  const handleStatusChange = (status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled' | 'delayed') => {
     setStatusChangeDialog({
       open: true,
       status,
     });
   };
 
-  const confirmStatusChange = () => {
-    if (maintenanceRecord && statusChangeDialog.status) {
-      // 실제로는 API 호출로 상태 변경
-      setMaintenanceRecord({
-        ...maintenanceRecord,
-        status: statusChangeDialog.status,
-        completionDate: statusChangeDialog.status === 'completed' ? new Date().toISOString() : maintenanceRecord.completionDate,
-      });
+  const confirmStatusChange = async () => {
+    if (maintenance && statusChangeDialog.status) {
+      try {
+        setLoading(true);
+        
+        const newStatus = statusChangeDialog.status;
+        const updatedMaintenance = {
+          ...maintenance,
+          status: newStatus,
+          completionDate: newStatus === 'completed' ? new Date().toISOString() : maintenance.completionDate,
+        };
+        
+        // 개발 환경인지 확인
+        if (process.env.NODE_ENV === 'development') {
+          // 목업 응답 시뮬레이션
+          await new Promise(resolve => setTimeout(resolve, 500));
+          setMaintenance(updatedMaintenance);
+          
+          // 상태가 변경되었음을 알림
+          const statusText = 
+            newStatus === 'in_progress' ? '작업 시작' :
+            newStatus === 'completed' ? '작업 완료' :
+            newStatus === 'cancelled' ? '작업 취소' :
+            newStatus === 'delayed' ? '작업 지연' : '상태 변경';
+          
+          alert(`정비 기록이 '${statusText}' 상태로 변경되었습니다.`);
+          setLoading(false);
+        } else {
+          // 실제 API 호출
+          import('../../services').then(async ({ maintenanceService }) => {
+            try {
+              if (!id) return;
+              
+              // 상태에 따라 적절한 API 엔드포인트 호출
+              const result = await maintenanceService.updateMaintenanceStatus(id, newStatus);
+              // 모든 필수 필드가 포함된 완전한 MaintenanceRecord 객체를 생성
+              const updatedMaintenance: Maintenance = {
+                ...maintenance,
+                ...result,
+                // id는 항상 문자열이어야 함을 보장
+                id: maintenance.id
+              };
+              setMaintenance(updatedMaintenance);
+              
+              // 상태가 변경되었음을 알림
+              const statusText = 
+                newStatus === 'in_progress' ? '작업 시작' :
+                newStatus === 'completed' ? '작업 완료' :
+                newStatus === 'cancelled' ? '작업 취소' :
+                newStatus === 'delayed' ? '작업 지연' : '상태 변경';
+              
+              alert(`정비 기록이 '${statusText}' 상태로 변경되었습니다.`);
+              setLoading(false);
+            } catch (apiError) {
+              console.error('정비 상태 변경 실패:', apiError);
+              alert('정비 상태 변경 중 오류가 발생했습니다.');
+              setLoading(false);
+            }
+          }).catch(importError => {
+            console.error('서비스 모듈 로드 오류:', importError);
+            setLoading(false);
+          });
+        }
+      } catch (error) {
+        console.error('정비 상태 변경 실패:', error);
+        alert('정비 상태 변경 중 오류가 발생했습니다.');
+        setLoading(false);
+      }
     }
     setStatusChangeDialog({ open: false, status: null });
   };
@@ -232,6 +307,10 @@ const MaintenanceDetail: React.FC = () => {
       case 'cancelled':
         color = 'error';
         label = '취소됨';
+        break;
+      case 'delayed':
+        color = 'warning';
+        label = '지연됨';
         break;
       default:
         label = status;
@@ -270,29 +349,30 @@ const MaintenanceDetail: React.FC = () => {
     );
   }
 
-  if (!maintenanceRecord) {
+  if (error) {
     return (
-      <Box>
-        <Button
-          startIcon={<ArrowBackIcon />}
-          onClick={() => navigate('/maintenance')}
-          sx={{ mb: 3 }}
-        >
-          정비 목록으로 돌아가기
-        </Button>
-        <Alert severity="error">해당 정비 기록을 찾을 수 없습니다.</Alert>
-      </Box>
+      <Alert severity="error" sx={{ m: 2 }}>
+        {error}
+      </Alert>
+    );
+  }
+
+  if (!maintenance) {
+    return (
+      <Alert severity="info" sx={{ m: 2 }}>
+        정비 정보를 찾을 수 없습니다.
+      </Alert>
     );
   }
 
   // 총 비용 계산
-  const partsTotal = maintenanceRecord.parts?.reduce((sum, part) => sum + part.totalCost, 0) || 0;
-  const laborCost = maintenanceRecord.cost - partsTotal;
-  const totalCost = maintenanceRecord.cost;
+  const partsTotal = maintenance.parts?.reduce((sum, part) => sum + part.totalCost, 0) || 0;
+  const laborCost = maintenance.cost - partsTotal;
+  const totalCost = maintenance.cost;
 
   // 상태에 따른 액션 버튼 렌더링
   const renderActionButtons = () => {
-    switch (maintenanceRecord.status) {
+    switch (maintenance.status) {
       case 'scheduled':
         return (
           <>
@@ -328,6 +408,7 @@ const MaintenanceDetail: React.FC = () => {
         );
       case 'completed':
       case 'cancelled':
+      case 'delayed':
         return null;
       default:
         return null;
@@ -350,7 +431,7 @@ const MaintenanceDetail: React.FC = () => {
           >
             수정하기
           </Button>
-          <IconButton color="error" onClick={handleDeleteClick}>
+          <IconButton color="error" onClick={() => setDeleteDialog(true)}>
             <DeleteIcon />
           </IconButton>
         </Box>
@@ -361,49 +442,49 @@ const MaintenanceDetail: React.FC = () => {
         <CardContent>
           <Grid container spacing={2}>
             {/* 헤더 정보 */}
-            <Grid item xs={12}>
+            <Grid component="div" sx={{ gridColumn: { xs: 'span 12' } }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                 <Typography variant="h5" component="h1">
-                  {maintenanceRecord.type}
+                  {maintenance.type}
                 </Typography>
-                {getStatusChip(maintenanceRecord.status)}
+                {getStatusChip(maintenance.status)}
               </Box>
               <Typography variant="body1" sx={{ mb: 2 }}>
-                {maintenanceRecord.description}
+                {maintenance.description}
               </Typography>
               <Divider sx={{ mb: 2 }} />
             </Grid>
 
             {/* 차량 정보 */}
-            <Grid item xs={12} sm={6}>
+            <Grid component="div" sx={{ gridColumn: { xs: 'span 12', sm: 'span 6' } }}>
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                 <Avatar sx={{ mr: 2, bgcolor: 'primary.main' }}>
                   <CarIcon />
                 </Avatar>
                 <Box>
                   <Typography variant="body1" fontWeight="medium">
-                    {maintenanceRecord.vehicleName}
+                    {maintenance.vehicleName}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    {maintenanceRecord.vehicleLicensePlate}
+                    {maintenance.vehicleLicensePlate}
                   </Typography>
                 </Box>
               </Box>
             </Grid>
 
             {/* 날짜 정보 */}
-            <Grid item xs={12} sm={6}>
+            <Grid component="div" sx={{ gridColumn: { xs: 'span 12', sm: 'span 6' } }}>
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                 <Avatar sx={{ mr: 2, bgcolor: 'info.main' }}>
                   <DateIcon />
                 </Avatar>
                 <Box>
                   <Typography variant="body1" fontWeight="medium">
-                    예정일: {formatDate(maintenanceRecord.date)}
+                    예정일: {formatDate(maintenance.scheduledDate)}
                   </Typography>
-                  {maintenanceRecord.completionDate && (
-                    <Typography variant="body2" color={maintenanceRecord.status === 'completed' ? 'success.main' : 'text.secondary'}>
-                      완료일: {formatDate(maintenanceRecord.completionDate)}
+                  {maintenance.completionDate && (
+                    <Typography variant="body2" color={maintenance.status === 'completed' ? 'success.main' : 'text.secondary'}>
+                      완료일: {formatDate(maintenance.completionDate)}
                     </Typography>
                   )}
                 </Box>
@@ -411,26 +492,22 @@ const MaintenanceDetail: React.FC = () => {
             </Grid>
 
             {/* 정비소/기술자 정보 */}
-            <Grid item xs={12} sm={6}>
+            <Grid component="div" sx={{ gridColumn: { xs: 'span 12', sm: 'span 6' } }}>
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                {maintenanceRecord.shop ? (
+                {maintenance.shopId && (
                   <Avatar sx={{ mr: 2, bgcolor: 'secondary.main' }}>
                     <ShopIcon />
                   </Avatar>
-                ) : (
-                  <Avatar sx={{ mr: 2, bgcolor: 'secondary.main' }}>
-                    <PersonIcon />
-                  </Avatar>
                 )}
                 <Box>
-                  {maintenanceRecord.shop && (
+                  {maintenance.shopId && (
                     <Typography variant="body1" fontWeight="medium">
-                      {maintenanceRecord.shop}
+                      {maintenance.shopId}
                     </Typography>
                   )}
-                  {maintenanceRecord.technician && (
+                  {maintenance.technicianId && (
                     <Typography variant="body2" color="text.secondary">
-                      담당: {maintenanceRecord.technician}
+                      담당: {maintenance.technicianId}
                     </Typography>
                   )}
                 </Box>
@@ -438,7 +515,7 @@ const MaintenanceDetail: React.FC = () => {
             </Grid>
 
             {/* 주행거리/비용 정보 */}
-            <Grid item xs={12} sm={6}>
+            <Grid component="div" sx={{ gridColumn: { xs: 'span 12', sm: 'span 6' } }}>
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                 <Avatar sx={{ mr: 2, bgcolor: 'success.main' }}>
                   <ReceiptIcon />
@@ -447,9 +524,9 @@ const MaintenanceDetail: React.FC = () => {
                   <Typography variant="body1" fontWeight="medium">
                     총 비용: {formatCurrency(totalCost)}
                   </Typography>
-                  {maintenanceRecord.mileage && (
+                  {maintenance.mileage && (
                     <Typography variant="body2" color="text.secondary">
-                      주행거리: {maintenanceRecord.mileage.toLocaleString()} km
+                      주행거리: {maintenance.mileage.toLocaleString()} km
                     </Typography>
                   )}
                 </Box>
@@ -457,7 +534,7 @@ const MaintenanceDetail: React.FC = () => {
             </Grid>
 
             {/* 액션 버튼 */}
-            <Grid item xs={12}>
+            <Grid component="div" sx={{ gridColumn: { xs: 'span 12' } }}>
               <Divider sx={{ my: 2 }} />
               <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
                 {renderActionButtons()}
@@ -469,35 +546,65 @@ const MaintenanceDetail: React.FC = () => {
 
       <Grid container spacing={3}>
         {/* 부품 목록 */}
-        <Grid item xs={12} md={6}>
+        <Grid component="div" sx={{ gridColumn: { xs: 'span 12', md: 'span 6' } }}>
           <Paper sx={{ mb: 3, p: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
               <PartIcon sx={{ mr: 1, color: 'primary.main' }} />
               <Typography variant="h6">부품 목록</Typography>
             </Box>
-            {maintenanceRecord.parts && maintenanceRecord.parts.length > 0 ? (
+            {maintenance.parts && maintenance.parts.length > 0 ? (
               <>
-                <List disablePadding>
-                  {maintenanceRecord.parts.map((part) => (
-                    <ListItem key={part.id} sx={{ px: 0, py: 1 }}>
-                      <ListItemText
-                        primary={
-                          <Typography variant="body1" component="div">
-                            {part.name} {part.partNumber && `(${part.partNumber})`}
-                          </Typography>
-                        }
-                        secondary={
-                          <Typography variant="body2" color="text.secondary">
-                            {part.quantity}개 × {formatCurrency(part.unitCost)}
-                          </Typography>
-                        }
-                      />
-                      <Typography variant="body1">
-                        {formatCurrency(part.totalCost)}
-                      </Typography>
-                    </ListItem>
-                  ))}
-                </List>
+                <TableContainer component={Paper}>
+                  <Table>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>부품명</TableCell>
+                        <TableCell>부품 번호</TableCell>
+                        <TableCell align="right">수량</TableCell>
+                        <TableCell align="right">단가</TableCell>
+                        <TableCell align="right">총액</TableCell>
+                        <TableCell>상태</TableCell>
+                        <TableCell>보증 만료일</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {maintenance.parts.map((part) => (
+                        <TableRow key={part.id}>
+                          <TableCell>{part.name}</TableCell>
+                          <TableCell>{part.partNumber}</TableCell>
+                          <TableCell align="right">{part.quantity}</TableCell>
+                          <TableCell align="right">{part.unitPrice.toLocaleString()}원</TableCell>
+                          <TableCell align="right">{part.totalPrice.toLocaleString()}원</TableCell>
+                          <TableCell>
+                            <Chip
+                              label={part.status}
+                              color={
+                                part.status === 'INSTALLED'
+                                  ? 'success'
+                                  : part.status === 'IN_STOCK'
+                                  ? 'info'
+                                  : 'warning'
+                              }
+                              size="small"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            {part.warrantyExpiry
+                              ? format(new Date(part.warrantyExpiry), 'yyyy-MM-dd')
+                              : '-'}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {maintenance.parts.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={7} align="center">
+                            사용된 부품이 없습니다.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
                 <Divider sx={{ my: 1 }} />
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
                   <Typography variant="body1">부품 비용</Typography>
@@ -529,48 +636,88 @@ const MaintenanceDetail: React.FC = () => {
         </Grid>
 
         {/* 문서 목록 */}
-        <Grid item xs={12} md={6}>
+        <Grid component="div" sx={{ gridColumn: { xs: 'span 12', md: 'span 6' } }}>
           <Paper sx={{ mb: 3, p: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-              <DocumentIcon sx={{ mr: 1, color: 'primary.main' }} />
-              <Typography variant="h6">문서</Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <DocumentIcon sx={{ mr: 1, color: 'primary.main' }} />
+                <Typography variant="h6">문서</Typography>
+              </Box>
+              <Button 
+                variant="outlined" 
+                size="small" 
+                startIcon={<DocumentIcon />}
+                onClick={() => alert('문서 업로드 기능은 곧 추가될 예정입니다.')}
+              >
+                문서 추가
+              </Button>
             </Box>
-            {maintenanceRecord.documents && maintenanceRecord.documents.length > 0 ? (
+            {maintenance.documents && maintenance.documents.length > 0 ? (
               <List>
-                {maintenanceRecord.documents.map((doc) => (
-                  <ListItem key={doc.id} sx={{ px: 0, py: 1 }}>
+                {maintenance.documents.map((doc) => (
+                  <ListItem key={doc.id} sx={{ px: 0, py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
                     <ListItemIcon>
-                      <Avatar sx={{ bgcolor: 'info.main', width: 36, height: 36 }}>
+                      <Avatar sx={{ 
+                        bgcolor: doc.type.includes('pdf') ? 'error.light' : 
+                                 doc.type.includes('image') ? 'success.light' : 'info.main', 
+                        width: 36, 
+                        height: 36 
+                      }}>
                         <DocumentIcon fontSize="small" />
                       </Avatar>
                     </ListItemIcon>
                     <ListItemText
-                      primary={doc.name}
-                      secondary={`${formatDate(doc.uploadedAt)} • ${formatFileSize(doc.size)}`}
+                      primary={<Typography variant="body1" sx={{ fontWeight: 'medium' }}>{doc.name}</Typography>}
+                      secondary={
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                          <Typography variant="caption" color="text.secondary">
+                            업로드: {formatDate(doc.uploadedAt)}
+                          </Typography>
+                          <Divider orientation="vertical" flexItem />
+                          <Typography variant="caption" color="text.secondary">
+                            {formatFileSize(doc.size)}
+                          </Typography>
+                        </Box>
+                      }
                     />
-                    <Button size="small" href={doc.fileUrl} target="_blank">
-                      보기
-                    </Button>
+                    <Box>
+                      <Button size="small" color="primary" href={doc.fileUrl} target="_blank">
+                        보기
+                      </Button>
+                      <IconButton size="small" color="error" onClick={() => alert('문서 삭제 기능은 곧 추가될 예정입니다.')}>
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </Box>
                   </ListItem>
                 ))}
               </List>
             ) : (
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                등록된 문서가 없습니다.
-              </Typography>
+              <Paper variant="outlined" sx={{ p: 3, textAlign: 'center' }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                  등록된 문서가 없습니다.
+                </Typography>
+                <Button 
+                  variant="text" 
+                  color="primary"
+                  startIcon={<DocumentIcon />}
+                  onClick={() => alert('문서 업로드 기능은 곧 추가될 예정입니다.')}
+                >
+                  문서 업로드
+                </Button>
+              </Paper>
             )}
           </Paper>
         </Grid>
 
         {/* 메모 */}
-        {maintenanceRecord.notes && (
-          <Grid item xs={12}>
+        {maintenance.notes && (
+          <Grid component="div" sx={{ gridColumn: { xs: 'span 12' } }}>
             <Paper sx={{ p: 2 }}>
               <Typography variant="h6" gutterBottom>
                 메모
               </Typography>
               <Typography variant="body1" sx={{ whiteSpace: 'pre-line' }}>
-                {maintenanceRecord.notes}
+                {maintenance.notes}
               </Typography>
             </Paper>
           </Grid>
@@ -590,7 +737,7 @@ const MaintenanceDetail: React.FC = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteDialog(false)}>취소</Button>
-          <Button onClick={confirmDelete} color="error">
+          <Button onClick={handleDelete} color="error">
             삭제
           </Button>
         </DialogActions>
@@ -616,6 +763,11 @@ const MaintenanceDetail: React.FC = () => {
           {statusChangeDialog.status === 'cancelled' && (
             <DialogContentText>
               이 정비 작업을 취소하시겠습니까?
+            </DialogContentText>
+          )}
+          {statusChangeDialog.status === 'delayed' && (
+            <DialogContentText>
+              이 정비 작업을 지연 상태로 표시하시겠습니까?
             </DialogContentText>
           )}
         </DialogContent>

@@ -17,7 +17,7 @@ export function formatCurrency(value: number | undefined | null): string {
       maximumFractionDigits: 0
     }).format(value);
   } catch (error) {
-    errorLogger.error('통화 형식 변환 오류', { value }, error);
+    errorLogger.error('통화 형식 변환 오류', { value }, error as Error);
     return `${value.toLocaleString('ko-KR')}원`;
   }
 }
@@ -31,7 +31,7 @@ export function formatNumber(value: number | undefined | null): string {
   try {
     return value.toLocaleString('ko-KR');
   } catch (error) {
-    errorLogger.error('숫자 형식 변환 오류', { value }, error);
+    errorLogger.error('숫자 형식 변환 오류', { value }, error as Error);
     return value.toString();
   }
 }
@@ -90,7 +90,7 @@ export function formatLicensePlate(plate: string | undefined | null): string {
  */
 export function truncateString(
   str: string | undefined | null,
-  maxLength: number = 20
+  maxLength = 20
 ): string {
   if (!str) return '';
   
@@ -153,4 +153,4 @@ export function getMaintenanceStatusText(status: string | undefined | null): str
     default:
       return status;
   }
-} 
+}

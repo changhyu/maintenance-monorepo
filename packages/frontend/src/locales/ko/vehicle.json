@@ -1,0 +1,51 @@
+{
+  "vehicle": {
+    "title": "차량 관리",
+    "list": "차량 목록",
+    "details": "차량 상세 정보",
+    "add": "차량 추가",
+    "edit": "차량 수정",
+    "delete": "차량 삭제",
+    "search": "차량 검색",
+    "filters": "필터",
+    "status": {
+      "active": "운행 중",
+      "maintenance": "정비 중",
+      "outOfService": "운행 불가"
+    },
+    "fields": {
+      "id": "차량 번호",
+      "plateNumber": "번호판",
+      "model": "모델명",
+      "type": "차종",
+      "year": "연식",
+      "mileage": "주행거리",
+      "lastMaintenance": "최근 정비일",
+      "nextMaintenance": "다음 정비 예정일",
+      "status": "상태",
+      "driver": "담당 운전자",
+      "department": "소속 부서",
+      "fuelType": "연료 유형",
+      "fuelEfficiency": "연비",
+      "purchaseDate": "구매일",
+      "insuranceExpiry": "보험 만료일"
+    },
+    "actions": {
+      "view": "보기",
+      "edit": "편집",
+      "delete": "삭제",
+      "schedule": "정비 일정 잡기",
+      "report": "보고서 생성",
+      "assign": "운전자 배정"
+    },
+    "messages": {
+      "addSuccess": "차량이 성공적으로 추가되었습니다.",
+      "editSuccess": "차량 정보가 성공적으로 수정되었습니다.",
+      "deleteSuccess": "차량이 성공적으로 삭제되었습니다.",
+      "deleteConfirm": "이 차량을 정말 삭제하시겠습니까?",
+      "maintenanceScheduled": "정비 일정이 성공적으로 등록되었습니다.",
+      "assignSuccess": "운전자가 성공적으로 배정되었습니다.",
+      "error": "오류가 발생했습니다. 나중에 다시 시도해주세요."
+    }
+  }
+}

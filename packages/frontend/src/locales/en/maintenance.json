@@ -1,0 +1,70 @@
+{
+  "maintenance": {
+    "title": "Maintenance",
+    "dashboard": "Maintenance Dashboard",
+    "schedule": "Maintenance Schedule",
+    "history": "Maintenance History",
+    "requests": "Service Requests",
+    "statistics": "Maintenance Statistics",
+    "status": {
+      "pending": "Pending",
+      "scheduled": "Scheduled",
+      "inProgress": "In Progress",
+      "completed": "Completed",
+      "cancelled": "Cancelled",
+      "delayed": "Delayed"
+    },
+    "type": {
+      "regular": "Regular Service",
+      "inspection": "Inspection",
+      "repair": "Repair",
+      "emergency": "Emergency",
+      "oil": "Oil Change",
+      "tire": "Tire Service",
+      "battery": "Battery Service",
+      "engine": "Engine Service",
+      "brake": "Brake Service",
+      "electrical": "Electrical Service",
+      "other": "Other"
+    },
+    "fields": {
+      "id": "Maintenance ID",
+      "vehicleId": "Vehicle ID",
+      "vehiclePlate": "License Plate",
+      "type": "Maintenance Type",
+      "description": "Description",
+      "startDate": "Start Date",
+      "endDate": "End Date",
+      "duration": "Duration",
+      "status": "Status",
+      "technician": "Technician",
+      "facility": "Service Facility",
+      "cost": "Cost",
+      "notes": "Notes",
+      "parts": "Parts Used",
+      "priority": "Priority",
+      "mileage": "Mileage"
+    },
+    "buttons": {
+      "schedule": "Schedule Maintenance",
+      "reschedule": "Reschedule",
+      "cancel": "Cancel Maintenance",
+      "complete": "Mark as Complete",
+      "edit": "Edit",
+      "delete": "Delete",
+      "view": "View Details",
+      "report": "Generate Report",
+      "export": "Export Data"
+    },
+    "messages": {
+      "createSuccess": "Maintenance has been successfully scheduled.",
+      "updateSuccess": "Maintenance details have been updated.",
+      "deleteSuccess": "Maintenance record has been deleted.",
+      "completeSuccess": "Maintenance has been marked as completed.",
+      "cancelSuccess": "Maintenance has been cancelled.",
+      "error": "An error occurred. Please try again later.",
+      "confirmCancel": "Are you sure you want to cancel this maintenance?",
+      "confirmDelete": "Are you sure you want to delete this maintenance record?"
+    }
+  }
+}

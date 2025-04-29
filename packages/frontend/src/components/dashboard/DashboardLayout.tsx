@@ -171,6 +171,11 @@ const StatusContainer = styled.div`
   padding: 1rem;
 `;
 
+const SafeContent: React.FC<{ content: React.ReactNode }> = ({ content }) => {
+  // This wrapper component safely renders ReactNode content
+  return <>{content}</>;
+};
+
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   widgets,
   onLayoutChange,
@@ -436,7 +441,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                                 {item.errorMessage || '오류가 발생했습니다.'}
                               </Alert>
                             )}
-                            {item.content}
+                            <div>{item.content as JSX.Element}</div>
                           </ContentWrapper>
                         </Collapse>
                       </StyledCard>

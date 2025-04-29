@@ -61,6 +61,17 @@ declare module '*.svg' {
 // 타입 스크립트에서 'as JSX Element'로 변환을 허용하도록 설정
 declare module 'react/jsx-runtime' {
   export default React;
-  export const jsx: React.FC;
-  export const jsxs: React.FC;
+  
+  // jsx/jsxs를 React.FC가 아닌 함수 타입으로 정의
+  export function jsx(
+    type: React.ElementType,
+    props: any,
+    key?: React.Key | null
+  ): React.ReactElement;
+  
+  export function jsxs(
+    type: React.ElementType,
+    props: any,
+    key?: React.Key | null
+  ): React.ReactElement;
 }

@@ -1,11 +1,11 @@
-import React, { Component, ErrorInfo } from 'react';
-
+import React from 'react';
+import type { ErrorInfo, ReactNode } from 'react';
 import { Button, Result } from 'antd';
 
 interface ErrorBoundaryProps {
-  fallback?: React.ReactNode;
+  fallback?: ReactNode;
   onReset?: () => void;
-  children: React.ReactNode;
+  children: ReactNode;
 }
 
 interface ErrorBoundaryState {
@@ -18,21 +18,25 @@ interface ErrorBoundaryState {
  * 에러 바운더리 컴포넌트
  * 하위 컴포넌트 트리에서 발생하는 JavaScript 오류를 캐치하고 폴백 UI를 표시
  */
-class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+class ErrorBoundary extends React.Component<
+  ErrorBoundaryProps,
+  ErrorBoundaryState
+> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = {
       hasError: false,
       error: null,
-      errorInfo: null
+      errorInfo: null,
     };
   }
 
-  static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     // 오류 발생 시 상태 업데이트
     return {
       hasError: true,
-      error
+      error,
+      errorInfo: null,
     };
   }
 
@@ -40,7 +44,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
     // 로깅 또는 오류 보고 서비스에 오류 보고
     console.error('ErrorBoundary caught an error:', error, errorInfo);
     this.setState({
-      errorInfo
+      errorInfo,
     });
   }
 
@@ -54,11 +58,11 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
     this.setState({
       hasError: false,
       error: null,
-      errorInfo: null
+      errorInfo: null,
     });
   };
 
-  render(): React.ReactNode {
+  render(): ReactNode {
     if (this.state.hasError) {
       // 폴백 UI 표시
       if (this.props.fallback) {
@@ -74,7 +78,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
           extra={[
             <Button key="reset" type="primary" onClick={this.handleReset}>
               다시 시도
-            </Button>
+            </Button>,
           ]}
         >
           <div style={{ textAlign: 'left', margin: '20px 0' }}>
@@ -101,11 +105,20 @@ export function withErrorBoundary<P extends object>(
   WrappedComponent: React.ComponentType<P>,
   errorBoundaryProps?: Omit<ErrorBoundaryProps, 'children'>
 ): React.FC<P> {
-  return (props: P) => (
+  const displayName =
+    WrappedComponent.displayName ||
+    WrappedComponent.name ||
+    'Component';
+
+  const WithErrorBoundary: React.FC<P> = (props: P) => (
     <ErrorBoundary {...errorBoundaryProps}>
       <WrappedComponent {...props} />
     </ErrorBoundary>
   );
+
+  WithErrorBoundary.displayName = `withErrorBoundary(${displayName})`;
+
+  return WithErrorBoundary;
 }
 
 export default ErrorBoundary;
