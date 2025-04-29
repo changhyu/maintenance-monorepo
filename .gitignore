@@ -19,6 +19,11 @@ coverage/
 .env.development.local
 .env.test.local
 .env.production.local
+.env.db
+.env.docs
+.env.gateway
+.env.ml
+.env.mobile
 
 # Logs
 logs/
@@ -27,6 +32,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
+server.log
 
 # IDE & Editors
 .idea/
@@ -41,6 +47,7 @@ lerna-debug.log*
 *.sln
 *.sw?
 .DS_Store
+.cursor/
 
 # Mobile
 .expo/
@@ -56,8 +63,52 @@ web-build/
 .temp/
 .tmp/
 .cache/
+.turbo/
+.dependency-backups/
+.husky/
 
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts
 .fake
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.pytest_cache/
+.coverage
+htmlcov/
+.venv/
+.venv_*/
+venv/
+testvenv/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Database
+*.sqlite
+*.db
+*.sqlite3
+prod.db*
+test.db
+
+# Backup files
+*.bak
+*_backup/
+backup_*/
+website.bfg-report/
+
+# Build artifacts
+website/
+
+# Large binary files
+*.tar.gz
+*.zip
+
+# Misc
+=*
+*.exe
