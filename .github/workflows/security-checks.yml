@@ -1,0 +1,164 @@
+name: Security Checks
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # 매주 월요일 오전 3시에 실행
+    - cron: '0 3 * * 1'
+  workflow_dispatch: # 수동 실행 가능
+
+jobs:
+  docker-security:
+    name: Docker Security Checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Docker
+        uses: docker/setup-buildx-action@v2
+
+      - name: Run Docker Security Scan
+        run: |
+          chmod +x ./scripts/docker-security-scan.sh
+          ./scripts/docker-security-scan.sh
+        
+      - name: Upload Docker Security Results
+        if: success() || failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: docker-security-scans
+          path: docker-security-scans/
+          retention-days: 7
+
+  code-security:
+    name: Code Security Checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run Security Scan for Sensitive Information
+        run: |
+          chmod +x ./scripts/security-scan.sh
+          ./scripts/security-scan.sh
+
+      - name: Upload Security Scan Results
+        if: success() || failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-scans
+          path: security-scans/
+          retention-days: 7
+
+      - name: Run npm audit
+        run: npm run security:audit
+        continue-on-error: true  # 취약점이 있어도 워크플로우가 중단되지 않도록 설정
+
+  python-security:
+    name: Python Security Checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install Python security tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install bandit safety
+
+      - name: Find Python files
+        id: find-python-files
+        run: |
+          echo "PYTHON_PACKAGES=$(find . -name "*.py" | grep -v "node_modules" | grep -v "__pycache__" | wc -l)" >> $GITHUB_OUTPUT
+
+      - name: Run Bandit (Python security scanner)
+        if: steps.find-python-files.outputs.PYTHON_PACKAGES > 0
+        run: |
+          bandit -r ./packages -f json -o bandit-results.json || true
+          
+      - name: Upload Bandit Results
+        if: steps.find-python-files.outputs.PYTHON_PACKAGES > 0
+        uses: actions/upload-artifact@v3
+        with:
+          name: bandit-results
+          path: bandit-results.json
+          retention-days: 7
+
+      - name: Check Python dependencies with Safety
+        if: steps.find-python-files.outputs.PYTHON_PACKAGES > 0
+        run: |
+          find . -name "requirements.txt" -exec safety check -r {} --json > safety-results.json \; || true
+          
+      - name: Upload Safety Results
+        if: steps.find-python-files.outputs.PYTHON_PACKAGES > 0
+        uses: actions/upload-artifact@v3
+        with:
+          name: safety-results
+          path: safety-results.json
+          retention-days: 7
+
+  report:
+    name: Security Report
+    needs: [docker-security, code-security, python-security]
+    runs-on: ubuntu-latest
+    if: always()  # 이전 작업들이 실패해도 실행
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+
+      - name: Generate Security Report
+        run: |
+          echo "# Security Scan Results - $(date)" > security-report.md
+          echo "## Docker Security Scan" >> security-report.md
+          if [ -d "docker-security-scans" ]; then
+            cat docker-security-scans/* >> security-report.md
+          else
+            echo "No Docker security scan results found" >> security-report.md
+          fi
+          
+          echo -e "\n## Code Security Scan" >> security-report.md
+          if [ -d "security-scans" ]; then
+            cat security-scans/* >> security-report.md
+          else
+            echo "No code security scan results found" >> security-report.md
+          fi
+          
+          echo -e "\n## Python Security Scan" >> security-report.md
+          if [ -f "bandit-results/bandit-results.json" ]; then
+            echo "Bandit results available in artifacts" >> security-report.md
+          fi
+          if [ -f "safety-results/safety-results.json" ]; then
+            echo "Safety results available in artifacts" >> security-report.md
+          fi
+          
+      - name: Upload Security Report
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-report
+          path: security-report.md
+          retention-days: 14
+          
+      # Pull Request Comment with Report
+      - name: Comment PR
+        if: github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: security-report
+          path: security-report.md

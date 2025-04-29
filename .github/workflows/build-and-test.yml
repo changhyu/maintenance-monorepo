@@ -1,0 +1,399 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:  # 수동 실행 허용
+
+# 동시 실행 방지를 위한 concurrency 설정
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true  # 새로운 커밋이 푸시되면 이전 실행 취소
+
+env:
+  DEFAULT_DB_PASSWORD: 'test_password'
+  DEFAULT_SLACK_WEBHOOK: ''
+
+jobs:
+  setup:
+    name: Setup and Dependency Check
+    runs-on: ubuntu-latest
+    outputs:
+      cache-hit-node: ${{ steps.cache-node-modules.outputs.cache-hit || '' }}
+      cache-hit-python: ${{ steps.cache-python-env.outputs.cache-hit || '' }}
+      node-changed: ${{ steps.filter.outputs.node }}
+      python-changed: ${{ steps.filter.outputs.python }}
+      frontend-changed: ${{ steps.filter.outputs.frontend }}
+      backend-changed: ${{ steps.filter.outputs.backend }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 전체 히스토리를 가져와 변경 파일 감지를 정확하게 함
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Filter changes
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            node:
+              - 'package.json'
+              - 'package-lock.json'
+              - 'packages/*/package.json'
+            python:
+              - 'requirements*.txt'
+              - 'backend/requirements*.txt'
+              - 'packages/*/requirements*.txt'
+            frontend:
+              - 'packages/frontend/**'
+              - 'packages/shared/**'
+              - 'packages/api-client/**'
+            backend:
+              - 'backend/**'
+              - 'packages/api/**'
+              - 'packages/shared-python/**'
+      
+      # Node.js 의존성 캐싱
+      - name: Cache node modules
+        id: cache-node-modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            **/node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-modules-
+      
+      # Python 가상환경 캐싱
+      - name: Cache Python virtual environment
+        id: cache-python-env
+        uses: actions/cache@v4
+        with:
+          path: |
+            .venv
+            ~/.cache/pip
+          key: ${{ runner.os }}-python-venv-${{ hashFiles('**/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-python-venv-
+      
+      # 캐시 미스 시에만 Node.js 의존성 설치
+      - name: Install Node.js dependencies
+        if: steps.cache-node-modules.outputs.cache-hit != 'true' && steps.filter.outputs.node == 'true'
+        run: npm ci
+      
+      # 캐시 미스 시에만 Python 의존성 설치
+      - name: Install Python dependencies
+        if: steps.cache-python-env.outputs.cache-hit != 'true' && steps.filter.outputs.python == 'true'
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          if [ -f "requirements-dev.txt" ]; then
+            pip install -r requirements-dev.txt
+          fi
+  
+  lint:
+    name: Lint Code
+    needs: setup
+    runs-on: ubuntu-latest
+    if: |
+      needs.setup.outputs.frontend-changed == 'true' ||
+      needs.setup.outputs.backend-changed == 'true'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      # 노드 모듈 캐시 복원
+      - name: Restore node modules cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            **/node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('**/package-lock.json') }}
+      
+      # Python 가상환경 캐시 복원
+      - name: Restore Python virtual environment
+        uses: actions/cache@v4
+        with:
+          path: |
+            .venv
+            ~/.cache/pip
+          key: ${{ runner.os }}-python-venv-${{ hashFiles('**/requirements*.txt') }}
+      
+      # 프론트엔드 린트
+      - name: Lint frontend code
+        if: needs.setup.outputs.frontend-changed == 'true'
+        run: |
+          npm run lint:frontend
+      
+      # 백엔드 린트
+      - name: Lint backend code
+        if: needs.setup.outputs.backend-changed == 'true'
+        run: |
+          source .venv/bin/activate
+          flake8 backend
+          pylint backend
+  
+  test-frontend:
+    name: Test Frontend
+    needs: [setup, lint]
+    runs-on: ubuntu-latest
+    if: needs.setup.outputs.frontend-changed == 'true'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      # 노드 모듈 캐시 복원
+      - name: Restore node modules cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            **/node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('**/package-lock.json') }}
+      
+      # 프론트엔드 테스트 실행
+      - name: Run frontend tests
+        run: npm run test:frontend
+      
+      # 테스트 커버리지 아티팩트 업로드
+      - name: Upload test coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-test-coverage
+          path: packages/frontend/coverage
+          retention-days: 14
+  
+  test-backend:
+    name: Test Backend
+    needs: [setup, lint]
+    runs-on: ubuntu-latest
+    if: needs.setup.outputs.backend-changed == 'true'
+    
+    services:
+      # 테스트용 PostgreSQL 서비스
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD || env.DEFAULT_DB_PASSWORD }}
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      # Python 가상환경 캐시 복원
+      - name: Restore Python virtual environment
+        uses: actions/cache@v4
+        with:
+          path: |
+            .venv
+            ~/.cache/pip
+          key: ${{ runner.os }}-python-venv-${{ hashFiles('**/requirements*.txt') }}
+      
+      # 백엔드 테스트 실행
+      - name: Run backend tests
+        run: |
+          source .venv/bin/activate
+          export DATABASE_URL=postgresql://postgres:${{ secrets.DB_PASSWORD || env.DEFAULT_DB_PASSWORD }}@localhost:5432/test_db
+          pytest backend --cov=backend
+      
+      # 테스트 커버리지 아티팩트 업로드
+      - name: Upload test coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-coverage
+          path: backend/htmlcov
+          retention-days: 14
+  
+  build:
+    name: Build Packages
+    needs: [test-frontend, test-backend]
+    runs-on: ubuntu-latest
+    # 테스트가 성공했거나 해당 영역이 변경되지 않았을 때 실행
+    if: |
+      always() &&
+      (needs.test-frontend.result == 'success' || needs.test-frontend.result == 'skipped') &&
+      (needs.test-backend.result == 'success' || needs.test-backend.result == 'skipped')
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      # 노드 모듈 캐시 복원
+      - name: Restore node modules cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            **/node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('**/package-lock.json') }}
+      
+      # Python 가상환경 캐시 복원
+      - name: Restore Python virtual environment
+        uses: actions/cache@v4
+        with:
+          path: |
+            .venv
+            ~/.cache/pip
+          key: ${{ runner.os }}-python-venv-${{ hashFiles('**/requirements*.txt') }}
+      
+      # 빌드 캐시 설정
+      - name: Cache build output
+        uses: actions/cache@v4
+        with:
+          path: |
+            **/dist
+            **/build
+          key: ${{ runner.os }}-build-${{ github.sha }}
+      
+      # 프론트엔드 빌드
+      - name: Build frontend
+        if: needs.setup.outputs.frontend-changed == 'true'
+        run: npm run build:frontend
+      
+      # 백엔드 패키징
+      - name: Package backend
+        if: needs.setup.outputs.backend-changed == 'true'
+        run: |
+          source .venv/bin/activate
+          cd backend
+          python setup.py sdist bdist_wheel
+      
+      # 빌드 결과물 아티팩트 업로드
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: |
+            packages/frontend/build
+            backend/dist
+          retention-days: 7
+  
+  deploy-dev:
+    name: Deploy to Dev Environment
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts
+      
+      # 여기서는 개발 환경 배포 스크립트 실행
+      - name: Deploy to dev server
+        run: |
+          echo "Deploying to development environment..."
+          # 실제 배포 스크립트 실행
+          # ./scripts/deploy-dev.sh
+      
+      # Slack 알림 전송
+      - name: Send Slack notification
+        if: always()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          fields: repo,message,commit,author,action,eventName,workflow
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL || env.DEFAULT_SLACK_WEBHOOK }}
+  
+  # 메인 브랜치에 머지되면 프로덕션 배포
+  deploy-prod:
+    name: Deploy to Production Environment
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts
+      
+      # 여기서는 프로덕션 환경 배포 스크립트 실행
+      - name: Deploy to production server
+        run: |
+          echo "Deploying to production environment..."
+          # 실제 배포 스크립트 실행
+          # ./scripts/deploy-prod.sh
+      
+      # Slack 알림 통합 전송
+      - name: Send Slack notification
+        if: always()
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_CHANNEL: ci-cd
+          SLACK_COLOR: ${{ job.status == 'success' && '#00FF00' || '#FF0000' }}
+          SLACK_ICON: https://github.com/rtCamp.png?size=48
+          SLACK_MESSAGE: ${{ job.status == 'success' && '빌드 성공! :white_check_mark:' || '빌드 실패! :x:' }}
+          SLACK_TITLE: 빌드 및 테스트 ${{ job.status == 'success' && '성공' || '실패' }}
+          SLACK_USERNAME: GitHub Actions
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL || env.DEFAULT_SLACK_WEBHOOK }}

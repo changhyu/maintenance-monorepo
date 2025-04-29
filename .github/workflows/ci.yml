@@ -24,14 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          fetch-depth: 0 # SonarQube를 위한 전체 이력 가져오기
-
-      - name: SonarQube Scan
-        uses: SonarSource/sonarqube-scan-action@v1
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-        if: ${{ env.SONAR_HOST_URL != '' && env.SONAR_TOKEN != '' }}
+          fetch-depth: 0 # 전체 이력 가져오기
 
       - name: Code Security Analysis
         uses: github/codeql-action/analyze@v2

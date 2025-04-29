@@ -1,0 +1,317 @@
+name: Deploy Automation
+
+env:
+  DEFAULT_IMAGE_NAME: 'default-image'
+  DEFAULT_VERSION: 'latest'
+  DEFAULT_ENV: 'dev'
+  DEFAULT_MONITORING_URL: 'http://localhost:8080'
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: '배포 환경'
+        required: true
+        default: 'development'
+        type: choice
+        options:
+          - development
+          - staging
+          - production
+      confirm:
+        description: '배포를 확인하시겠습니까?'
+        required: true
+        type: boolean
+        default: false
+
+# 동시 실행 방지
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false  # 진행 중인 배포는 취소하지 않음
+
+jobs:
+  # 사전 검증 단계
+  validate:
+    name: Validate Deployment
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.set-env.outputs.environment }}
+      version: ${{ steps.set-version.outputs.version }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 태그 정보를 가져오기 위해 필요
+
+      # 배포 환경 설정
+      - name: Set deployment environment
+        id: set-env
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "environment=${{ github.event.inputs.environment }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "environment=production" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
+            echo "environment=development" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            echo "environment=production" >> $GITHUB_OUTPUT
+          else
+            echo "environment=development" >> $GITHUB_OUTPUT
+          fi
+
+      # 버전 설정
+      - name: Set version
+        id: set-version
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/v}
+          else
+            VERSION=$(git rev-parse --short HEAD)
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version for deployment: $VERSION"
+
+      # 프로덕션 배포 시 수동 확인 필요
+      - name: Check production deployment
+        if: |
+          (steps.set-env.outputs.environment == 'production') && 
+          (github.event_name == 'workflow_dispatch') && 
+          (github.event.inputs.confirm != 'true')
+        run: |
+          echo "::error::Production deployment requires explicit confirmation"
+          exit 1
+
+  # 빌드 단계
+  build:
+    name: Build Application
+    needs: validate
+    runs-on: ubuntu-latest
+    environment: ${{ needs.validate.outputs.environment }}
+    outputs:
+      image_name: ${{ steps.set-outputs.outputs.image_name }}
+      version: ${{ steps.set-outputs.outputs.version }}
+      env_name: ${{ steps.set-outputs.outputs.env_name }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      # Docker 이미지 캐싱
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+      
+      # GitHub Container Registry 로그인
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      # 변수 설정
+      - name: Set environment variables
+        run: |
+          echo "IMAGE_NAME=ghcr.io/${{ github.repository }}" >> $GITHUB_ENV
+          echo "VERSION=${{ needs.validate.outputs.version }}" >> $GITHUB_ENV
+          echo "ENV=${{ needs.validate.outputs.environment }}" >> $GITHUB_ENV
+      
+      # 빌드 및 태그 설정
+      - name: Build and tag API image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.api
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME }}/api:${{ env.VERSION }}
+            ${{ env.IMAGE_NAME }}/api:${{ env.ENV }}
+            ${{ env.IMAGE_NAME }}/api:latest
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new
+          build-args: |
+            BUILD_ENV=${{ env.ENV }}
+            VERSION=${{ env.VERSION }}
+      
+      # 프론트엔드 빌드
+      - name: Build and tag Frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.frontend
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME }}/frontend:${{ env.VERSION }}
+            ${{ env.IMAGE_NAME }}/frontend:${{ env.ENV }}
+            ${{ env.IMAGE_NAME }}/frontend:latest
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new
+          build-args: |
+            BUILD_ENV=${{ env.ENV }}
+            VERSION=${{ env.VERSION }}
+      
+      # 캐시 업데이트 (새 캐시로 이전 캐시 대체)
+      - name: Move cache
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+      
+      - name: Set outputs
+        id: set-outputs
+        run: |
+          echo "image_name=${IMAGE_NAME:-$DEFAULT_IMAGE_NAME}" >> $GITHUB_OUTPUT
+          echo "version=${VERSION:-$DEFAULT_VERSION}" >> $GITHUB_OUTPUT
+          echo "env_name=${ENV:-$DEFAULT_ENV}" >> $GITHUB_OUTPUT
+
+  # 개발 환경 배포
+  deploy-dev:
+    name: Deploy to Development
+    needs: [validate, build]
+    if: needs.validate.outputs.environment == 'development'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Configure SSH
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.DEV_SSH_KEY }}
+      
+      - name: Deploy to Dev
+        env:
+          HOST: ${{ secrets.DEV_HOST }}
+          USERNAME: ${{ secrets.DEV_USERNAME }}
+          PORT: ${{ secrets.DEV_PORT }}
+          IMAGE_NAME: ${{ needs.build.outputs.image_name }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          ssh -p $PORT $USERNAME@$HOST "docker pull $IMAGE_NAME:$VERSION"
+
+  # 스테이징 환경 배포
+  deploy-staging:
+    name: Deploy to Staging
+    needs: [validate, build]
+    if: needs.validate.outputs.environment == 'staging'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Configure SSH
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.STAGING_SSH_KEY }}
+      
+      - name: Deploy to Staging
+        env:
+          HOST: ${{ secrets.STAGING_HOST }}
+          USERNAME: ${{ secrets.STAGING_USERNAME }}
+          PORT: ${{ secrets.STAGING_PORT }}
+          IMAGE_NAME: ${{ needs.build.outputs.image_name }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          ssh -p $PORT $USERNAME@$HOST "docker pull $IMAGE_NAME:$VERSION"
+
+  # 프로덕션 환경 배포
+  deploy-prod:
+    name: Deploy to Production
+    needs: [validate, build]
+    if: needs.validate.outputs.environment == 'production'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Configure SSH
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.PROD_SSH_KEY }}
+      
+      - name: Deploy to Production
+        env:
+          HOST: ${{ secrets.PROD_HOST }}
+          USERNAME: ${{ secrets.PROD_USERNAME }}
+          PORT: ${{ secrets.PROD_PORT }}
+          IMAGE_NAME: ${{ needs.build.outputs.image_name }}
+          VERSION: ${{ needs.build.outputs.version }}
+          MONITORING_URL: ${{ secrets.MONITORING_URL || env.DEFAULT_MONITORING_URL }}
+        run: |
+          ssh -p $PORT $USERNAME@$HOST "docker pull $IMAGE_NAME:$VERSION"
+
+      - name: Send Slack notification
+        if: always()
+        uses: 8398a7/action-slack@v3
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        with:
+          status: ${{ job.status }}
+          fields: repo,message,commit,author,action,eventName,workflow
+
+  # 배포 모니터링 
+  deployment-monitor:
+    name: Monitor Deployment
+    needs: [validate, deploy-dev, deploy-staging, deploy-prod]
+    if: |
+      always() && 
+      (needs.deploy-dev.result == 'success' || needs.deploy-staging.result == 'success' || needs.deploy-prod.result == 'success')
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Setup monitoring
+        run: |
+          echo "Setting up deployment monitoring..."
+          
+          # 환경에 따른 모니터링 URL 설정
+          if [[ "${{ needs.validate.outputs.environment }}" == "production" ]]; then
+            MONITORING_URL="https://example.com/health"
+          elif [[ "${{ needs.validate.outputs.environment }}" == "staging" ]]; then
+            MONITORING_URL="https://staging.example.com/health"
+          else
+            MONITORING_URL="https://dev.example.com/health"
+          fi
+          
+          echo "Monitoring URL: $MONITORING_URL"
+          echo "MONITORING_URL=$MONITORING_URL" >> $GITHUB_ENV
+      
+      # 배포 후 상태 모니터링 (5분 간격으로 1시간 동안 체크)
+      - name: Perform health checks
+        run: |
+          for i in {1..12}; do
+            echo "Performing health check $i/12..."
+            
+            # 상태 확인 API 호출
+            STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" ${{ env.MONITORING_URL }})
+            
+            if [[ "$STATUS_CODE" != "200" ]]; then
+              echo "::warning::Health check failed with status code: $STATUS_CODE"
+            else
+              echo "Health check succeeded!"
+            fi
+            
+            # 마지막 체크가 아니면 대기
+            if [[ $i -lt 12 ]]; then
+              echo "Waiting 5 minutes until next check..."
+              sleep 300
+            fi
+          done
+      
+      # 모니터링 결과 알림
+      - name: Notify monitoring results
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          fields: repo,message,action,eventName,ref,workflow,job,took
+          text: |
+            Deployment Monitoring Complete
+            Environment: ${{ needs.validate.outputs.environment }}
+            Version: ${{ needs.validate.outputs.version }}
+            Status: ${{ job.status }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

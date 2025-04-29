@@ -28,6 +28,26 @@ CREATE INDEX IF NOT EXISTS idx_created_at ON maintenance_logs USING BRIN (create
 CREATE INDEX IF NOT EXISTS idx_vehicle_search ON vehicles USING GiST (make, model, year);
 CREATE INDEX IF NOT EXISTS idx_maintenance_status ON maintenance_records USING BTREE (status);
 
+-- 자주 사용되는 조회에 대한 인덱스 추가
+CREATE INDEX IF NOT EXISTS idx_maintenance_vehicle_id ON maintenance_records USING HASH (vehicle_id);
+CREATE INDEX IF NOT EXISTS idx_maintenance_date ON maintenance_records USING BRIN (maintenance_date);
+CREATE INDEX IF NOT EXISTS idx_vehicle_owner_id ON vehicles USING HASH (owner_id);
+CREATE INDEX IF NOT EXISTS idx_vehicle_vin ON vehicles USING HASH (vin);
+CREATE INDEX IF NOT EXISTS idx_vehicle_reg_number ON vehicles USING HASH (registration_number);
+CREATE INDEX IF NOT EXISTS idx_vehicle_stats_multidim ON vehicles USING BTREE (status, type, make);
+
+-- 데이터베이스 성능 최적화 설정
+ALTER SYSTEM SET shared_buffers = '256MB';                -- 서버 메모리의 25%
+ALTER SYSTEM SET effective_cache_size = '768MB';          -- 서버 메모리의 75%
+ALTER SYSTEM SET maintenance_work_mem = '64MB';           -- 인덱스 생성 등에 사용할 메모리
+ALTER SYSTEM SET work_mem = '4MB';                        -- 쿼리 처리에 사용할 메모리
+ALTER SYSTEM SET random_page_cost = 1.1;                  -- SSD 사용 시
+ALTER SYSTEM SET max_connections = 100;                   -- 최대 연결 수
+ALTER SYSTEM SET checkpoint_timeout = '10min';            -- 체크포인트 주기
+ALTER SYSTEM SET checkpoint_completion_target = 0.9;      -- 체크포인트 작업 분산
+ALTER SYSTEM SET wal_buffers = '16MB';                    -- WAL 버퍼 크기
+ALTER SYSTEM SET synchronous_commit = 'off';              -- 트랜잭션 성능 향상
+
 -- 감사 로깅을 위한 테이블 생성
 CREATE TABLE IF NOT EXISTS audit_log (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -58,4 +78,16 @@ BEGIN
     END IF;
     RETURN NULL;
 END;
-$$ LANGUAGE plpgsql; 
+$$ LANGUAGE plpgsql;
+
+-- 자주 사용되는 쿼리에 대한 프리페어드 스테이트먼트 설정
+PREPARE vehicle_by_id(uuid) AS
+    SELECT * FROM vehicles WHERE id = $1;
+
+PREPARE maintenance_by_vehicle(uuid) AS
+    SELECT * FROM maintenance_records WHERE vehicle_id = $1 ORDER BY maintenance_date DESC;
+
+PREPARE recent_maintenance(int) AS
+    SELECT * FROM maintenance_records 
+    ORDER BY maintenance_date DESC 
+    LIMIT $1;

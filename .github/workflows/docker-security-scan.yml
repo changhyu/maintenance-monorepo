@@ -1,0 +1,140 @@
+name: Docker Security Scan
+
+on:
+  push:
+    branches: [ main, master, develop ]
+    paths:
+      - 'Dockerfile*'
+      - 'docker/**'
+      - '.github/workflows/docker-security-scan.yml'
+  pull_request:
+    branches: [ main, master, develop ]
+    paths:
+      - 'Dockerfile*'
+      - 'docker/**'
+  workflow_dispatch:  # 수동 실행 허용
+
+jobs:
+  docker-security-scan:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false  # 하나의 검사 실패로 모든 작업이 중단되지 않도록 함
+      matrix:
+        dockerfile:
+          - Dockerfile.api
+          - Dockerfile.frontend
+          - Dockerfile.gateway
+          - Dockerfile.ml
+          - Dockerfile.mobile-api
+          - Dockerfile.docs
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Install Trivy
+        run: |
+          sudo apt-get install -y wget apt-transport-https gnupg lsb-release
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+          echo deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main | sudo tee -a /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update
+          sudo apt-get install -y trivy
+
+      - name: Scan Dockerfile
+        id: scan_dockerfile
+        run: |
+          mkdir -p reports
+          trivy config --exit-code 1 --severity HIGH,CRITICAL ${{ matrix.dockerfile }} | tee reports/${{ matrix.dockerfile }}_config_scan.txt || echo "::warning::Dockerfile ${{ matrix.dockerfile }} has vulnerabilities"
+        continue-on-error: true
+
+      - name: Build Docker image
+        id: build
+        run: |
+          IMAGE_NAME=$(echo ${{ matrix.dockerfile }} | sed 's/Dockerfile.//')
+          docker build -t $IMAGE_NAME:scan-test -f ${{ matrix.dockerfile }} .
+        continue-on-error: true
+
+      - name: Scan Docker Image for vulnerabilities
+        id: scan_image
+        if: steps.build.outcome == 'success'
+        run: |
+          IMAGE_NAME=$(echo ${{ matrix.dockerfile }} | sed 's/Dockerfile.//')
+          trivy image --exit-code 1 --severity HIGH,CRITICAL $IMAGE_NAME:scan-test | tee reports/${{ matrix.dockerfile }}_image_scan.txt || echo "::warning::Image $IMAGE_NAME has vulnerabilities"
+        continue-on-error: true
+
+      - name: Check scan results
+        id: check_results
+        run: |
+          if [ "${{ steps.scan_dockerfile.outcome }}" == "failure" ] || [ "${{ steps.scan_image.outcome }}" == "failure" ]; then
+            echo "::error::Security vulnerabilities found in ${{ matrix.dockerfile }}"
+            exit 1
+          fi
+        continue-on-error: ${{ github.event_name == 'pull_request' }}  # PR에서는 실패해도 계속 진행
+
+      - name: Upload scan reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-scan-reports-${{ matrix.dockerfile }}
+          path: reports/
+          retention-days: 7
+
+  summary:
+    needs: docker-security-scan
+    runs-on: ubuntu-latest
+    if: always()  # 이전 작업 결과와 상관없이 항상 실행
+    steps:
+      - name: Download all scan reports
+        uses: actions/download-artifact@v4
+        with:
+          path: all-reports
+
+      - name: Generate summary report
+        run: |
+          echo "# Docker Security Scan Summary" > summary.md
+          echo "| Dockerfile | Status | High | Critical |" >> summary.md
+          echo "| ---------- | ------ | ---- | -------- |" >> summary.md
+          
+          for dockerfile in Dockerfile.api Dockerfile.frontend Dockerfile.gateway Dockerfile.ml Dockerfile.mobile-api Dockerfile.docs; do
+            if [ -d "all-reports/security-scan-reports-$dockerfile" ]; then
+              config_file="all-reports/security-scan-reports-$dockerfile/${dockerfile}_config_scan.txt"
+              image_file="all-reports/security-scan-reports-$dockerfile/${dockerfile}_image_scan.txt"
+              
+              high=0
+              critical=0
+              status="✅ 통과"
+              
+              if [ -f "$config_file" ]; then
+                config_high=$(grep -c "HIGH: " $config_file || echo 0)
+                config_critical=$(grep -c "CRITICAL: " $config_file || echo 0)
+                high=$((high + config_high))
+                critical=$((critical + config_critical))
+              fi
+              
+              if [ -f "$image_file" ]; then
+                image_high=$(grep -c "HIGH: " $image_file || echo 0)
+                image_critical=$(grep -c "CRITICAL: " $image_file || echo 0)
+                high=$((high + image_high))
+                critical=$((critical + config_critical))
+              fi
+              
+              if [ $high -gt 0 ] || [ $critical -gt 0 ]; then
+                status="⚠️ 취약점 발견"
+              fi
+              
+              echo "| $dockerfile | $status | $high | $critical |" >> summary.md
+            else
+              echo "| $dockerfile | ❌ 스캔 실패 | - | - |" >> summary.md
+            fi
+          done
+          
+          cat summary.md
+
+      - name: Upload summary report
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-scan-summary
+          path: summary.md
+          retention-days: 7

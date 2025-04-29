@@ -1,0 +1,268 @@
+name: Continuous Deployment
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  
+  # 수동 배포 트리거
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deploy to which environment'
+        required: true
+        default: 'development'
+        type: choice
+        options:
+          - development
+          - staging
+          - production
+      version:
+        description: '배포 버전 태그'
+        required: false
+        default: ''
+
+# 태그 및 환경변수 설정
+env:
+  REGISTRY: ghcr.io
+  REGISTRY_USER: ${{ github.actor }}
+  IMAGE_PREFIX: ${{ github.repository_owner }}/maintenance
+  DOCKER_BUILDKIT: 1
+  PYTHON_VERSION: '3.10'
+  NODE_VERSION: '18'
+
+jobs:
+  prepare:
+    name: Prepare Deployment
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.set-version.outputs.version }}
+      deploy_env: ${{ steps.set-env.outputs.env }}
+    
+    steps:
+      - name: Set version
+        id: set-version
+        run: |
+          if [ "${{ github.event.inputs.version }}" != "" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=$(date +'%Y%m%d').${{ github.run_number }}" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Set environment
+        id: set-env
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "env=${{ github.event.inputs.environment }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            echo "env=production" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref }}" == "refs/heads/develop" ]; then
+            echo "env=development" >> $GITHUB_OUTPUT
+          else
+            echo "env=development" >> $GITHUB_OUTPUT
+          fi
+  
+  build-and-push-images:
+    name: Build and Push Docker Images
+    needs: prepare
+    runs-on: ubuntu-latest
+    environment: ${{ needs.prepare.outputs.deploy_env }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      
+      - name: Login to Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ env.REGISTRY_USER }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Extract Docker metadata for API
+        id: meta-api
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-api
+          tags: |
+            type=raw,value=${{ needs.prepare.outputs.version }}
+            type=raw,value=${{ needs.prepare.outputs.deploy_env }}
+      
+      - name: Build and push API image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: ./Dockerfile.api
+          push: true
+          tags: ${{ steps.meta-api.outputs.tags }}
+          labels: ${{ steps.meta-api.outputs.labels }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-api:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-api:buildcache,mode=max
+          build-args: |
+            ENV=${{ needs.prepare.outputs.deploy_env }}
+            VERSION=${{ needs.prepare.outputs.version }}
+      
+      - name: Extract Docker metadata for Frontend
+        id: meta-frontend
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-frontend
+          tags: |
+            type=raw,value=${{ needs.prepare.outputs.version }}
+            type=raw,value=${{ needs.prepare.outputs.deploy_env }}
+      
+      - name: Build and push Frontend image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: ./Dockerfile.frontend
+          push: true
+          tags: ${{ steps.meta-frontend.outputs.tags }}
+          labels: ${{ steps.meta-frontend.outputs.labels }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-frontend:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-frontend:buildcache,mode=max
+          build-args: |
+            ENV=${{ needs.prepare.outputs.deploy_env }}
+            VERSION=${{ needs.prepare.outputs.version }}
+      
+      # 기타 필요한 서비스 이미지들 빌드 (gitservice, cache-monitor 등)
+      - name: Extract Docker metadata for Git Service
+        id: meta-gitservice
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-gitservice
+          tags: |
+            type=raw,value=${{ needs.prepare.outputs.version }}
+            type=raw,value=${{ needs.prepare.outputs.deploy_env }}
+      
+      - name: Build and push Git Service image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./gitservice
+          push: true
+          tags: ${{ steps.meta-gitservice.outputs.tags }}
+          labels: ${{ steps.meta-gitservice.outputs.labels }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-gitservice:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-gitservice:buildcache,mode=max
+          build-args: |
+            ENV=${{ needs.prepare.outputs.deploy_env }}
+            VERSION=${{ needs.prepare.outputs.version }}
+  
+  deploy-development:
+    name: Deploy to Development
+    if: needs.prepare.outputs.deploy_env == 'development'
+    needs: [prepare, build-and-push-images]
+    runs-on: ubuntu-latest
+    environment: development
+    
+    steps:
+      - name: Install SSH key
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.DEV_SSH_PRIVATE_KEY }}
+          known_hosts: ${{ secrets.DEV_KNOWN_HOSTS }}
+          name: id_rsa
+      
+      - name: Deploy to development server
+        run: |
+          ssh ${{ secrets.DEV_SSH_USER }}@${{ secrets.DEV_SSH_HOST }} "
+            cd /opt/maintenance-monorepo && \
+            export VERSION=${{ needs.prepare.outputs.version }} && \
+            export REGISTRY=${{ env.REGISTRY }} && \
+            export IMAGE_PREFIX=${{ env.IMAGE_PREFIX }} && \
+            docker-compose -f docker-compose.yml -f docker-compose.override.yml pull && \
+            docker-compose -f docker-compose.yml -f docker-compose.override.yml up -d && \
+            echo 'Development deployment completed at $(date)'
+          "
+  
+  deploy-staging:
+    name: Deploy to Staging
+    if: needs.prepare.outputs.deploy_env == 'staging'
+    needs: [prepare, build-and-push-images]
+    runs-on: ubuntu-latest
+    environment: staging
+    
+    steps:
+      - name: Install SSH key
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.STAGING_SSH_PRIVATE_KEY }}
+          known_hosts: ${{ secrets.STAGING_KNOWN_HOSTS }}
+          name: id_rsa
+      
+      - name: Deploy to staging server
+        run: |
+          ssh ${{ secrets.STAGING_SSH_USER }}@${{ secrets.STAGING_SSH_HOST }} "
+            cd /opt/maintenance-monorepo && \
+            export VERSION=${{ needs.prepare.outputs.version }} && \
+            export REGISTRY=${{ env.REGISTRY }} && \
+            export IMAGE_PREFIX=${{ env.IMAGE_PREFIX }} && \
+            docker-compose -f docker-compose.yml -f docker-compose.staging.yml pull && \
+            docker-compose -f docker-compose.yml -f docker-compose.staging.yml up -d && \
+            echo 'Staging deployment completed at $(date)'
+          "
+  
+  deploy-production:
+    name: Deploy to Production
+    if: needs.prepare.outputs.deploy_env == 'production'
+    needs: [prepare, build-and-push-images]
+    runs-on: ubuntu-latest
+    environment: 
+      name: production
+      url: https://maintenance.example.com
+    
+    steps:
+      - name: Install SSH key
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          known_hosts: ${{ secrets.PROD_KNOWN_HOSTS }}
+          name: id_rsa
+      
+      - name: Deploy to production server
+        run: |
+          ssh ${{ secrets.PROD_SSH_USER }}@${{ secrets.PROD_SSH_HOST }} "
+            cd /opt/maintenance-monorepo && \
+            export VERSION=${{ needs.prepare.outputs.version }} && \
+            export REGISTRY=${{ env.REGISTRY }} && \
+            export IMAGE_PREFIX=${{ env.IMAGE_PREFIX }} && \
+            docker-compose -f docker-compose.yml -f docker-compose.prod.yml pull && \
+            docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d && \
+            echo 'Production deployment completed at $(date)'
+          "
+      
+      - name: Create GitHub Release
+        if: needs.prepare.outputs.deploy_env == 'production'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.prepare.outputs.version }}
+          name: Release ${{ needs.prepare.outputs.version }}
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  
+  notify:
+    name: Notification
+    needs: [prepare, build-and-push-images, deploy-development, deploy-staging, deploy-production]
+    if: always()
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Send Slack notification
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          fields: repo,message,commit,author,action,eventName,ref,workflow,job,took
+          text: |
+            Deployment to ${{ needs.prepare.outputs.deploy_env }} ${{ job.status == 'success' && 'completed successfully' || 'failed' }}
+            Version: ${{ needs.prepare.outputs.version }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        if: ${{ secrets.SLACK_WEBHOOK_URL != '' }}

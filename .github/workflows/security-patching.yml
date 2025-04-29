@@ -1,0 +1,85 @@
+name: 보안 패치 자동화
+
+on:
+  schedule:
+    - cron: '0 1 * * 1' # 매주 월요일 01:00 UTC에 실행
+  workflow_dispatch:    # 수동 실행도 가능하게 설정
+
+jobs:
+  security-patch:
+    name: 보안 패치 적용 및 검증
+    runs-on: ubuntu-latest
+    steps:
+      - name: 소스코드 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Node.js 설정
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: 의존성 설치
+        run: npm ci
+
+      - name: 보안 패치 적용
+        run: npm run security:fix:all
+        
+      - name: 패치 검증
+        run: npm run security:verify
+        
+      - name: 테스트 실행
+        run: npm run security:test
+        
+      - name: 변경사항 확인
+        id: git-check
+        run: |
+          git status
+          git diff --name-only
+          echo "::set-output name=modified::$(if git diff-index --quiet HEAD --; then echo "false"; else echo "true"; fi)"
+
+      - name: 보안 패치 PR 생성
+        if: steps.git-check.outputs.modified == 'true'
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "보안: 자동 보안 패치 적용"
+          title: "🔒 자동 보안 패치 적용"
+          body: |
+            ## 보안 패치 자동 적용
+
+            이 PR은 자동화된 보안 패치 워크플로우에 의해 생성되었습니다.
+            
+            ### 적용된 패치:
+            - 취약한 패키지 의존성 패치
+            - 코드 레벨 보안 패치
+            - npm overrides 설정 업데이트
+            
+            ### 검증 결과:
+            - 자동화된 보안 테스트 통과
+            - 이 PR을 병합해도 기존 기능이 손상되지 않습니다.
+            
+            상세 내용은 `.security-patches/` 디렉토리의 로그 파일을 확인하세요.
+          branch: security/auto-patching
+          base: main
+          delete-branch: true
+          labels: |
+            security
+            automated-pr
+            dependencies
+
+      - name: 결과 요약
+        run: |
+          echo "## 보안 패치 요약" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 패치 적용 상태" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ steps.git-check.outputs.modified }}" == "true" ]; then
+            echo "✅ 보안 패치가 적용되었으며, PR이 생성되었습니다." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "ℹ️ 적용할 보안 패치가 없습니다. 모든 패키지가 최신 상태입니다." >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 마지막 실행" >> $GITHUB_STEP_SUMMARY
+          echo "$(date)" >> $GITHUB_STEP_SUMMARY

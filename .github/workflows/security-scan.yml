@@ -1,0 +1,128 @@
+name: Security Scan
+
+on:
+  schedule:
+    # 매주 월요일 자정에 실행
+    - cron: '0 0 * * 1'
+  
+  # 수동 트리거 허용
+  workflow_dispatch:
+
+jobs:
+  security-scan:
+    name: Security Vulnerability Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install safety bandit
+          npm install -g npm-audit-resolver snyk
+      
+      - name: Run Python security scan
+        run: |
+          # 파이썬 의존성 스캔
+          pip freeze > requirements-all.txt
+          safety check -r requirements-all.txt --full-report --output text > python-security-report.txt || true
+          
+          # Python 코드 정적 분석
+          bandit -r backend gitmanager gitservice -f txt -o python-static-analysis.txt || true
+      
+      - name: Run JavaScript security scan
+        run: |
+          # npm 의존성 스캔
+          npm audit --json > js-security-report.json || true
+      
+      - name: Run Docker security scan
+        run: |
+          # Docker 이미지 보안 스캔
+          if [ -f docker/docker-scan.sh ]; then
+            bash docker/docker-scan.sh > docker-security-report.txt || true
+          else
+            echo "Docker security scanning script not found" > docker-security-report.txt
+          fi
+      
+      - name: Run Snyk scans
+        if: ${{ env.SNYK_TOKEN != '' }}
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: |
+          # Snyk를 사용한 코드 및 종속성 스캔
+          snyk test --all-projects --json > snyk-report.json || true
+          snyk code test --json > snyk-code-report.json || true
+      
+      - name: Upload security reports
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-reports
+          path: |
+            *security-report*
+            python-static-analysis.txt
+      
+      - name: Post summary
+        run: |
+          echo "# Security Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo "## Python Dependencies" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat python-security-report.txt | head -n 20 >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          
+          echo "## Python Static Analysis" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat python-static-analysis.txt | head -n 20 >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          
+          echo "## JavaScript Dependencies" >> $GITHUB_STEP_SUMMARY
+          echo "See attached reports for details." >> $GITHUB_STEP_SUMMARY
+      
+      - name: Send security report notification
+        uses: 8398a7/action-slack@v3
+        if: ${{ secrets.SLACK_WEBHOOK_URL != '' }}
+        with:
+          status: custom
+          fields: repo,workflow
+          custom_payload: |
+            {
+              "attachments": [
+                {
+                  "color": "warning",
+                  "title": "Security Scan Completed",
+                  "text": "Weekly security scan has completed. Please review the reports in the workflow artifacts.",
+                  "fields": [
+                    {
+                      "title": "Repository",
+                      "value": "${{ github.repository }}",
+                      "short": true
+                    },
+                    {
+                      "title": "Workflow",
+                      "value": "${{ github.workflow }}",
+                      "short": true
+                    }
+                  ],
+                  "actions": [
+                    {
+                      "type": "button",
+                      "text": "View Workflow",
+                      "url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                    }
+                  ]
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

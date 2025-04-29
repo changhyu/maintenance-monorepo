@@ -1,0 +1,265 @@
+name: Database Migration
+
+on:
+  # PR이 병합될 때 트리거
+  pull_request:
+    types: [closed]
+    branches: [main, develop]
+    paths:
+      - 'backend/migrations/**'
+      - 'backend/models/**'
+      - 'backend/db/**'
+  
+  # 수동 트리거 허용
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: '마이그레이션을 실행할 환경'
+        required: true
+        default: 'development'
+        type: choice
+        options:
+          - development
+          - staging
+          - production
+      action:
+        description: '수행할 작업'
+        required: true
+        default: 'migrate'
+        type: choice
+        options:
+          - migrate
+          - rollback
+      version:
+        description: '롤백할 버전 (롤백 시에만 사용)'
+        required: false
+        default: ''
+
+jobs:
+  prepare:
+    name: Prepare Migration
+    runs-on: ubuntu-latest
+    # PR이 병합되었을 때만 실행
+    if: github.event_name != 'pull_request' || github.event.pull_request.merged == true
+    outputs:
+      environment: ${{ steps.set-env.outputs.environment }}
+      action: ${{ steps.set-action.outputs.action }}
+      version: ${{ steps.set-version.outputs.version }}
+    
+    steps:
+      - name: Set environment
+        id: set-env
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "environment=${{ github.event.inputs.environment }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            echo "environment=production" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref }}" == "refs/heads/develop" ]; then
+            echo "environment=development" >> $GITHUB_OUTPUT
+          else
+            echo "environment=development" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Set action
+        id: set-action
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "action=${{ github.event.inputs.action }}" >> $GITHUB_OUTPUT
+          else
+            echo "action=migrate" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Set version
+        id: set-version
+        run: |
+          if [ "${{ github.event.inputs.version }}" != "" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=latest" >> $GITHUB_OUTPUT
+          fi
+  
+  create-migration-snapshot:
+    name: Create Migration Snapshot
+    needs: prepare
+    runs-on: ubuntu-latest
+    if: needs.prepare.outputs.action == 'migrate'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Create migration snapshot
+        run: |
+          # 데이터베이스 스키마 변경 전 스냅샷 생성
+          python backend/scripts/create_db_snapshot.py --output ./migration-snapshot-$(date +%Y%m%d%H%M%S).sql
+      
+      - name: Upload migration snapshot
+        uses: actions/upload-artifact@v3
+        with:
+          name: migration-snapshot
+          path: ./migration-snapshot-*.sql
+  
+  run-migration:
+    name: Run Database Migration
+    needs: [prepare, create-migration-snapshot]
+    if: always() && needs.prepare.outputs.action == 'migrate'
+    runs-on: ubuntu-latest
+    environment: ${{ needs.prepare.outputs.environment }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Run migration
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          ENVIRONMENT: ${{ needs.prepare.outputs.environment }}
+        run: |
+          echo "Running database migrations for $ENVIRONMENT environment"
+          python backend/scripts/run_migrations.py
+      
+      - name: Verify migration
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          python backend/scripts/verify_migration.py --report-path ./migration-verification-report.txt
+      
+      - name: Upload verification report
+        uses: actions/upload-artifact@v3
+        with:
+          name: migration-verification-report
+          path: ./migration-verification-report.txt
+  
+  run-rollback:
+    name: Run Database Rollback
+    needs: [prepare]
+    if: needs.prepare.outputs.action == 'rollback'
+    runs-on: ubuntu-latest
+    environment: ${{ needs.prepare.outputs.environment }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Create rollback snapshot
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          # 롤백 전 현재 상태 스냅샷 생성
+          python backend/scripts/create_db_snapshot.py --output ./pre-rollback-snapshot-$(date +%Y%m%d%H%M%S).sql
+      
+      - name: Run rollback
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          ENVIRONMENT: ${{ needs.prepare.outputs.environment }}
+          ROLLBACK_VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          echo "Running database rollback for $ENVIRONMENT environment to version $ROLLBACK_VERSION"
+          python backend/scripts/run_rollback.py --version $ROLLBACK_VERSION
+      
+      - name: Upload rollback snapshot
+        uses: actions/upload-artifact@v3
+        with:
+          name: pre-rollback-snapshot
+          path: ./pre-rollback-snapshot-*.sql
+  
+  notify:
+    name: Send Notification
+    needs: [prepare, run-migration, run-rollback]
+    if: always()
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Determine job status
+        id: job-status
+        run: |
+          if [ "${{ needs.prepare.outputs.action }}" == "migrate" ]; then
+            if [ "${{ needs.run-migration.result }}" == "success" ]; then
+              echo "status=success" >> $GITHUB_OUTPUT
+              echo "message=Database migration completed successfully" >> $GITHUB_OUTPUT
+            else
+              echo "status=failure" >> $GITHUB_OUTPUT
+              echo "message=Database migration failed" >> $GITHUB_OUTPUT
+            fi
+          else
+            if [ "${{ needs.run-rollback.result }}" == "success" ]; then
+              echo "status=success" >> $GITHUB_OUTPUT
+              echo "message=Database rollback completed successfully" >> $GITHUB_OUTPUT
+            else
+              echo "status=failure" >> $GITHUB_OUTPUT
+              echo "message=Database rollback failed" >> $GITHUB_OUTPUT
+            fi
+          fi
+      
+      - name: Send Slack notification
+        uses: 8398a7/action-slack@v3
+        if: ${{ secrets.SLACK_WEBHOOK_URL != '' }}
+        with:
+          status: custom
+          fields: repo,workflow
+          custom_payload: |
+            {
+              "attachments": [
+                {
+                  "color": "${{ steps.job-status.outputs.status == 'success' && 'good' || 'danger' }}",
+                  "title": "Database ${{ needs.prepare.outputs.action }} ${{ steps.job-status.outputs.status == 'success' && 'Succeeded' || 'Failed' }}",
+                  "text": "${{ steps.job-status.outputs.message }} in ${{ needs.prepare.outputs.environment }} environment",
+                  "fields": [
+                    {
+                      "title": "Environment",
+                      "value": "${{ needs.prepare.outputs.environment }}",
+                      "short": true
+                    },
+                    {
+                      "title": "Action",
+                      "value": "${{ needs.prepare.outputs.action }}",
+                      "short": true
+                    },
+                    {
+                      "title": "Triggered by",
+                      "value": "${{ github.actor }}",
+                      "short": true
+                    }
+                  ],
+                  "actions": [
+                    {
+                      "type": "button",
+                      "text": "View Workflow",
+                      "url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                    }
+                  ]
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

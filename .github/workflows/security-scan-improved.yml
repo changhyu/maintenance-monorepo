@@ -1,0 +1,394 @@
+name: Security Scan Improved
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    # 매주 월요일 오전 3시에 실행
+    - cron: '0 3 * * 1'
+  workflow_dispatch:  # 수동 실행 허용
+
+# 동시 실행 방지를 위한 concurrency 설정
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dependency-check:
+    name: Dependency Vulnerability Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      # Node.js 의존성 취약점 검사 (npm audit)
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Scan npm dependencies
+        run: |
+          npm audit --json > npm-audit.json || echo "Vulnerabilities found, see report for details"
+        
+      - name: Parse npm audit results
+        run: |
+          echo "# NPM Dependency Vulnerabilities" > npm-audit-report.md
+          echo "\`\`\`" >> npm-audit-report.md
+          cat npm-audit.json | jq '.vulnerabilities | length' | xargs echo "Total vulnerabilities:" >> npm-audit-report.md
+          
+          # Critical 취약점 수 계산
+          cat npm-audit.json | jq '[.vulnerabilities[] | select(.severity == "critical")] | length' | xargs echo "Critical vulnerabilities:" >> npm-audit-report.md
+          
+          # High 취약점 수 계산
+          cat npm-audit.json | jq '[.vulnerabilities[] | select(.severity == "high")] | length' | xargs echo "High vulnerabilities:" >> npm-audit-report.md
+          
+          # Critical 및 High 취약점 상세 정보 추가
+          echo "\n## Critical Vulnerabilities" >> npm-audit-report.md
+          cat npm-audit.json | jq -r '.vulnerabilities[] | select(.severity == "critical") | "* Package: \(.name), Via: \(.via[0].name // .via[0]), Title: \(.via[0].title // "N/A")"' >> npm-audit-report.md
+          
+          echo "\n## High Vulnerabilities" >> npm-audit-report.md
+          cat npm-audit.json | jq -r '.vulnerabilities[] | select(.severity == "high") | "* Package: \(.name), Via: \(.via[0].name // .via[0]), Title: \(.via[0].title // "N/A")"' >> npm-audit-report.md
+          echo "\`\`\`" >> npm-audit-report.md
+      
+      # Python 의존성 취약점 검사 (Safety)
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install safety
+        run: pip install safety
+      
+      - name: Scan Python dependencies
+        run: |
+          find . -name "requirements*.txt" -type f | while read file; do
+            echo "Scanning $file"
+            safety check -r $file --json > "${file/.txt/_safety.json}" || echo "Vulnerabilities found in $file"
+          done
+      
+      - name: Generate Python dependency report
+        run: |
+          echo "# Python Dependency Vulnerabilities" > python-dependencies-report.md
+          
+          find . -name "*_safety.json" -type f | while read file; do
+            req_file="${file/_safety.json/.txt}"
+            echo "## Scan results for $req_file" >> python-dependencies-report.md
+            echo "\`\`\`" >> python-dependencies-report.md
+            
+            if [ -s "$file" ]; then
+              # Count total vulnerabilities
+              total_vulns=$(jq '. | length' $file)
+              echo "Total vulnerabilities: $total_vulns" >> python-dependencies-report.md
+              
+              # Parse and display vulnerability details
+              jq -r '.[] | "* Package: \(.[0]), Vulnerability: \(.[1]), Installed: \(.[2]), Required: \(.[3]), Description: \(.[4])"' $file >> python-dependencies-report.md
+            else
+              echo "No vulnerabilities found" >> python-dependencies-report.md
+            fi
+            echo "\`\`\`" >> python-dependencies-report.md
+            echo "" >> python-dependencies-report.md
+          done
+      
+      # 취약점 보고서 업로드
+      - name: Upload npm audit report
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-audit-report
+          path: npm-audit-report.md
+          retention-days: 7
+      
+      - name: Upload Python dependency report
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-dependencies-report
+          path: python-dependencies-report.md
+          retention-days: 7
+  
+  sast-scan:
+    name: Static Application Security Testing
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      # SAST 도구 설치 및 실행
+      - name: Install and run SAST tools
+        run: |
+          # Semgrep 설치
+          pip install semgrep
+          
+          # Semgrep 스캔 실행
+          semgrep --config=auto --json > semgrep-results.json
+      
+      # SAST 결과 분석 및 보고서 생성
+      - name: Generate SAST report
+        run: |
+          echo "# Static Application Security Testing Results" > sast-report.md
+          
+          echo "## Semgrep Results" >> sast-report.md
+          echo "\`\`\`" >> sast-report.md
+          
+          # 결과 요약
+          total_findings=$(jq '.results | length' semgrep-results.json)
+          echo "Total findings: $total_findings" >> sast-report.md
+          
+          # 심각도별 분류
+          high=$(jq '[.results[] | select(.extra.severity == "ERROR")] | length' semgrep-results.json)
+          medium=$(jq '[.results[] | select(.extra.severity == "WARNING")] | length' semgrep-results.json)
+          low=$(jq '[.results[] | select(.extra.severity == "INFO")] | length' semgrep-results.json)
+          
+          echo "High severity issues: $high" >> sast-report.md
+          echo "Medium severity issues: $medium" >> sast-report.md
+          echo "Low severity issues: $low" >> sast-report.md
+          
+          echo "\n## High Severity Issues" >> sast-report.md
+          jq -r '.results[] | select(.extra.severity == "ERROR") | "* [\(.check_id)] \(.path):\(.start.line) - \(.extra.message)"' semgrep-results.json >> sast-report.md
+          
+          echo "\n## Medium Severity Issues" >> sast-report.md
+          jq -r '.results[] | select(.extra.severity == "WARNING") | "* [\(.check_id)] \(.path):\(.start.line) - \(.extra.message)"' semgrep-results.json >> sast-report.md
+          echo "\`\`\`" >> sast-report.md
+      
+      # SAST 보고서 업로드
+      - name: Upload SAST report
+        uses: actions/upload-artifact@v4
+        with:
+          name: sast-report
+          path: sast-report.md
+          retention-days: 7
+  
+  secrets-scan:
+    name: Secrets Detection
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 전체 히스토리 검사를 위해 필요
+      
+      # Gitleaks를 사용한 시크릿 스캔
+      - name: Install and run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        with:
+          config-path: .github/.gitleaks.toml  # 시크릿 탐지 설정 파일 
+        continue-on-error: true
+      
+      # 결과 요약 보고서 생성
+      - name: Generate Secrets Scan report
+        if: always()  # 항상 실행
+        run: |
+          if [ -f "gitleaks-report.json" ]; then
+            echo "# Secrets Detection Results" > secrets-scan-report.md
+            echo "\`\`\`" >> secrets-scan-report.md
+            
+            # 탐지된 시크릿 개수
+            total_secrets=$(jq '. | length' gitleaks-report.json)
+            echo "Total secrets detected: $total_secrets" >> secrets-scan-report.md
+            
+            # 시크릿 유형별 분류
+            echo -e "\nSecret types found:" >> secrets-scan-report.md
+            jq -r '.[].Rule | select(. != null)' gitleaks-report.json | sort | uniq -c | while read count type; do
+              echo "* $type: $count" >> secrets-scan-report.md
+            done
+            
+            # 시크릿 세부 정보 (파일 및 라인)
+            echo -e "\nDetected secrets:" >> secrets-scan-report.md
+            jq -r '.[] | "* [\(.Rule)] \(.File):\(.StartLine) - \(.Line | @json)"' gitleaks-report.json >> secrets-scan-report.md
+            echo "\`\`\`" >> secrets-scan-report.md
+          else
+            echo "# Secrets Detection Results" > secrets-scan-report.md
+            echo "\nNo secrets detected in the repository. Good job!" >> secrets-scan-report.md
+          fi
+      
+      # 보고서 업로드
+      - name: Upload Secrets Scan report
+        if: always()  # 항상 실행
+        uses: actions/upload-artifact@v4
+        with:
+          name: secrets-scan-report
+          path: secrets-scan-report.md
+          retention-days: 7
+  
+  docker-scan:
+    name: Docker Container Security Scan
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dockerfile:
+          - Dockerfile.api
+          - Dockerfile.frontend
+          - Dockerfile.gateway
+          - Dockerfile.ml
+          - Dockerfile.mobile-api
+          - Dockerfile.docs
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      # 캐시를 활용한 Docker 이미지 빌드
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: false
+          load: true
+          tags: security-scan-${{ matrix.dockerfile }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      
+      # Trivy를 사용한 컨테이너 취약점 스캔
+      - name: Scan with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: security-scan-${{ matrix.dockerfile }}:latest
+          format: 'template'
+          template: '@/contrib/github.tpl'
+          output: trivy-results-${{ matrix.dockerfile }}.md
+          severity: 'CRITICAL,HIGH'
+          timeout: '10m'
+      
+      # 스캔 결과 업로드
+      - name: Upload Trivy scan results
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-results-${{ matrix.dockerfile }}
+          path: trivy-results-${{ matrix.dockerfile }}.md
+          retention-days: 7
+  
+  # 통합 보안 보고서 생성
+  security-report:
+    name: Generate Security Report
+    needs: [dependency-check, sast-scan, secrets-scan, docker-scan]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      # 모든 보고서 다운로드
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+      
+      # 통합 보안 보고서 생성
+      - name: Create integrated security report
+        run: |
+          echo "# 통합 보안 보고서" > integrated-security-report.md
+          echo "생성 일시: $(date)" >> integrated-security-report.md
+          
+          echo "## 목차" >> integrated-security-report.md
+          echo "1. [의존성 취약점 스캔](#dependency-vulnerabilities)" >> integrated-security-report.md
+          echo "2. [코드 보안 분석](#code-security-analysis)" >> integrated-security-report.md
+          echo "3. [시크릿 탐지](#secrets-detection)" >> integrated-security-report.md
+          echo "4. [컨테이너 보안 스캔](#container-security-scan)" >> integrated-security-report.md
+          
+          # 의존성 취약점 섹션
+          echo "<a name='dependency-vulnerabilities'></a>" >> integrated-security-report.md
+          echo "## 1. 의존성 취약점 스캔" >> integrated-security-report.md
+          echo "### npm 패키지 취약점" >> integrated-security-report.md
+          if [ -f "npm-audit-report/npm-audit-report.md" ]; then
+            cat "npm-audit-report/npm-audit-report.md" >> integrated-security-report.md
+          else
+            echo "보고서를 찾을 수 없습니다." >> integrated-security-report.md
+          fi
+          
+          echo "### Python 패키지 취약점" >> integrated-security-report.md
+          if [ -f "python-dependencies-report/python-dependencies-report.md" ]; then
+            cat "python-dependencies-report/python-dependencies-report.md" >> integrated-security-report.md
+          else
+            echo "보고서를 찾을 수 없습니다." >> integrated-security-report.md
+          fi
+          
+          # 코드 보안 분석 섹션
+          echo "<a name='code-security-analysis'></a>" >> integrated-security-report.md
+          echo "## 2. 코드 보안 분석" >> integrated-security-report.md
+          if [ -f "sast-report/sast-report.md" ]; then
+            cat "sast-report/sast-report.md" >> integrated-security-report.md
+          else
+            echo "보고서를 찾을 수 없습니다." >> integrated-security-report.md
+          fi
+          
+          # 시크릿 탐지 섹션
+          echo "<a name='secrets-detection'></a>" >> integrated-security-report.md
+          echo "## 3. 시크릿 탐지" >> integrated-security-report.md
+          if [ -f "secrets-scan-report/secrets-scan-report.md" ]; then
+            cat "secrets-scan-report/secrets-scan-report.md" >> integrated-security-report.md
+          else
+            echo "보고서를 찾을 수 없습니다." >> integrated-security-report.md
+          fi
+          
+          # 컨테이너 보안 스캔 섹션
+          echo "<a name='container-security-scan'></a>" >> integrated-security-report.md
+          echo "## 4. 컨테이너 보안 스캔" >> integrated-security-report.md
+          
+          # 각 Dockerfile 결과 추가
+          for dockerfile in Dockerfile.api Dockerfile.frontend Dockerfile.gateway Dockerfile.ml Dockerfile.mobile-api Dockerfile.docs; do
+            echo "### $dockerfile" >> integrated-security-report.md
+            if [ -f "trivy-results-$dockerfile/trivy-results-$dockerfile.md" ]; then
+              cat "trivy-results-$dockerfile/trivy-results-$dockerfile.md" >> integrated-security-report.md
+            else
+              echo "보고서를 찾을 수 없습니다." >> integrated-security-report.md
+            fi
+            echo "" >> integrated-security-report.md
+          done
+          
+          # 요약 섹션 추가
+          echo "## 요약 및 권장 조치" >> integrated-security-report.md
+          echo "이 보고서는 의존성 취약점, 코드 보안 분석, 시크릿 탐지, 컨테이너 보안 스캔 결과를 포함합니다." >> integrated-security-report.md
+          echo "발견된 심각한 취약점은 즉시 해결해야 합니다. 자세한 내용은 위 섹션을 참조하세요." >> integrated-security-report.md
+      
+      # 통합 보고서 업로드
+      - name: Upload integrated security report
+        uses: actions/upload-artifact@v4
+        with:
+          name: integrated-security-report
+          path: integrated-security-report.md
+          retention-days: 14
+      
+      # PR 코멘트 추가 (PR일 경우)
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const reportContent = fs.readFileSync('integrated-security-report.md', 'utf8');
+            
+            // 보고서 길이가 너무 길면 요약 정보만 포함
+            let commentBody = '';
+            if (reportContent.length > 65000) {
+              commentBody = "# 보안 스캔 결과 요약\n\n보고서가 너무 길어 요약 정보만 포함합니다. 전체 보고서는 워크플로우 아티팩트에서 확인하세요.\n\n";
+              
+              // 취약점 수만 추출해서 표시
+              const npmVulns = reportContent.match(/Total vulnerabilities: (\d+)/);
+              const criticalVulns = reportContent.match(/Critical vulnerabilities: (\d+)/);
+              const highVulns = reportContent.match(/High vulnerabilities: (\d+)/);
+              
+              commentBody += "## 주요 취약점 수\n";
+              commentBody += "- 총 취약점: " + (npmVulns ? npmVulns[1] : "N/A") + "\n";
+              commentBody += "- 심각한 취약점: " + (criticalVulns ? criticalVulns[1] : "N/A") + "\n";
+              commentBody += "- 높은 취약점: " + (highVulns ? highVulns[1] : "N/A") + "\n";
+            } else {
+              commentBody = reportContent;
+            }
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: commentBody
+            });

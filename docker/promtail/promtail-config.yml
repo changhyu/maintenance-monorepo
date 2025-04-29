@@ -1,0 +1,55 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: api_logs
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: api_logs
+          __path__: /var/log/api/*.log
+          service: api
+
+  - job_name: ml_service_logs
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: ml_service_logs
+          __path__: /var/log/ml-service/*.log
+          service: ml-service
+
+  - job_name: document_service_logs
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: document_service_logs
+          __path__: /var/log/document-service/*.log
+          service: document-service
+
+  - job_name: mobile_api_logs
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: mobile_api_logs
+          __path__: /var/log/mobile-api/*.log
+          service: mobile-api
+
+  - job_name: cache_monitor_logs
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: cache_monitor_logs
+          __path__: /var/log/cache-monitor/*.log
+          service: cache-monitor

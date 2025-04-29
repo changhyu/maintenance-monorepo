@@ -1,0 +1,113 @@
+version: 2
+updates:
+  # npm 패키지 업데이트 설정
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Seoul"
+    open-pull-requests-limit: 10
+    versioning-strategy: auto
+    labels:
+      - "dependencies"
+      - "security"
+    commit-message:
+      prefix: "npm"
+      include: "scope"
+    # 보안 취약점만 업데이트
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-minor", "version-update:semver-patch"]
+    allow:
+      - dependency-type: "direct"
+      
+  # Python 패키지 업데이트 설정
+  - package-ecosystem: "pip"
+    directory: "/packages/api"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Seoul"
+    labels:
+      - "dependencies"
+      - "security"
+    commit-message:
+      prefix: "pip"
+      include: "scope"
+    # 보안 취약점만 업데이트
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-minor", "version-update:semver-patch"]
+        
+  # ML 서비스 Python 패키지 업데이트
+  - package-ecosystem: "pip"
+    directory: "/packages/ml-service"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Seoul"
+    labels:
+      - "dependencies"
+      - "security"
+    commit-message:
+      prefix: "pip-ml"
+      include: "scope"
+    # 보안 취약점만 업데이트
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-minor", "version-update:semver-patch"]
+        
+  # 문서 처리 서비스 Python 패키지 업데이트
+  - package-ecosystem: "pip"
+    directory: "/packages/document-processing"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Seoul"
+    labels:
+      - "dependencies"
+      - "security"
+    commit-message:
+      prefix: "pip-docs"
+      include: "scope"
+    # 보안 취약점만 업데이트
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-minor", "version-update:semver-patch"]
+        
+  # Docker 이미지 업데이트
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Seoul"
+    labels:
+      - "dependencies"
+      - "docker"
+      - "security"
+    commit-message:
+      prefix: "docker"
+      include: "scope"
+      
+  # GitHub Actions 업데이트
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Seoul"
+    labels:
+      - "dependencies"
+      - "github-actions"
+      - "security"
+    commit-message:
+      prefix: "github-actions"
+      include: "scope"

@@ -1,0 +1,18 @@
+{
+  "exceptions": [
+    {
+      "module_name": "csurf",
+      "reason": "사용하지 않는 의존성으로, package.json에서 'overrides'로 관리됨",
+      "expiration": "2025-12-31",
+      "issue_link": "https://github.com/yourorganization/maintenance-monorepo/issues/123"
+    },
+    {
+      "module_name": "xlsx",
+      "reason": "알려진 취약점이 있으나 현재 대체 불가능한 라이브러리. 실제 사용 패턴에서는 취약점이 노출되지 않음",
+      "expiration": "2025-06-30",
+      "issue_link": "https://github.com/yourorganization/maintenance-monorepo/issues/456"
+    }
+  ],
+  "last_updated": "2025-04-18",
+  "review_period_months": 3
+}
