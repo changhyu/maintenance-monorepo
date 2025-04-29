@@ -1,86 +1,95 @@
-# Build stage
+# 멀티 스테이지 빌드를 사용한 최적화된 Dockerfile
+# 빌드 스테이지
 FROM python:3.9-slim AS builder
 
-# Set working directory
 WORKDIR /app
-ARG CACHEBUST=1
 
-# Install system dependencies and Node.js
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    libpq-dev \
-    postgresql-client \
-    curl \
-    && curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
-    && apt-get install -y nodejs \
+# 필요한 시스템 의존성만 설치
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        build-essential \
+        gcc \
+        curl \
+        git \
+        libffi-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Create and activate virtual environment
-RUN python -m venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
+# 가상 환경 설정
+RUN python -m venv /venv
+ENV PATH="/venv/bin:$PATH"
 
-# Install application dependencies
-COPY packages/api/requirements.txt /app/requirements.txt
-RUN echo "$CACHEBUST" && pip install --no-cache-dir -r requirements.txt
+# 의존성 파일 및 공유 패키지 복사
+COPY packages/api/requirements.txt ./packages/api/
+COPY packages/shared-python ./packages/shared-python/
 
-# Install Node.js dependencies
-COPY package*.json ./
-COPY packages/api/package*.json ./packages/api/
-RUN npm install
+# API 디렉토리로 이동
+WORKDIR /app/packages/api
 
-# Production stage
-FROM python:3.9-slim
+# requirements.txt를 통해 모든 의존성 설치 (shared-python 포함)
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Create non-root user for security
+# Git 서비스 설치
+WORKDIR /app
+COPY packages/git-service /app/packages/git-service
+RUN pip install --no-cache-dir -e /app/packages/git-service
+
+# Git 서비스 설정
+ENV GIT_SERVICE_CACHE_ENABLED=true
+ENV GIT_SERVICE_CACHE_DIR=/var/cache/git-service
+ENV GIT_SERVICE_DEBUG=false
+
+# 캐시 디렉토리 생성 및 권한 설정
+RUN mkdir -p /var/cache/git-service && \
+    chmod 777 /var/cache/git-service
+
+# 실행 스테이지
+FROM python:3.9-slim AS runtime
+
+WORKDIR /app
+
+# 필요한 시스템 패키지만 설치
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        curl \
+        tini \
+    && rm -rf /var/lib/apt/lists/*
+
+# 가상 환경 복사
+COPY --from=builder /venv /venv
+ENV PATH="/venv/bin:$PATH"
+
+# 애플리케이션 코드 복사
+COPY packages/api /app/packages/api
+COPY packages/shared-python /app/packages/shared-python
+
+# 작업 디렉토리 이동
+WORKDIR /app/packages/api
+
+# 환경 변수 설정
+ENV PYTHONPATH=/app \
+    PYTHONUNBUFFERED=1 \
+    PORT=8000 \
+    HOST=0.0.0.0 \
+    LOG_LEVEL=INFO
+
+# 로그 디렉토리 생성 및 권한 설정
+RUN mkdir -p /app/logs && \
+    chmod -R 755 /app/logs
+
+# 실행 사용자 설정 (보안 강화)
 RUN groupadd -r appuser && useradd -r -g appuser appuser
-
-# Install minimal system libraries and Node.js
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq5 \
-    postgresql-client \
-    curl \
-    && curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
-    && apt-get install -y nodejs \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy virtual environment
-COPY --from=builder /opt/venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
-
-# Copy node_modules
-COPY --from=builder /app/node_modules /app/node_modules
-
-# Set working directory
-WORKDIR /app
-
-# Copy application code
-COPY packages/api /app/
-COPY packages/shared /app/packages/shared
-COPY package*.json ./
-
-# Copy start script and set permissions
-COPY packages/api/start.sh /app/start.sh
-RUN chmod +x /app/start.sh
-
-# Set permissions
 RUN chown -R appuser:appuser /app
-
-# Set environment variables
-ENV PYTHONPATH=/app
-ENV PORT=8080
-ENV HOST=0.0.0.0
-ENV PYTHONUNBUFFERED=1
-ENV PATH="/app/node_modules/.bin:${PATH}"
-
-# Switch to non-root user
 USER appuser
 
-# Expose port
-EXPOSE 8080
+# 헬스체크 설정
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:${PORT}/health || exit 1
 
-# Set healthcheck
-HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8080/health || exit 1
+# 포트 노출
+EXPOSE ${PORT}
 
-# Run application
-CMD ["/app/start.sh"]
+# tini를 엔트리포인트로 사용
+ENTRYPOINT ["/usr/bin/tini", "--"]
+
+# 서버 실행
+CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
