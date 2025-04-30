@@ -40,7 +40,7 @@ jobs:
 
       - name: 보안 패치 PR 생성
         if: steps.git-check.outputs.modified == 'true'
-        uses: peter-evans/create-pull-request@v5
+        uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "보안: 자동 보안 패치 적용"
