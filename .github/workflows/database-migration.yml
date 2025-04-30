@@ -104,7 +104,7 @@ jobs:
           python backend/scripts/create_db_snapshot.py --output ./migration-snapshot-$(date +%Y%m%d%H%M%S).sql
       
       - name: Upload migration snapshot
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: migration-snapshot
           path: ./migration-snapshot-*.sql
@@ -145,7 +145,7 @@ jobs:
           python backend/scripts/verify_migration.py --report-path ./migration-verification-report.txt
       
       - name: Upload verification report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: migration-verification-report
           path: ./migration-verification-report.txt
@@ -188,7 +188,7 @@ jobs:
           python backend/scripts/run_rollback.py --version $ROLLBACK_VERSION
       
       - name: Upload rollback snapshot
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: pre-rollback-snapshot
           path: ./pre-rollback-snapshot-*.sql

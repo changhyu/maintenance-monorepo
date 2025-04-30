@@ -27,7 +27,7 @@ jobs:
         
       - name: Upload Docker Security Results
         if: success() || failure()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: docker-security-scans
           path: docker-security-scans/
@@ -55,7 +55,7 @@ jobs:
 
       - name: Upload Security Scan Results
         if: success() || failure()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: security-scans
           path: security-scans/
@@ -93,7 +93,7 @@ jobs:
           
       - name: Upload Bandit Results
         if: steps.find-python-files.outputs.PYTHON_PACKAGES > 0
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: bandit-results
           path: bandit-results.json
@@ -106,7 +106,7 @@ jobs:
           
       - name: Upload Safety Results
         if: steps.find-python-files.outputs.PYTHON_PACKAGES > 0
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: safety-results
           path: safety-results.json
@@ -149,7 +149,7 @@ jobs:
           fi
           
       - name: Upload Security Report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: security-report
           path: security-report.md
