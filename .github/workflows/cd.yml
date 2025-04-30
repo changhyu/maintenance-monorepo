@@ -240,7 +240,7 @@ jobs:
       
       - name: Create GitHub Release
         if: needs.prepare.outputs.deploy_env == 'production'
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.prepare.outputs.version }}
           name: Release ${{ needs.prepare.outputs.version }}
