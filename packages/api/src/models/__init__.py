@@ -13,7 +13,7 @@ from .base import Base
 from .user import UserModel as User
 from .vehicle import Vehicle
 from .location import Location, VehicleLocation
-from .maintenance import Maintenance as MaintenanceRecord, MaintenancePart, MaintenanceDocument
+from .maintenance import Maintenance as MaintenanceRecord, MaintenancePartModel as MaintenancePart, MaintenanceDocumentModel as MaintenanceDocument
 from .schedule import MaintenanceScheduleModel as MaintenanceSchedule
 from .shop import ShopModel as Shop
 from .admin import AdminSettings, AdminAuditLog, SystemMetrics, BackupLog, UserLoginHistory, AdminDashboardWidget

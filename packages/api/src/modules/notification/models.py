@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Optional
 
 from pydantic import BaseModel
-from src.core.base_model import BaseDBModel
+from core.base_model import BaseDBModel
 
 
 class NotificationBase(BaseModel):

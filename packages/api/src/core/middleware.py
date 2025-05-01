@@ -12,12 +12,12 @@ from starlette.middleware.cors import CORSMiddleware
 from starlette.responses import JSONResponse
 from starlette.types import ASGIApp
 
-from packages.api.src.coreconfig import settings
-from packages.api.src.corelogger import logger
-from packages.api.src.coremetrics_collector import metrics_collector
-from packages.api.src.coremonitoring.middleware import MonitoringMiddleware
-from packages.api.src.corerate_limiter import RateLimiter
-from packages.api.src.coresecurity import SecurityService, get_security_service
+from core.config import settings
+from core.logger import logger
+from core.metrics_collector import metrics_collector
+from core.monitoring.middleware import MonitoringMiddleware
+from core.rate_limiter import RateLimiter
+from core.security import SecurityService, get_security_service
 
 logger = structlog.get_logger()
 

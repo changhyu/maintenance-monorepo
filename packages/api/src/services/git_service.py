@@ -8,11 +8,11 @@ GitService 모듈 리디렉션
       이전 구현은 백업 파일에서 확인할 수 있습니다.
 """
 
-# 실제 구현으로 리디렉션
-from gitmanager.git.core.service import GitService
+# 실제 구현으로 리디렉션 (상대 경로 임포트로 변경)
+from ...git.core.service import GitService
 
-# 호환성을 위한 예외 클래스 리디렉션
-from gitmanager.git.core.exceptions import (
+# 호환성을 위한 예외 클래스 리디렉션 (상대 경로 임포트로 변경)
+from ...git.core.exceptions import (
     GitAuthenticationException,
     GitBranchException,
     GitCommandException,
@@ -26,8 +26,8 @@ from gitmanager.git.core.exceptions import (
     GitTagException,
 )
 
-# 유틸리티 함수 리디렉션
-from gitmanager.git.core.utils import (
+# 유틸리티 함수 리디렉션 (상대 경로 임포트로 변경)
+from ...git.core.utils import (
     run_git_command,
     is_git_installed,
     is_git_repository,
@@ -42,8 +42,8 @@ from gitmanager.git.core.utils import (
     find_conflict_markers,
 )
 
-# 타입 정의 리디렉션
-from gitmanager.git.core.types import (
+# 타입 정의 리디렉션 (상대 경로 임포트로 변경)
+from ...git.core.types import (
     GitStatusResult,
     CommitResponse,
     PullPushResult,

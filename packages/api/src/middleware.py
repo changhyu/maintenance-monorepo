@@ -10,10 +10,15 @@ from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
 # 내부 모듈 import
-from packages.api.srccore.config import settings
-from packages.api.srccore.logging_setup import setup_logging
-from packages.api.srccore.middleware import setup_middlewares
-from packages.api.srccore.monitoring.middleware import MonitoringMiddleware
+try:
+    from core.config import settings
+    from core.logging_setup import setup_logging
+    from core.middleware import setup_middlewares
+    from core.monitoring.middleware import MonitoringMiddleware
+    print("middleware.py: 내부 모듈 임포트 성공")
+except ImportError as e:
+    print(f"middleware.py: 내부 모듈 임포트 오류 - {e}")
+    raise  # 필수 임포트이므로 예외 발생시치기
 
 # 로깅 설정
 logger = setup_logging()

@@ -1,98 +1,196 @@
-# 코드 품질 가이드라인
+# 코드 품질 관리 가이드
 
-이 문서는 프로젝트의 코드 품질 표준을 정의합니다. 모든 개발자는 이 가이드라인을 준수하여 일관된 고품질 코드를 유지해야 합니다.
+이 문서는 Maintenance Monorepo 프로젝트의 코드 품질 관리 프로세스를 설명합니다.
 
-## 코드 스타일
+## 1. 코드 스타일 가이드
 
-- **Prettier**: 모든 코드는 Prettier를 통해 자동 포맷팅됩니다.
-- **ESLint**: 설정된 ESLint 규칙을 준수해야 합니다.
-- **네이밍 컨벤션**:
-  - 변수/함수: camelCase
-  - 클래스/인터페이스: PascalCase
-  - 상수: UPPER_SNAKE_CASE
-  - 파일명: 컴포넌트는 PascalCase, 그 외는 kebab-case
+### 1.1 Python 코드 스타일
 
-## 타입 안전성
-
-- TypeScript의 `strict` 모드를 활성화하여 타입 안전성을 보장합니다.
-- `any` 타입 사용을 지양합니다. 대신 명시적인 타입이나 `unknown`을 사용하세요.
-- 타입 단언(`as`)보다는 타입 가드를 사용하세요.
-- 함수의 매개변수와 반환값에 항상 타입을 명시하세요.
-
-## 코드 구성
-
-- **단일 책임 원칙**: 각 모듈, 클래스, 함수는 하나의 책임만 가져야 합니다.
-- **함수 크기**: 함수는 작게 유지하고 한 가지 일만 수행하도록 합니다.
-- **순수 함수**: 가능하면 부작용이 없는 순수 함수를 작성하세요.
-- **중복 코드 방지**: 중복 코드는 공통 모듈로 추출하세요.
-
-## 테스트
-
-- 모든 새로운 기능에는 테스트가 필요합니다.
-- 최소 테스트 커버리지는 70%를 유지합니다.
-- 단위 테스트, 통합 테스트, E2E 테스트를 적절히 구성하세요.
-- 테스트는 독립적이고 반복 가능해야 합니다.
-
-## 성능 최적화
-
-- 불필요한 렌더링을 방지하세요 (React.memo, useMemo, useCallback 적절히 사용).
-- 큰 목록은 가상화(virtualization)를 고려하세요.
-- 번들 크기를 모니터링하고 코드 분할을 사용하세요.
-- 불필요한 의존성을 피하세요.
-
-## 접근성
-
-- 모든 사용자 인터페이스는 WCAG 지침을 준수해야 합니다.
-- 스크린 리더와 키보드 네비게이션을 지원해야 합니다.
-- 색상 대비를 적절히 유지하세요.
-- 시맨틱 HTML을 사용하세요.
-
-## 보안
-
-- 사용자 입력은 항상 검증하고 삭제하세요.
-- 인증 및 권한 부여를 적절히 구현하세요.
-- API 키와 보안 자격 증명은 환경 변수에 저장하세요.
-- 취약점이 있는 종속성을 정기적으로 확인하고 업데이트하세요.
-
-## 코드 리뷰 체크리스트
-
-- [ ] 코드가 스타일 가이드를 준수합니까?
-- [ ] 타입 안전성이 확보되었습니까?
-- [ ] 테스트 커버리지가 충분합니까?
-- [ ] 코드가 성능 최적화를 고려했습니까?
-- [ ] 코드가 접근성 지침을 준수합니까?
-- [ ] 보안 취약점이 없습니까?
-- [ ] 코드가 잘 문서화되어 있습니까?
-- [ ] 코드가 유지보수하기 쉬운가요?
-
-## 자동화된 품질 검사
-
-이 프로젝트는 다음과 같은 자동화된 품질 검사 도구를 사용합니다:
-
-- ESLint: 코드 품질 규칙 적용
-- Prettier: 코드 스타일 일관성 유지
-- TypeScript: 타입 안전성 확보
-- Jest: 테스트 실행 및 커버리지 측정
-- Husky & lint-staged: 커밋 전 코드 품질 검사
-
-## 품질 검사 스크립트
+- **PEP 8** 준수
+- **Black** 포맷터 사용
+- **isort**로 import 정렬
+- **flake8**로 린팅
 
 ```bash
-# 코드 스타일 검사
-npm run lint
+# 설치
+pip install black isort flake8
 
-# 코드 스타일 자동 수정
-npm run lint:fix
-
-# 코드 포맷팅
-npm run format
-
-# 타입 검사
-npm run typecheck
-
-# 테스트 실행
-npm run test
-
-# 전체 검증 (lint + typecheck + test)
-npm run validate
+# 사용
+black .
+isort .
+flake8 .
 ```
+
+### 1.2 TypeScript/JavaScript 코드 스타일
+
+- **ESLint** 설정
+- **Prettier** 포맷터 사용
+- **TypeScript** 엄격 모드 사용
+
+```bash
+# 설치
+npm install --save-dev eslint prettier @typescript-eslint/parser @typescript-eslint/eslint-plugin
+
+# 사용
+npm run lint
+npm run format
+```
+
+## 2. 테스트 가이드
+
+### 2.1 Python 테스트
+
+- **pytest** 사용
+- **pytest-cov**로 커버리지 측정
+- **pytest-asyncio**로 비동기 테스트
+
+```bash
+# 설치
+pip install pytest pytest-cov pytest-asyncio
+
+# 사용
+pytest --cov=packages/api tests/
+```
+
+### 2.2 TypeScript/JavaScript 테스트
+
+- **Jest** 사용
+- **React Testing Library**로 컴포넌트 테스트
+- **MSW**로 API 모킹
+
+```bash
+# 설치
+npm install --save-dev jest @testing-library/react @testing-library/jest-dom msw
+
+# 사용
+npm test
+```
+
+## 3. 정적 분석
+
+### 3.1 Python 정적 분석
+
+- **mypy**로 타입 체크
+- **bandit**로 보안 취약점 검사
+- **pylint**로 코드 품질 분석
+
+```bash
+# 설치
+pip install mypy bandit pylint
+
+# 사용
+mypy packages/api
+bandit -r packages/api
+pylint packages/api
+```
+
+### 3.2 TypeScript 정적 분석
+
+- **TypeScript** 컴파일러로 타입 체크
+- **ESLint**로 코드 품질 분석
+- **SonarQube** 통합
+
+```bash
+# 사용
+npm run type-check
+npm run lint
+```
+
+## 4. CI/CD 통합
+
+### 4.1 GitHub Actions 워크플로우
+
+```yaml
+name: Code Quality
+
+on: [push, pull_request]
+
+jobs:
+  python-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python
+        uses: actions/setup-python@v2
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+      - name: Run tests
+        run: pytest
+      - name: Run linting
+        run: flake8
+      - name: Run type checking
+        run: mypy
+
+  typescript-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+      - name: Install dependencies
+        run: npm install
+      - name: Run tests
+        run: npm test
+      - name: Run linting
+        run: npm run lint
+```
+
+## 5. 코드 리뷰 프로세스
+
+### 5.1 PR 템플릿
+
+```markdown
+## 변경 사항 설명
+
+## 테스트 방법
+
+## 관련 이슈
+
+## 체크리스트
+- [ ] 코드 스타일 가이드 준수
+- [ ] 테스트 작성/수정
+- [ ] 문서 업데이트
+```
+
+### 5.2 리뷰 가이드라인
+
+- **코드 스타일** 준수 여부 확인
+- **테스트 커버리지** 확인
+- **성능 영향** 분석
+- **보안 취약점** 검사
+- **문서화** 완성도 확인
+
+## 6. 성능 모니터링
+
+### 6.1 API 성능
+
+- **Prometheus** 메트릭 수집
+- **Grafana** 대시보드
+- **APM** 도구 통합
+
+### 6.2 웹사이트 성능
+
+- **Lighthouse** 점수 모니터링
+- **Core Web Vitals** 추적
+- **Bundle 분석**
+
+## 7. 문서화
+
+### 7.1 코드 문서화
+
+- **docstring** 작성
+- **TypeScript** 타입 정의
+- **API 문서** 자동 생성
+
+### 7.2 프로젝트 문서화
+
+- **README** 업데이트
+- **아키텍처 문서** 관리
+- **API 문서** 관리
+
+## 8. 참고 자료
+
+- [Python 코드 스타일 가이드](https://www.python.org/dev/peps/pep-0008/)
+- [TypeScript 코딩 가이드](https://www.typescriptlang.org/docs/handbook/coding-guidelines.html)
+- [ESLint 설정 가이드](https://eslint.org/docs/user-guide/configuring)
+- [Jest 테스트 가이드](https://jestjs.io/docs/getting-started)

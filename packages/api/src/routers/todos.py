@@ -8,10 +8,10 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query
 from fastapi.responses import JSONResponse
-from packagescore.cache_decorators import cache_response
-from packagescore.logging import get_logger
-from packagesmodels.schemas import (ApiResponse, Todo, TodoCreate,
-                                    TodoPriority, TodoStatus, TodoUpdate)
+from core.cache_decorators import cache_response
+from core.logging import get_logger
+from models.schemas import (ApiResponse, Todo, TodoCreate,
+                           TodoPriority, TodoStatus, TodoUpdate)
 
 logger = get_logger("todos")
 
@@ -26,7 +26,7 @@ USER_ID_DESC = "사용자 ID"
 
 # 서비스 객체 임포트 시 오류 방지
 try:
-    from packagesmodules.todo import TodoService
+    from modules.todo import TodoService
 
     todo_service = TodoService()
     logger.info("TodoService가 성공적으로 로드되었습니다.")

@@ -8,17 +8,17 @@ import logging
 
 from fastapi import APIRouter
 
-from packages.api.src.routersauth import router as auth_router
-from packages.api.src.routersbase_router import BaseRouter
-from packages.api.src.routersmaintenance import router as maintenance_router
-from packages.api.src.routersmaintenance_records import \
+from routers.auth import router as auth_router
+from routers.base_router import BaseRouter
+from routers.maintenance import router as maintenance_router
+from routers.maintenance_records import \
     router as maintenance_records_router
-from packages.api.src.routersnotifications import \
+from routers.notifications import \
     router as notifications_router
-from packages.api.src.routersschedule import router as schedule_router
-from packages.api.src.routersshops import router as shops_router
-from packages.api.src.routerstodos import router as todos_router
-from packages.api.src.routersvehicles import router as vehicles_router
+from routers.schedule import router as schedule_router
+from routers.shops import router as shops_router
+from routers.todos import router as todos_router
+from routers.vehicles import router as vehicles_router
 
 logger = logging.getLogger(__name__)
 

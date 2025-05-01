@@ -1,29 +1,29 @@
 # 내부 패키지 목록 - 이 패키지들은 내부 저장소나 로컬 파일에서 설치됩니다
 # 이 파일은 패키지 관리 및 문서화용으로 사용됩니다 - Docker 빌드에서 직접 사용되지 않음
 
-# MCP 서버 관련 패키지
-mcp_server_git
-mcp_server_sentry
-mcp_server_fetch
-mcp_server_time
-mcp
+# === MCP 서버 관련 패키지 ===
+mcp_server_git>=1.0.0
+mcp_server_sentry>=1.0.0
+mcp_server_fetch>=1.0.0
+mcp_server_time>=1.0.0
+mcp>=1.2.0
 
-# Packages 모듈들
-packagescore
-packagesschemas
-packagesmodules
-packagesmodels
-packagesservices
-packagesrepositories
-packagesrouters
-packagescontrollers
-packagesdatabase
+# === Packages 모듈 ===
+packagescore>=0.9.0
+packagesschemas>=0.9.0
+packagesmodules>=0.9.0
+packagesmodels>=0.9.0
+packagesservices>=0.9.0
+packagesrepositories>=0.9.0
+packagesrouters>=0.9.0
+packagescontrollers>=0.9.0
+packagesdatabase>=0.9.0
 
-# 기타 내부 패키지
-maintenance_shared_python
-app
-compat
-modules
-routing
-core
-middleware
+# === 기타 내부 패키지 ===
+maintenance_shared_python>=1.0.0
+app>=0.9.0
+compat>=1.0.0
+modules>=1.0.0
+routing>=0.9.0
+core>=1.0.0
+middleware>=0.9.0

@@ -12,8 +12,9 @@ import subprocess
 from pathlib import Path
 from typing import Dict, List, Optional, Union, Any, Tuple
 
-from gitmanager.git.core.utils import run_git_command
-from gitmanager.git.core.exceptions import GitRepositoryException, GitCommandException
+# 상대 경로 임포트로 수정
+from ...git.core.utils import run_git_command
+from ...git.core.exceptions import GitRepositoryException, GitCommandException
 
 # 로깅 설정
 logger = logging.getLogger(__name__)

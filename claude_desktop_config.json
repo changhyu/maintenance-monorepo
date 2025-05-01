@@ -1,0 +1,28 @@
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/Users/gongchanghyeon/Desktop/maintenance-monorepo"
+      ],
+      "restrictions": {
+        "maxFileSizeMB": 10,
+        "allowedExtensions": [".txt", ".md", ".csv", ".js", ".json", ".ts", ".tsx", ".jsx", ".html", ".css", ".py"]
+      }
+    },
+    "sequential-thinking": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
+    },
+    "sequentialthinking": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
+    },
+    "MCP_DOCKER": {
+      "command": "docker",
+      "args": ["run", "--rm", "-i", "alpine/socat", "STDIO", "TCP:host.docker.internal:8811"]
+    }
+  }
+}

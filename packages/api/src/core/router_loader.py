@@ -4,7 +4,10 @@ API 경로 라우터를 동적으로 로드하고 관리하는 기능을 제공�
 """
 
 import importlib
+import importlib.util
 import logging
+import os
+import sys
 import traceback
 from contextlib import suppress
 from typing import List, Optional
@@ -28,8 +31,21 @@ def import_router(module_path: str, router_name: str = "router") -> APIRouter:
     try:
         # 상대 경로 처리 (.으로 시작하는 경로)
         if module_path.startswith("."):
+            # 패키지 기준점 명확화
             package = "src"
-            module = importlib.import_module(module_path, package)
+            # API 서비스 루트 디렉토리 확인
+            current_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            if current_dir not in sys.path:
+                logger.debug(f"패키지 루트 경로 추가: {current_dir}")
+                sys.path.insert(0, current_dir)
+            
+            try:
+                module = importlib.import_module(module_path, package)
+            except ImportError as e:
+                # 모듈 임포트 실패 시 절대 경로 시도
+                absolute_path = module_path.lstrip(".")
+                logger.debug(f"상대 경로 임포트 실패, 절대 경로 시도: {absolute_path}")
+                module = importlib.import_module(f"src{absolute_path}")
         else:
             module = importlib.import_module(module_path)
 
@@ -47,6 +63,8 @@ def import_router(module_path: str, router_name: str = "router") -> APIRouter:
             return {
                 "error": f"{module_name} 모듈 로드 실패",
                 "message": "모듈을 찾을 수 없거나 의존성 문제가 발생했습니다.",
+                "details": str(e),
+                "paths": sys.path
             }
 
         return default_router
@@ -110,8 +128,13 @@ def load_routers() -> List[APIRouter]:
     # Todo 라우터 특별 처리 (의존성 확인 필요)
     try:
         # 먼저 의존성 모듈들을 확인
-        from src.core.offline_manager import PendingOperationType, offline_manager
-        from src.modules.todo.service import TodoService
+        try:
+            from core.offline_manager import PendingOperationType, offline_manager
+            from modules.todo.service import TodoService
+            logger.info("Todo 의존성 로드 성공")
+        except ImportError as e:
+            logger.warning(f"Todo 의존성 로드 실패: {e}")
+            raise  # 예외 재발생
 
         # 모든 의존성이 성공적으로 임포트되면 실제 라우터 임포트
         todo_router = import_router(".routers.todos")
@@ -153,13 +176,13 @@ def load_routers() -> List[APIRouter]:
 
             # 개별 의존성 확인 시도
             with suppress(ImportError):
-                from src.core.offline_manager import offline_manager
+                from core.offline_manager import offline_manager
 
                 dependencies["offline_manager"]["status"] = "available"
                 dependencies["offline_manager"].pop("error", None)
 
             with suppress(ImportError):
-                from src.modules.todo.service import TodoService
+                from modules.todo.service import TodoService
 
                 dependencies["TodoService"]["status"] = "available"
                 dependencies["TodoService"].pop("error", None)

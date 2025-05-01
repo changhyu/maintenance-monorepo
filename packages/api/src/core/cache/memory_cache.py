@@ -8,7 +8,7 @@ import logging
 import time
 from typing import Any, Dict, List, Optional, Set, Tuple
 
-from packages.api.src.core.cachelru_cache import LRUCache
+from core.cache.lru_cache import LRUCache
 
 logger = logging.getLogger(__name__)
 

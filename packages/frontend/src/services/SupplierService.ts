@@ -6,7 +6,7 @@ class SupplierServiceImpl implements SupplierService {
   private baseUrl: string;
 
   private constructor() {
-    this.baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
+    this.baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
   }
 
   public static getInstance(): SupplierServiceImpl {
@@ -223,4 +223,4 @@ class SupplierServiceImpl implements SupplierService {
   }
 }
 
-export default SupplierServiceImpl; 
+export default SupplierServiceImpl;

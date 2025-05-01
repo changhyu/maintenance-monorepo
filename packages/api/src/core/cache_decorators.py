@@ -34,15 +34,15 @@ from starlette.responses import JSONResponse
 from starlette.responses import Response as StarletteResponse
 from starlette.types import ASGIApp
 
-from packages.api.src.corecache.config import get_cache_config
-from packages.api.src.corecache.manager import get_cache_manager
-from packages.api.src.corecache_keys import (
+from core.cache.config import get_cache_config
+from core.cache.manager import get_cache_manager
+from core.cache_keys import (
     create_cache_key,
     create_cache_namespace,
     create_function_cache_key,
     get_cache_namespace_for_user,
 )
-from packages.api.src.coremetrics_collector import metrics_collector
+from core.metrics_collector import metrics_collector
 
 logger = logging.getLogger(__name__)
 config = get_cache_config()

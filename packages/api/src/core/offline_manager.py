@@ -38,7 +38,7 @@ try:
 except ImportError:
     ENCRYPTION_AVAILABLE = False
 
-from packages.api.src.core.logging import get_logger
+from core.logging import get_logger
 
 logger = get_logger("offline_manager")
 

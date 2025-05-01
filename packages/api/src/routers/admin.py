@@ -12,16 +12,16 @@ from datetime import datetime, timedelta
 import psutil
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Body, Path, BackgroundTasks
 from sqlalchemy.orm import Session
-from packagescore.cache import cache
-from packagescore.cache_decorators import CacheLevel
-from packagescore.dependencies import get_admin_user, get_db
-from packagescore.metrics_collector import metrics_collector
-from packagescore.parallel_processor import ParallelProcessor
+from src.core.cache import cache
+from src.core.cache_decorators import CacheLevel
+from src.core.dependencies import get_admin_user, get_db
+from src.core.metrics_collector import metrics_collector
+from src.core.parallel_processor import ParallelProcessor
 from pydantic import BaseModel, Field
-from packages.api.src.models.base import validate_uuid
+from src.models.base import validate_uuid
 
 router = APIRouter(
-    prefix="/admin", tags=["admin"], dependencies=[Depends(get_admin_user)]
+    prefix="/api/admin", tags=["admin"], dependencies=[Depends(get_admin_user)]
 )
 
 

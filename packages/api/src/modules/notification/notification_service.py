@@ -13,18 +13,18 @@ from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
 
 from fastapi import Depends
 from jinja2 import Template
-from packages.apiuser.user_model import User
+from packages.api.user.user_model import User
 from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.orm import Session
-from src.core.config import Settings
-from src.core.database import AsyncSession, Base, get_db
-from src.core.metrics import metrics_collector
-from src.core.security import SecurityService
-from src.modules.notification.models import NotificationCreate
-from src.modules.notification.models import NotificationInDB as Notification
-from src.modules.notification.models import (NotificationResponse,
-                                             NotificationUpdate)
-from src.modules.notification.notification_repository import \
+from core.config import Settings
+from core.database import AsyncSession, Base, get_db
+from core.metrics import metrics_collector
+from core.security import SecurityService
+from modules.notification.models import NotificationCreate
+from modules.notification.models import NotificationInDB as Notification
+from modules.notification.models import (NotificationResponse,
+                                       NotificationUpdate)
+from modules.notification.notification_repository import \
     NotificationRepository
 
 

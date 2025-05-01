@@ -1,7 +1,6 @@
 """
 API 로깅 모듈
 """
-
 import json
 import logging
 import logging.handlers
@@ -11,8 +10,9 @@ from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from packages.api.src.coreconfig import config
-from packages.api.src.coreexceptions import ConfigurationException
+# 임포트 경로 수정
+from core.config import settings as config
+from core.exceptions import ConfigurationException
 
 # 상수 정의
 DEFAULT_LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"

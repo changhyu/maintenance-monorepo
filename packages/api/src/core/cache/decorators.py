@@ -17,9 +17,9 @@ from fastapi import Depends, Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
-from packages.api.src.core.cacheinterfaces import CacheInterface
-from packages.api.src.core.cachekey_builder import DefaultKeyBuilder
-from packages.api.src.core.cachemanager import CacheManager, get_cache_manager
+from core.cache.interfaces import CacheInterface
+from core.cache.key_builder import DefaultKeyBuilder
+from core.cache.manager import CacheManager, get_cache_manager
 
 logger = logging.getLogger(__name__)
 

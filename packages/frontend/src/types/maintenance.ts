@@ -129,3 +129,26 @@ export interface MaintenanceDTO {
   documents?: Omit<MaintenanceDocument, 'id' | 'uploadedAt'>[];
   parts?: Omit<MaintenancePart, 'id'>[];
 }
+
+/**
+ * 서비스 호환성을 위한 타입 별칭
+ */
+export type MaintenanceRecord = Maintenance;
+export type MaintenanceRecordCreate = MaintenanceDTO;
+export type MaintenanceRecordUpdate = MaintenanceDTO;
+
+/**
+ * 정비 통계 인터페이스
+ */
+export interface MaintenanceStats {
+  totalCount: number;
+  completedCount: number;
+  inProgressCount: number;
+  scheduledCount: number;
+  averageCost?: number;
+  costByType?: Record<MaintenanceType, number>;
+  countByType?: Record<MaintenanceType, number>;
+  countByMonth?: Record<string, number>;
+  averageCompletionTime?: number;
+  topVehicles?: Array<{vehicleId: string; vehicleName?: string; count: number}>;
+}

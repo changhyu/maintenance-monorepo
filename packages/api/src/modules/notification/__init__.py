@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from packages.api.src.modules.notificationnotification_router import (
+from modules.notification.notification_router import (
     router as notification_router,
 )
 

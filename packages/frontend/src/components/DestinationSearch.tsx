@@ -1,10 +1,18 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Coordinates } from '../services/navigationService';
+
+interface SearchResult {
+  id: string;
+  name: string;
+  address: string;
+  location: Coordinates;
+}
 
 interface DestinationSearchProps {
   onSelectDestination: (destination: Coordinates) => void;
   onCancel?: () => void;
   isLoading?: boolean;
+  initialQuery?: string;
 }
 
 /**
@@ -14,10 +22,11 @@ interface DestinationSearchProps {
 const DestinationSearch: React.FC<DestinationSearchProps> = ({
   onSelectDestination,
   onCancel,
-  isLoading = false
+  isLoading = false,
+  initialQuery = ''
 }) => {
-  const [query, setQuery] = useState<string>('');
-  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [query, setQuery] = useState<string>(initialQuery);
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   
@@ -25,7 +34,7 @@ const DestinationSearch: React.FC<DestinationSearchProps> = ({
   useEffect(() => {
     if (window.google && searchInputRef.current) {
       const autocompleteOptions = {
-        componentRestrictions: { country: 'kr' }, // Restrict to Korea
+        componentRestrictions: { country: 'kr' },
         fields: ['geometry', 'name', 'formatted_address']
       };
       
@@ -34,7 +43,6 @@ const DestinationSearch: React.FC<DestinationSearchProps> = ({
         autocompleteOptions
       );
       
-      // Listen for place selection
       autocomplete.addListener('place_changed', () => {
         const place = autocomplete.getPlace();
         if (place.geometry && place.geometry.location) {
@@ -49,27 +57,23 @@ const DestinationSearch: React.FC<DestinationSearchProps> = ({
   }, [onSelectDestination]);
   
   // Handle search input change
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setQuery(value);
     
     if (value.length > 2) {
-      // In a real implementation, we'd call a geocoding service
-      // For now, mocking the search
       mockSearch(value);
     } else {
       setSearchResults([]);
     }
-  };
+  }, []);
   
-  // Mock search function - in a real app you'd use a geocoding service
-  const mockSearch = (searchQuery: string) => {
+  // Mock search function
+  const mockSearch = useCallback((searchQuery: string) => {
     setIsSearching(true);
     
-    // Simulate API call
     setTimeout(() => {
-      // Mock some results
-      const mockResults = [
+      const mockResults: SearchResult[] = [
         {
           id: '1',
           name: `${searchQuery} 회사`,
@@ -93,17 +97,41 @@ const DestinationSearch: React.FC<DestinationSearchProps> = ({
       setSearchResults(mockResults);
       setIsSearching(false);
     }, 500);
-  };
+  }, []);
   
   // Handle result selection
-  const handleResultSelect = (result: any) => {
+  const handleResultSelect = useCallback((result: SearchResult) => {
     onSelectDestination(result.location);
     setQuery('');
     setSearchResults([]);
-  };
+  }, [onSelectDestination]);
+
+  // Memoized search results
+  const searchResultsList = useMemo(() => (
+    <div className="absolute z-10 w-full mt-1 bg-white shadow-lg rounded-md border border-gray-200">
+      <ul className="divide-y divide-gray-200">
+        {searchResults.map((result) => (
+          <li key={result.id} className="cursor-pointer hover:bg-gray-50">
+            <button 
+              className="w-full text-left px-4 py-3"
+              onClick={() => handleResultSelect(result)}
+              aria-label={`${result.name} 선택`}
+            >
+              <div className="font-medium">{result.name}</div>
+              <div className="text-sm text-gray-500">{result.address}</div>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  ), [searchResults, handleResultSelect]);
   
   return (
-    <div className="w-full max-w-md bg-white shadow-md rounded-lg p-4">
+    <div 
+      className="w-full max-w-md bg-white shadow-md rounded-lg p-4"
+      role="search"
+      aria-label="목적지 검색"
+    >
       <div className="font-bold text-lg mb-2">목적지 검색</div>
       
       <div className="relative">
@@ -115,32 +143,20 @@ const DestinationSearch: React.FC<DestinationSearchProps> = ({
           placeholder="목적지를 입력하세요"
           className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           disabled={isLoading}
+          aria-label="목적지 검색 입력"
         />
         
         {isSearching && (
-          <div className="absolute right-3 top-3">
+          <div 
+            className="absolute right-3 top-3"
+            role="status"
+            aria-label="검색 중"
+          >
             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-900"></div>
           </div>
         )}
         
-        {/* Search Results */}
-        {searchResults.length > 0 && (
-          <div className="absolute z-10 w-full mt-1 bg-white shadow-lg rounded-md border border-gray-200">
-            <ul className="divide-y divide-gray-200">
-              {searchResults.map((result) => (
-                <li key={result.id} className="cursor-pointer hover:bg-gray-50">
-                  <button 
-                    className="w-full text-left px-4 py-3"
-                    onClick={() => handleResultSelect(result)}
-                  >
-                    <div className="font-medium">{result.name}</div>
-                    <div className="text-sm text-gray-500">{result.address}</div>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+        {searchResults.length > 0 && searchResultsList}
       </div>
       
       <div className="text-sm text-gray-500 mt-2">
@@ -152,6 +168,7 @@ const DestinationSearch: React.FC<DestinationSearchProps> = ({
           <button
             onClick={onCancel}
             className="text-blue-600 hover:text-blue-800 font-medium"
+            aria-label="검색 취소"
           >
             취소
           </button>

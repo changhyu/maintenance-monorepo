@@ -6,7 +6,6 @@ import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, AxiosError } f
  */
 export class ApiClient {
   private readonly instance: AxiosInstance;
-  private baseURL: string;
   private isOfflineMode: boolean = false;
   private connectionStatus: 'connected' | 'disconnected' | 'checking' = 'checking';
   private retryCount: number = 0;
@@ -19,7 +18,6 @@ export class ApiClient {
    * @param config Axios 설정
    */
   constructor(baseURL: string = '/api', config: AxiosRequestConfig = {}) {
-    this.baseURL = baseURL;
     this.instance = axios.create({
       baseURL,
       timeout: 30000, // 30초
@@ -329,7 +327,6 @@ export class ApiClient {
    * @param baseURL 새 기본 URL
    */
   public setBaseURL(baseURL: string): void {
-    this.baseURL = baseURL;
     this.instance.defaults.baseURL = baseURL;
     
     // URL 변경 후 연결 상태 확인
@@ -447,9 +444,9 @@ let apiBaseUrl = '/api';
 
 // 로컬 환경에서 백엔드 API 서버 URL 설정
 if (process.env.NODE_ENV === 'development') {
-  apiBaseUrl = 'http://localhost:8080/api'; // 포트 8000에서 8080으로 변경
-} else if (process.env.REACT_APP_API_URL) {
-  apiBaseUrl = process.env.REACT_APP_API_URL;
+  apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+} else if (import.meta.env.VITE_API_URL) {
+  apiBaseUrl = import.meta.env.VITE_API_URL;
 }
 
 console.log(`API 클라이언트 설정: ${apiBaseUrl}`);

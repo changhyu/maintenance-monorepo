@@ -8,10 +8,8 @@ import {
 import axios from 'axios';
 import {
   Box,
-  Card,
-  CardContent,
-  CircularProgress,
   Typography,
+  CircularProgress,
   IconButton,
   Chip,
   Button,
@@ -25,19 +23,11 @@ import {
   MenuItem,
   Select,
   Paper,
-  Divider,
   Alert,
 } from '@mui/material';
-import Grid from '@mui/material/Grid';
 import {
-  MyLocation as MyLocationIcon,
-  Timeline as TimelineIcon,
-  FilterAlt as FilterAltIcon,
   Refresh as RefreshIcon,
-  MoreVert as MoreVertIcon,
-  Directions as DirectionsIcon,
   History as HistoryIcon,
-  DateRange as DateRangeIcon,
 } from '@mui/icons-material';
 import { LocationPoint } from '../../types/location';
 import { Vehicle } from '../../types/vehicle';
@@ -110,34 +100,34 @@ interface VehicleLocation {
   location: { lat: number; lng: number };
 }
 
-// Custom interface for SVG path marker icon
-interface CustomMarkerIcon {
-  path: string;
-  fillColor: string;
-  fillOpacity: number;
-  strokeColor: string;
-  strokeWeight: number;
-  scale: number;
-  anchor: google.maps.Point;
-  rotation: number;
+// GoogleMaps에서 사용하는 타입
+interface GoogleLatLng {
+  lat: number;
+  lng: number;
 }
 
-interface VehicleInfo extends Vehicle {
-  // Vehicle을 확장한 추가 정보
-  status?: string;
+// LocationPoint를 GoogleLatLng로 변환하는 함수
+const locationPointToGoogleLatLng = (location: LocationPoint | null): GoogleLatLng | undefined => {
+  if (!location) return undefined;
+  return {
+    lat: location.latitude,
+    lng: location.longitude
+  };
+};
+
+// Vehicle 타입을 확장하여 추가 속성 정의
+interface VehicleInfo {
+  id: string;
+  name: string;
+  type: string;
+  status: string;
+  make?: string;
+  model?: string;
+  year?: number;
+  licensePlate?: string;
+  vin?: string;
   lastUpdated?: string;
   locations?: VehicleLocation[];
-  location?: {
-    latitude: number;
-    longitude: number;
-    status: 'DRIVING' | 'STOPPED' | 'IDLE' | 'PARKED' | 'OFFLINE';
-    speed: number;
-    address: string;
-    timestamp: string;
-  };
-}
-
-interface SelectedVehicleType extends VehicleInfo {
   location?: {
     latitude: number;
     longitude: number;
@@ -156,7 +146,7 @@ interface HistoryQuery {
 
 interface VehicleTrackingMapProps {
   height?: string;
-  centerMode?: 'vehicle' | 'current' | 'custom';
+  centerMode?: 'vehicle' | 'current' | 'custom' | 'follow' | 'auto';
   showHistory?: boolean;
   showAllVehicles?: boolean;
   vehicleId?: string;
@@ -326,7 +316,12 @@ const VehicleTrackingMap: React.FC<VehicleTrackingMapProps> = ({
           const targetVehicle = vehicleId ? locations.find(loc => loc.vehicle_id === vehicleId) : locations[0];
           
           if (targetVehicle && mapRef.current) {
-            setCenter(targetVehicle.location);
+            // LocationPoint 형식으로 변환하여 저장
+            setCenter({
+              latitude: targetVehicle.latitude,
+              longitude: targetVehicle.longitude,
+              name: `Vehicle ${targetVehicle.vehicle_id}`
+            });
             mapRef.current.panTo(targetVehicle.location);
           }
         }
@@ -517,7 +512,7 @@ const VehicleTrackingMap: React.FC<VehicleTrackingMapProps> = ({
       {/* 구글 지도 */}
       <GoogleMap
         mapContainerStyle={{ ...mapContainerStyle, height }}
-        center={center}
+        center={center ? { lat: center.latitude, lng: center.longitude } : defaultCenter}
         zoom={13}
         onLoad={onMapLoad}
         options={defaultMapOptions}

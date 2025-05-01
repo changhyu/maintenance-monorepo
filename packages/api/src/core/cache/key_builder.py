@@ -9,8 +9,8 @@ import json
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Set, Union
 
-from packages.api.src.core.cacheconstants import PROTECTED_KEY_PREFIX
-from packages.api.src.core.cacheinterfaces import CacheKeyBuilderInterface
+from core.cache.constants import PROTECTED_KEY_PREFIX
+from core.cache.interfaces import CacheKeyBuilderInterface
 
 
 class CacheKey:

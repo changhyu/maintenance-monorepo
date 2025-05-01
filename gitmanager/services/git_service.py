@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
 # GitPython 설정 모듈을 통해 필요한 컴포넌트 로드
-from gitmanager.git.core.gitpython_setup import setup_gitpython
+from ..git.core.gitpython_setup import setup_gitpython
 
 # GitPython 설정 및 컴포넌트 로드
 gitpython_components = setup_gitpython()
@@ -78,7 +78,7 @@ else:
     logging.warning("InvalidGitRepositoryError 클래스를 찾을 수 없어 대체 구현 사용")
 
 # 나머지 임포트
-from gitmanager.git.core.exceptions import (
+from ..git.core.exceptions import (
     GitAuthenticationException,
     GitBranchException,
     GitCommandException,
@@ -91,7 +91,7 @@ from gitmanager.git.core.exceptions import (
     GitRepositoryException,
     GitTagException,
 )
-from gitmanager.git.core.types import (
+from ..git.core.types import (
     BranchComparisonResult,
     BranchInfo,
     BranchStrategy,
@@ -116,7 +116,7 @@ from gitmanager.git.core.types import (
     PullPushResultWithChanges,
     TagInfo,
 )
-from gitmanager.git.core.utils import (
+from ..git.core.utils import (
     build_error_details,
     find_conflict_markers,
     is_git_installed,
@@ -127,9 +127,9 @@ from gitmanager.git.core.utils import (
     parse_commit_message,
     parse_config_info,
 )
-from gitmanager.git.core.utils import parse_diff_stats
-from gitmanager.git.core.utils import parse_diff_stats as get_diff_stats
-from gitmanager.git.core.utils import (
+from ..git.core.utils import parse_diff_stats
+from ..git.core.utils import parse_diff_stats as get_diff_stats
+from ..git.core.utils import (
     parse_file_history,
     parse_git_status,
     parse_merge_conflicts,
@@ -137,7 +137,7 @@ from gitmanager.git.core.utils import (
     parse_tag_info,
     run_git_command,
 )
-from gitmanager.git.interfaces.git_interface import GitInterface
+from ..git.interfaces.git_interface import GitInterface
 
 # Git 관련 상수
 DEFAULT_BRANCH = "main"  # 기본 브랜치

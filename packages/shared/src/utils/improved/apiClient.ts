@@ -498,9 +498,9 @@ export class ApiClient {
  * 기본 설정으로 API 클라이언트 생성
  */
 const createDefaultApiClient = (): ApiClient => {
-  const baseURL = typeof process !== 'undefined' && process.env.NEXT_PUBLIC_API_URL || 
+  const baseURL = typeof process !== 'undefined' && (process.env.NEXT_PUBLIC_API_URL || process.env.REACT_APP_API_URL) || 
                  typeof window !== 'undefined' && (window as any).API_BASE_URL || 
-                 'http://localhost:8001';
+                 'http://localhost:8000';
   
   const getAuthToken = () => {
     if (typeof window !== 'undefined' && window.localStorage) {

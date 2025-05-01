@@ -11,9 +11,9 @@ from typing import Optional, Dict, Any
 from fastapi import FastAPI, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 
-from gitmanager.security.rate_limit import RateLimitMiddleware, RateLimiter
-from gitmanager.security.rate_limit.config import get_rate_limit_settings
-from gitmanager.security.rate_limit.storage import InMemoryStorage, RedisStorage
+from ..security.rate_limit import RateLimitMiddleware, RateLimiter
+from ..security.rate_limit.config import get_rate_limit_settings
+from ..security.rate_limit.storage import InMemoryStorage, RedisStorage
 
 # 로거 설정
 logger = logging.getLogger(__name__)

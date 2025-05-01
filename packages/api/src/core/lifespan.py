@@ -1,27 +1,27 @@
 """
 애플리케이션 생명주기 관리 모듈
 """
-
 import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from prometheus_client import start_http_server
 
-from packages.api.src.corebackground_tasks import (
+# 임포트 경로 수정
+from core.background_tasks import (
     cancel_background_tasks,
     start_background_tasks,
 )
-from packages.api.src.corecache import (
+from core.cache import (
     CacheBackendType,
     CacheManager,
     CacheSettings,
     get_cache_manager,
 )
-from packages.api.src.corecache_optimizer import initialize_cache_optimizer
-from packages.api.src.coreconfig import settings
-from packages.api.src.corelogging_setup import setup_logging
-from packages.api.src.coremetrics_collector import metrics_collector
+from core.cache_optimizer import initialize_cache_optimizer
+from core.config import settings
+from core.logging_setup import setup_logging
+from core.metrics_collector import metrics_collector
 
 # 로깅 설정
 logger = logging.getLogger(__name__)
@@ -82,7 +82,7 @@ def configure_lifespan():
 
         # Redis 캐시 연결 설정
         try:
-            from packages.api.src.corecache.redis_cache import RedisCache
+            from core.cache.redis_cache import RedisCache
 
             # 캐시 매니저 초기화
             cache = RedisCache(settings)

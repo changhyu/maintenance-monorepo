@@ -14,7 +14,7 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
-from gitmanager.security.rate_limit.core import RateLimiter
+from .core import RateLimiter
 
 # 로거 설정
 logger = logging.getLogger(__name__)

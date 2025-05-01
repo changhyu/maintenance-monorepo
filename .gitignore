@@ -112,3 +112,4 @@ website/
 # Misc
 =*
 *.exe
+.vercel

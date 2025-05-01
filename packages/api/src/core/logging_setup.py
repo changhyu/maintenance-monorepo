@@ -9,7 +9,7 @@ import os
 from datetime import datetime
 from typing import Optional
 
-from packages.api.src.coreconfig import settings
+from core.config import settings
 
 
 def setup_logging(log_level: Optional[int] = None) -> logging.Logger:

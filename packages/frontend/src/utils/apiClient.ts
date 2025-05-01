@@ -1,7 +1,14 @@
-import axios from 'axios';
+import axios, { AxiosRequestConfig, InternalAxiosRequestConfig, AxiosResponse, AxiosError } from 'axios';
 
-// 환경 변수에서 API URL을 가져오되, 없으면 9999 포트를 사용 (백엔드 서버의 실제 포트)
-const baseURL = process.env.REACT_APP_API_URL || 'http://localhost:9999/api/v1';
+// axios 요청 설정 타입을 확장하여 metadata 속성 추가
+interface ExtendedAxiosRequestConfig extends InternalAxiosRequestConfig {
+  metadata?: {
+    startTime: number;
+  };
+}
+
+// 환경 변수에서 API URL을 가져오되, 없으면 8000 포트를 사용 (백엔드 서버의 실제 포트)
+const baseURL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api/v1';
 
 const apiClient = axios.create({
   baseURL,
@@ -14,14 +21,14 @@ const apiClient = axios.create({
 
 // 요청 인터셉터 추가
 apiClient.interceptors.request.use(
-  (config) => {
+  (config: InternalAxiosRequestConfig) => {
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     
     // 요청 시작 시간 추가 (성능 모니터링용)
-    config.metadata = { startTime: new Date().getTime() };
+    (config as ExtendedAxiosRequestConfig).metadata = { startTime: new Date().getTime() };
     
     return config;
   },
@@ -32,10 +39,11 @@ apiClient.interceptors.request.use(
 
 // 응답 인터셉터 추가
 apiClient.interceptors.response.use(
-  (response) => {
+  (response: AxiosResponse) => {
     // 응답 시간 계산 (성능 모니터링용)
     const endTime = new Date().getTime();
-    const startTime = response.config.metadata?.startTime;
+    const extendedConfig = response.config as ExtendedAxiosRequestConfig;
+    const startTime = extendedConfig.metadata?.startTime;
     if (startTime) {
       const duration = endTime - startTime;
       // 응답 시간이 5초 이상이면 콘솔에 경고 표시
@@ -49,9 +57,9 @@ apiClient.interceptors.response.use(
     
     return response;
   },
-  (error) => {
+  (error: AxiosError) => {
     // 에러 처리를 위한 공통 함수
-    const handleError = (status, message) => {
+    const handleError = (status: number | string, message: string) => {
       console.error(`API 에러 [${status}]: ${message}`);
       
       // 필요하다면 여기에 통합 에러 알림 기능 추가 가능

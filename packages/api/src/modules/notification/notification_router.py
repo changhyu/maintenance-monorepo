@@ -2,9 +2,9 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from src.core.security import get_current_user
-from src.modules.notification.models import NotificationCreate, NotificationResponse
-from src.modules.notification.notification_service import NotificationService
+from core.security import get_current_user
+from modules.notification.models import NotificationCreate, NotificationResponse
+from modules.notification.notification_service import NotificationService
 
 router = APIRouter(
     prefix="/api/v1/notifications",

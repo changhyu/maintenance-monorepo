@@ -4,7 +4,7 @@
 Git 관련 유틸리티 모듈
 """
 
-from packages.api.src.core.git.utils import (
+from core.git.utils import (
     extract_issue_numbers,
     format_commit_date,
     get_commit_author_info,

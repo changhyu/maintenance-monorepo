@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, ReactNode } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -7,7 +7,6 @@ import {
   Button,
   CircularProgress,
   Typography,
-  Box,
   Alert,
   FormControl,
   InputLabel,
@@ -29,14 +28,12 @@ interface ExportDialogProps {
 }
 
 interface TabPanelProps {
-  children: React.ReactNode;
+  children: ReactNode;
   value: number;
   index: number;
 }
 
-function TabPanel(props: TabPanelProps) {
-  const { children, value, index, ...other } = props;
-
+function TabPanel({ children, value, index, ...other }: TabPanelProps) {
   return (
     <div
       role="tabpanel"
@@ -46,9 +43,9 @@ function TabPanel(props: TabPanelProps) {
       {...other}
     >
       {value === index && (
-        <Box sx={{ p: 3 }}>
+        <div style={{ padding: '24px' }}>
           {children}
-        </Box>
+        </div>
       )}
     </div>
   );
@@ -106,19 +103,19 @@ export const ExportDialog: React.FC<ExportDialogProps> = ({ open, onClose }) => 
         </Tabs>
 
         {error && (
-          <Alert severity="error" sx={{ mt: 2 }}>
+          <Alert severity="error" style={{ marginTop: '16px' }}>
             {error.message}
           </Alert>
         )}
 
         {success && (
-          <Alert severity="success" sx={{ mt: 2 }}>
+          <Alert severity="success" style={{ marginTop: '16px' }}>
             {success}
           </Alert>
         )}
 
         {/* 내보내기 형식 선택 - 모든 탭에서 공통 */}
-        <Box sx={{ mt: 2, mb: 2 }}>
+        <div style={{ marginTop: '16px', marginBottom: '16px' }}>
           <Typography variant="subtitle1" gutterBottom>
             내보내기 형식 선택
           </Typography>
@@ -133,13 +130,13 @@ export const ExportDialog: React.FC<ExportDialogProps> = ({ open, onClose }) => 
             <FormControlLabel value="excel" control={<Radio />} label="Excel" />
             <FormControlLabel value="pdf" control={<Radio />} label="PDF" />
           </RadioGroup>
-        </Box>
+        </div>
 
         <TabPanel value={tabValue} index={0}>
           <Typography variant="body1" gutterBottom>
             특정 IndexedDB 스토어의 데이터를 내보냅니다.
           </Typography>
-          <Box sx={{ mt: 2 }}>
+          <div style={{ marginTop: '16px' }}>
             <FormControl fullWidth>
               <InputLabel>스토어 선택</InputLabel>
               <Select
@@ -152,8 +149,8 @@ export const ExportDialog: React.FC<ExportDialogProps> = ({ open, onClose }) => 
                 ))}
               </Select>
             </FormControl>
-          </Box>
-          <Box sx={{ mt: 2 }}>
+          </div>
+          <div style={{ marginTop: '16px' }}>
             <Button 
               variant="contained" 
               onClick={handleExportStore}
@@ -161,14 +158,14 @@ export const ExportDialog: React.FC<ExportDialogProps> = ({ open, onClose }) => 
             >
               {isExporting ? <CircularProgress size={24} /> : '스토어 내보내기'}
             </Button>
-          </Box>
+          </div>
         </TabPanel>
 
         <TabPanel value={tabValue} index={1}>
           <Typography variant="body1" gutterBottom>
             모든 IndexedDB 스토어 데이터와 진단 정보를 하나의 파일로 내보냅니다.
           </Typography>
-          <Box sx={{ mt: 2 }}>
+          <div style={{ marginTop: '16px' }}>
             <Button 
               variant="contained" 
               onClick={handleExportAllData}
@@ -176,7 +173,7 @@ export const ExportDialog: React.FC<ExportDialogProps> = ({ open, onClose }) => 
             >
               {isExporting ? <CircularProgress size={24} /> : '모든 데이터 내보내기'}
             </Button>
-          </Box>
+          </div>
         </TabPanel>
       </DialogContent>
       <DialogActions>

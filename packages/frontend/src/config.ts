@@ -29,7 +29,7 @@ interface AppConfig {
  */
 const config: AppConfig = {
   // API 관련 설정
-  apiUrl: getEnv('VITE_API_URL', 'http://localhost:3000/api'),
+  apiUrl: getEnv('VITE_API_URL', 'http://localhost:8000'),
   apiTimeout: Number(getEnv('VITE_API_TIMEOUT', '30000')),
   enableLogging: getEnv('VITE_ENABLE_API_LOGGING', 'false') === 'true',
   

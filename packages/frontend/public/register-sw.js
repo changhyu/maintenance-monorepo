@@ -14,6 +14,24 @@ if ('serviceWorker' in navigator) {
   });
 }
 
+// VAPID 공개 키를 서버에서 가져오는 함수
+async function getVapidPublicKey() {
+  try {
+    // API에서 VAPID 공개 키 가져오기
+    const response = await fetch('/api/notifications/vapid-public-key');
+    
+    if (!response.ok) {
+      throw new Error('VAPID 키를 가져오는데 실패했습니다: ' + response.statusText);
+    }
+    
+    const data = await response.json();
+    return data.public_key;
+  } catch (error) {
+    console.error('VAPID 키를 가져오는 중 오류 발생:', error);
+    return null;
+  }
+}
+
 // 푸시 알림 초기화
 async function initializePushNotifications(registration) {
   try {
@@ -33,25 +51,43 @@ async function initializePushNotifications(registration) {
       return;
     }
     
-    // 공개 VAPID 키 (서버에서 제공해야 함)
-    const publicVapidKey = 'BDzZ-AE5Kg9vpjvDrJJgfr1f_0aZLlsUf1FHgvEmP04VC2uAdnPa06PxdnqIHv7ANE_hVB0sZJSZ1i6npZX4dSo';
+    // 서버에서 VAPID 공개 키 가져오기
+    const publicVapidKey = await getVapidPublicKey();
     
-    // 구독 생성
-    const subscription = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(publicVapidKey)
-    });
+    if (!publicVapidKey) {
+      console.error('VAPID 공개 키를 가져올 수 없습니다. 푸시 알림 구독을 진행할 수 없습니다.');
+      return;
+    }
     
-    // 서버에 구독 정보 전송
-    await fetch('/api/notifications/subscribe', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(subscription)
-    });
-    
-    console.log('푸시 알림 구독이 완료되었습니다.');
+    // 구독 생성 시도
+    try {
+      // 구독 생성
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicVapidKey)
+      });
+      
+      // 서버에 구독 정보 전송
+      const response = await fetch('/api/notifications/subscribe', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(subscription)
+      });
+      
+      if (!response.ok) {
+        throw new Error('구독 등록에 실패했습니다: ' + response.statusText);
+      }
+      
+      console.log('푸시 알림 구독이 완료되었습니다.');
+    } catch (subscriptionError) {
+      console.error('구독 처리 중 오류 발생:', subscriptionError);
+      
+      if (Notification.permission === 'denied') {
+        console.error('알림 권한이 거부되었습니다. 브라우저 설정에서 권한을 허용해주세요.');
+      }
+    }
   } catch (error) {
     console.error('푸시 알림 초기화 중 오류 발생:', error);
   }
@@ -101,4 +137,4 @@ function urlBase64ToUint8Array(base64String) {
   }
   
   return outputArray;
-} 
+}

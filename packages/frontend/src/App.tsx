@@ -7,6 +7,7 @@ import { ko } from 'date-fns/locale';
 import { theme } from './theme';
 import { CircularProgress, Box, Typography, Button } from '@mui/material';
 import AppRoutes from './routes';
+import AnalyticsTracker from './utils/analytics/AnalyticsTracker';
 
 // 로딩 중 표시할 컴포넌트
 const LoadingFallback = () => (
@@ -63,6 +64,7 @@ const App: React.FC = () => {
     <ThemeProvider theme={theme}>
       <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={ko}>
         <CssBaseline />
+        <AnalyticsTracker />
         <Suspense fallback={<LoadingFallback />}>
           <AppRoutes />
         </Suspense>

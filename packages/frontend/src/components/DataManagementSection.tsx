@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   Box,
   Button,
@@ -20,6 +20,34 @@ import { ExportDialog } from './ExportDialog';
 import { useIndexedDB } from '../hooks/useIndexedDB';
 import { STORES } from '../utils/indexedDBUtils';
 
+interface StoreAction {
+  name: string;
+  label: string;
+  tooltip: string;
+  store: string;
+}
+
+const STORE_ACTIONS: StoreAction[] = [
+  {
+    name: 'todos',
+    label: '할 일 항목 초기화',
+    tooltip: '모든 할 일 항목 데이터를 삭제합니다',
+    store: STORES.TODOS
+  },
+  {
+    name: 'vehicles',
+    label: '차량 정보 초기화',
+    tooltip: '모든 차량 정보 데이터를 삭제합니다',
+    store: STORES.VEHICLES
+  },
+  {
+    name: 'settings',
+    label: '설정 초기화',
+    tooltip: '모든 사용자 설정을 삭제합니다',
+    store: STORES.USER_SETTINGS
+  }
+];
+
 /**
  * 데이터 관리 섹션 컴포넌트
  * IndexedDB 데이터 가져오기, 내보내기, 초기화 등의 기능 제공
@@ -34,15 +62,15 @@ export const DataManagementSection: React.FC = () => {
   const todosStore = useIndexedDB(STORES.TODOS);
   const vehiclesStore = useIndexedDB(STORES.VEHICLES);
   const settingsStore = useIndexedDB(STORES.USER_SETTINGS);
-  
+
   // 성공/오류 메시지 리셋
-  const resetMessages = () => {
+  const resetMessages = useCallback(() => {
     setSuccess(null);
     setError(null);
-  };
+  }, []);
 
   // 특정 저장소 초기화
-  const handleClearStore = async (storeName: string) => {
+  const handleClearStore = useCallback(async (storeName: string) => {
     resetMessages();
     
     try {
@@ -66,10 +94,10 @@ export const DataManagementSection: React.FC = () => {
     } catch (err) {
       setError(`${storeName} 초기화 실패: ${err instanceof Error ? err.message : '알 수 없는 오류'}`);
     }
-  };
+  }, [todosStore, vehiclesStore, settingsStore, resetMessages]);
 
   // 새로고침 기능
-  const handleRefresh = async () => {
+  const handleRefresh = useCallback(async () => {
     resetMessages();
     
     try {
@@ -83,7 +111,10 @@ export const DataManagementSection: React.FC = () => {
     } catch (err) {
       setError(`데이터 새로고침 실패: ${err instanceof Error ? err.message : '알 수 없는 오류'}`);
     }
-  };
+  }, [todosStore, vehiclesStore, settingsStore, resetMessages]);
+
+  // 메모이제이션된 스토어 액션
+  const storeActions = useMemo(() => STORE_ACTIONS, []);
 
   return (
     <Card>
@@ -94,13 +125,23 @@ export const DataManagementSection: React.FC = () => {
       <Divider />
       <CardContent>
         {success && (
-          <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(null)}>
+          <Alert 
+            severity="success" 
+            sx={{ mb: 2 }} 
+            onClose={() => setSuccess(null)}
+            role="alert"
+          >
             {success}
           </Alert>
         )}
         
         {error && (
-          <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+          <Alert 
+            severity="error" 
+            sx={{ mb: 2 }} 
+            onClose={() => setError(null)}
+            role="alert"
+          >
             {error}
           </Alert>
         )}
@@ -115,6 +156,7 @@ export const DataManagementSection: React.FC = () => {
                 variant="outlined" 
                 startIcon={<UploadIcon />}
                 onClick={() => setImportDialogOpen(true)}
+                aria-label="데이터 가져오기"
               >
                 데이터 가져오기
               </Button>
@@ -122,6 +164,7 @@ export const DataManagementSection: React.FC = () => {
                 variant="outlined" 
                 startIcon={<DownloadIcon />}
                 onClick={() => setExportDialogOpen(true)}
+                aria-label="데이터 내보내기"
               >
                 데이터 내보내기
               </Button>
@@ -130,6 +173,7 @@ export const DataManagementSection: React.FC = () => {
                   variant="outlined" 
                   startIcon={<CachedIcon />}
                   onClick={handleRefresh}
+                  aria-label="데이터 새로고침"
                 >
                   새로고침
                 </Button>
@@ -142,36 +186,19 @@ export const DataManagementSection: React.FC = () => {
               데이터 초기화
             </Typography>
             <Box sx={{ display: 'flex', gap: 2 }}>
-              <Tooltip title="모든 할 일 항목 데이터를 삭제합니다">
-                <Button 
-                  variant="outlined" 
-                  color="error" 
-                  startIcon={<DeleteIcon />}
-                  onClick={() => handleClearStore(STORES.TODOS)}
-                >
-                  할 일 항목 초기화
-                </Button>
-              </Tooltip>
-              <Tooltip title="모든 차량 정보 데이터를 삭제합니다">
-                <Button 
-                  variant="outlined" 
-                  color="error" 
-                  startIcon={<DeleteIcon />}
-                  onClick={() => handleClearStore(STORES.VEHICLES)}
-                >
-                  차량 정보 초기화
-                </Button>
-              </Tooltip>
-              <Tooltip title="모든 사용자 설정을 삭제합니다">
-                <Button 
-                  variant="outlined" 
-                  color="error" 
-                  startIcon={<DeleteIcon />}
-                  onClick={() => handleClearStore(STORES.USER_SETTINGS)}
-                >
-                  설정 초기화
-                </Button>
-              </Tooltip>
+              {storeActions.map((action) => (
+                <Tooltip key={action.name} title={action.tooltip}>
+                  <Button 
+                    variant="outlined" 
+                    color="error" 
+                    startIcon={<DeleteIcon />}
+                    onClick={() => handleClearStore(action.store)}
+                    aria-label={action.label}
+                  >
+                    {action.label}
+                  </Button>
+                </Tooltip>
+              ))}
             </Box>
           </Grid>
           

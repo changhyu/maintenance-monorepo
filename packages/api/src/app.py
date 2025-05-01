@@ -8,11 +8,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 # 내부 모듈 import
-from packages.api.srccore.config import settings
-from packages.api.srccore.documentation import setup_api_documentation
-from packages.api.srccore.lifespan import configure_lifespan
-from packages.api.srccore.logging_setup import setup_logging
-from packages.api.srccore.versioning import setup_versioning
+from core.config import settings
+from core.documentation import setup_api_documentation
+from core.lifespan import configure_lifespan
+from core.logging_setup import setup_logging
+from core.versioning import setup_versioning
 
 # 로깅 설정
 logger = setup_logging()

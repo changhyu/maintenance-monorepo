@@ -3,6 +3,8 @@
 """
 
 import logging
+import sys
+import os
 
 from packagescore.config import settings
 from sqlalchemy import create_engine
@@ -48,5 +50,15 @@ def get_db():
         db.close()
 
 
-# 모델 임포트
-from packages.api.src.databasemodels import *  # noqa: F403, F401
+# 상대 임포트 대신 직접 임포트 방식으로 변경
+try:
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    parent_dir = os.path.dirname(current_dir)  # src 디렉토리
+    
+    if parent_dir not in sys.path:
+        sys.path.insert(0, parent_dir)
+        
+    from databasemodels import *  # noqa: F403, F401
+    logger.info("데이터베이스 모델을 성공적으로 가져왔습니다.")
+except ImportError as e:
+    logger.warning(f"데이터베이스 모델 가져오기 실패: {e}")

@@ -2,7 +2,7 @@ import re
 import string
 import uuid
 from typing import Tuple, List
-from gitmanager.config.settings import settings
+from ..config.settings import settings
 
 def validate_password(password: str) -> Tuple[bool, List[str]]:
     """패스워드 규칙 검증"""

@@ -21,7 +21,6 @@ import {
   ListItemText,
   ListItemIcon,
   Divider,
-  Chip,
   Alert,
   SelectChangeEvent,
 } from '@mui/material';
@@ -29,7 +28,6 @@ import {
   Map as MapIcon,
   Timeline as TimelineIcon,
   Speed as SpeedIcon,
-  LocalGasStation as GasIcon,
   AccessTime as TimeIcon,
   Route as RouteIcon,
   LocationOn as LocationIcon,
@@ -39,22 +37,19 @@ import VehicleTrackingMap from '../../components/vehicle/VehicleTrackingMap';
 import axios from 'axios';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
+import { Vehicle } from '../../types/vehicle';
 
 // 환경 변수 확인
 const apiBaseUrl = process.env.REACT_APP_API_URL || '/api';
 const isGoogleMapsApiKeySet = !!process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
 
-// 타입 정의
-interface Vehicle {
-  id: string;
-  make: string;
-  model: string;
-  year: number;
-  licensePlate: string;
-  type: string;
-  vin: string;
+// 확장된 차량 타입 (API로부터 받는 데이터에 맞춤)
+interface VehicleExtended extends Vehicle {
+  make?: string;
+  vin?: string;
 }
 
+// 타입 정의
 interface TripReport {
   vehicle_id: string;
   start_date: string;
@@ -80,11 +75,11 @@ interface ApiResponse<T> {
 
 // 페이지 컴포넌트
 const VehicleTrackingPage: React.FC = () => {
-  const { vehicleId } = useParams<{ vehicleId?: string }>();
+  const { vehicleId } = useParams();
   const navigate = useNavigate();
   
   const [selectedTab, setSelectedTab] = useState<number>(0);
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [vehicles, setVehicles] = useState<VehicleExtended[]>([]);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>(vehicleId || '');
   const [startDate, setStartDate] = useState<string>(
     format(new Date(new Date().setHours(0, 0, 0, 0)), "yyyy-MM-dd'T'HH:mm")
@@ -108,7 +103,7 @@ const VehicleTrackingPage: React.FC = () => {
     const fetchVehicles = async () => {
       try {
         setIsLoading(true);
-        const response = await axios.get<ApiResponse<Vehicle[]>>(`${apiBaseUrl}/vehicles`);
+        const response = await axios.get<ApiResponse<VehicleExtended[]>>(`${apiBaseUrl}/vehicles`);
         
         if (response.data.success && response.data.data) {
           const vehicles = response.data.data;

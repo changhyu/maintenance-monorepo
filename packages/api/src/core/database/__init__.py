@@ -9,7 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.pool import QueuePool
 
-from packages.api.src.core.config import settings
+# 절대 경로로 수정
+from core.config import settings
 
 # PostgreSQL 연결 URL 설정 (asyncpg 드라이버 사용)
 if settings.SQLALCHEMY_DATABASE_URI:

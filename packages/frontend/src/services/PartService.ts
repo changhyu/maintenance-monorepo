@@ -1,12 +1,13 @@
 import axios from 'axios';
-import { Part, PartService, PartFilter, PartStockHistory } from '../types/part';
+import { Part, PartService, PartFilter, PartStockHistory, PartStatus } from '../types/part';
+import { PartCategory } from '../types/supplier';
 
 class PartServiceImpl implements PartService {
   private static instance: PartServiceImpl;
   private baseUrl: string;
 
   private constructor() {
-    this.baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
+    this.baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
   }
 
   public static getInstance(): PartServiceImpl {
@@ -97,13 +98,13 @@ class PartServiceImpl implements PartService {
         partNumber: 'HM-ENG-001',
         name: '엔진 오일 필터',
         description: '고성능 엔진 오일 필터',
-        category: 'engine',
+        category: PartCategory.ENGINE,
         manufacturer: '현대모비스',
         price: 15000,
         currentStock: 50,
         minStock: 20,
         maxStock: 100,
-        status: 'active',
+        status: PartStatus.ACTIVE,
         location: 'A-1-1',
         unitOfMeasure: 'EA',
         leadTime: 3,
@@ -121,13 +122,13 @@ class PartServiceImpl implements PartService {
         partNumber: 'HM-BRK-001',
         name: '브레이크 패드',
         description: '고성능 세라믹 브레이크 패드',
-        category: 'brake',
+        category: PartCategory.BRAKE,
         manufacturer: '만도',
         price: 45000,
         currentStock: 30,
         minStock: 10,
         maxStock: 50,
-        status: 'active',
+        status: PartStatus.ACTIVE,
         location: 'B-2-1',
         unitOfMeasure: 'SET',
         leadTime: 2,
@@ -144,4 +145,4 @@ class PartServiceImpl implements PartService {
   }
 }
 
-export default PartServiceImpl; 
+export default PartServiceImpl;

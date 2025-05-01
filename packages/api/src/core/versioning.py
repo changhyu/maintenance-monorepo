@@ -12,9 +12,9 @@ from fastapi.routing import APIRoute, APIRouter
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
-from packages.api.src.coreconfig import settings
-from packages.api.src.corelogger import logger
-from packages.api.src.coreresponses import error_response
+from core.config import settings
+from core.logger import logger
+from core.responses import error_response
 
 
 class ApiVersion(str, Enum):

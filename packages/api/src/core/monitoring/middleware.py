@@ -7,8 +7,8 @@ from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
-from packages.api.src.core.monitoringlogger import logger
-from packages.api.src.core.monitoringmetrics import RequestMetrics, metrics_collector
+from core.monitoring.logger import logger
+from core.monitoring.metrics import RequestMetrics, metrics_collector
 
 logger = logging.getLogger(__name__)
 

@@ -1,317 +1,309 @@
 name: Deploy Automation
 
-env:
-  DEFAULT_IMAGE_NAME: 'default-image'
-  DEFAULT_VERSION: 'latest'
-  DEFAULT_ENV: 'dev'
-  DEFAULT_MONITORING_URL: 'http://localhost:8080'
-
 on:
   push:
-    branches: [main, develop]
-  pull_request:
-    branches: [main, develop]
+    branches: [main, develop, release/*]
+    tags: ['v*']
   workflow_dispatch:
     inputs:
       environment:
-        description: '배포 환경'
+        description: '배포 환경 (dev, staging, prod)'
         required: true
-        default: 'development'
+        default: 'dev'
         type: choice
         options:
-          - development
+          - dev
           - staging
-          - production
-      confirm:
-        description: '배포를 확인하시겠습니까?'
-        required: true
+          - prod
+      version:
+        description: '배포 버전 (기본값은 latest)'
+        required: false
+        default: 'latest'
+      rollback:
+        description: '롤백 수행 여부'
+        required: false
+        default: 'false'
         type: boolean
-        default: false
-
-# 동시 실행 방지
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false  # 진행 중인 배포는 취소하지 않음
 
 jobs:
-  # 사전 검증 단계
   validate:
-    name: Validate Deployment
+    name: 배포 검증
     runs-on: ubuntu-latest
     outputs:
       environment: ${{ steps.set-env.outputs.environment }}
       version: ${{ steps.set-version.outputs.version }}
     
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # 태그 정보를 가져오기 위해 필요
-
-      # 배포 환경 설정
-      - name: Set deployment environment
+      - name: 브랜치/태그 기반 환경 설정
         id: set-env
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             echo "environment=${{ github.event.inputs.environment }}" >> $GITHUB_OUTPUT
           elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-            echo "environment=production" >> $GITHUB_OUTPUT
+            echo "environment=prod" >> $GITHUB_OUTPUT
           elif [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
-            echo "environment=development" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            echo "environment=production" >> $GITHUB_OUTPUT
+            echo "environment=dev" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" =~ ^refs/heads/release/.* ]]; then
+            echo "environment=staging" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" =~ ^refs/tags/v.* ]]; then
+            echo "environment=prod" >> $GITHUB_OUTPUT
           else
-            echo "environment=development" >> $GITHUB_OUTPUT
+            echo "environment=dev" >> $GITHUB_OUTPUT
           fi
-
-      # 버전 설정
-      - name: Set version
+      
+      - name: 버전 설정
         id: set-version
         run: |
-          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            VERSION=${GITHUB_REF#refs/tags/v}
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.version }}" != "latest" ]]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" =~ ^refs/tags/v.* ]]; then
+            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
           else
-            VERSION=$(git rev-parse --short HEAD)
+            echo "version=latest" >> $GITHUB_OUTPUT
           fi
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Version for deployment: $VERSION"
 
-      # 프로덕션 배포 시 수동 확인 필요
-      - name: Check production deployment
-        if: |
-          (steps.set-env.outputs.environment == 'production') && 
-          (github.event_name == 'workflow_dispatch') && 
-          (github.event.inputs.confirm != 'true')
+      - name: 배포 환경 및 버전 출력
         run: |
-          echo "::error::Production deployment requires explicit confirmation"
-          exit 1
+          echo "🚀 배포 환경: ${{ steps.set-env.outputs.environment }}"
+          echo "📦 배포 버전: ${{ steps.set-version.outputs.version }}"
 
-  # 빌드 단계
-  build:
-    name: Build Application
+  test:
+    name: 테스트 실행
+    runs-on: ubuntu-latest
     needs: validate
-    runs-on: ubuntu-latest
-    environment: ${{ needs.validate.outputs.environment }}
-    outputs:
-      image_name: ${{ steps.set-outputs.outputs.image_name }}
-      version: ${{ steps.set-outputs.outputs.version }}
-      env_name: ${{ steps.set-outputs.outputs.env_name }}
+    if: github.event.inputs.rollback != 'true'
     
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: 코드 체크아웃
+        uses: actions/checkout@v3
       
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      
-      # Docker 이미지 캐싱
-      - name: Cache Docker layers
-        uses: actions/cache@v4
+      - name: Python 설정
+        uses: actions/setup-python@v4
         with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-
+          python-version: '3.9'
+          cache: 'pip'
       
-      # GitHub Container Registry 로그인
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
+      - name: Node.js 설정
+        uses: actions/setup-node@v3
         with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          node-version: '16'
+          cache: 'npm'
       
-      # 변수 설정
-      - name: Set environment variables
+      - name: Python 의존성 설치
         run: |
-          echo "IMAGE_NAME=ghcr.io/${{ github.repository }}" >> $GITHUB_ENV
-          echo "VERSION=${{ needs.validate.outputs.version }}" >> $GITHUB_ENV
-          echo "ENV=${{ needs.validate.outputs.environment }}" >> $GITHUB_ENV
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
       
-      # 빌드 및 태그 설정
-      - name: Build and tag API image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: Dockerfile.api
-          push: true
-          tags: |
-            ${{ env.IMAGE_NAME }}/api:${{ env.VERSION }}
-            ${{ env.IMAGE_NAME }}/api:${{ env.ENV }}
-            ${{ env.IMAGE_NAME }}/api:latest
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache-new
-          build-args: |
-            BUILD_ENV=${{ env.ENV }}
-            VERSION=${{ env.VERSION }}
-      
-      # 프론트엔드 빌드
-      - name: Build and tag Frontend image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: Dockerfile.frontend
-          push: true
-          tags: |
-            ${{ env.IMAGE_NAME }}/frontend:${{ env.VERSION }}
-            ${{ env.IMAGE_NAME }}/frontend:${{ env.ENV }}
-            ${{ env.IMAGE_NAME }}/frontend:latest
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache-new
-          build-args: |
-            BUILD_ENV=${{ env.ENV }}
-            VERSION=${{ env.VERSION }}
-      
-      # 캐시 업데이트 (새 캐시로 이전 캐시 대체)
-      - name: Move cache
+      - name: Node.js 의존성 설치
         run: |
-          rm -rf /tmp/.buildx-cache
-          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+          npm ci
       
-      - name: Set outputs
-        id: set-outputs
+      - name: Python 테스트 실행
         run: |
-          echo "image_name=${IMAGE_NAME:-$DEFAULT_IMAGE_NAME}" >> $GITHUB_OUTPUT
-          echo "version=${VERSION:-$DEFAULT_VERSION}" >> $GITHUB_OUTPUT
-          echo "env_name=${ENV:-$DEFAULT_ENV}" >> $GITHUB_OUTPUT
+          pytest backend/tests/
+      
+      - name: Frontend 테스트 실행
+        run: |
+          npm test
 
-  # 개발 환경 배포
+  build:
+    name: 이미지 빌드
+    runs-on: ubuntu-latest
+    needs: [validate, test]
+    if: always() && (needs.test.result == 'success' || github.event.inputs.rollback == 'true')
+    
+    steps:
+      - name: 코드 체크아웃
+        uses: actions/checkout@v3
+      
+      - name: Docker Buildx 설정
+        uses: docker/setup-buildx-action@v2
+      
+      - name: Docker 로그인
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ secrets.DOCKER_REGISTRY }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      
+      - name: 타임스탬프 생성
+        id: timestamp
+        run: echo "timestamp=$(date +%Y%m%d%H%M%S)" >> $GITHUB_OUTPUT
+      
+      - name: 환경 변수 설정
+        run: |
+          chmod +x scripts/setup_env.sh
+          ./scripts/setup_env.sh ${{ needs.validate.outputs.environment }}
+      
+      - name: API 이미지 빌드 및 푸시
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: ./Dockerfile.api
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_REGISTRY }}/maintenance-api:${{ needs.validate.outputs.version }}
+            ${{ secrets.DOCKER_REGISTRY }}/maintenance-api:${{ needs.validate.outputs.version }}-${{ steps.timestamp.outputs.timestamp }}
+          cache-from: type=registry,ref=${{ secrets.DOCKER_REGISTRY }}/maintenance-api:buildcache
+          cache-to: type=registry,ref=${{ secrets.DOCKER_REGISTRY }}/maintenance-api:buildcache,mode=max
+      
+      - name: Frontend 이미지 빌드 및 푸시
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: ./Dockerfile.frontend
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_REGISTRY }}/maintenance-frontend:${{ needs.validate.outputs.version }}
+            ${{ secrets.DOCKER_REGISTRY }}/maintenance-frontend:${{ needs.validate.outputs.version }}-${{ steps.timestamp.outputs.timestamp }}
+          cache-from: type=registry,ref=${{ secrets.DOCKER_REGISTRY }}/maintenance-frontend:buildcache
+          cache-to: type=registry,ref=${{ secrets.DOCKER_REGISTRY }}/maintenance-frontend:buildcache,mode=max
+
   deploy-dev:
-    name: Deploy to Development
-    needs: [validate, build]
-    if: needs.validate.outputs.environment == 'development'
+    name: 개발 환경 배포
     runs-on: ubuntu-latest
+    needs: [validate, build]
+    if: always() && needs.build.result == 'success' && needs.validate.outputs.environment == 'dev'
     
     steps:
-      - name: Configure SSH
-        uses: webfactory/ssh-agent@v0.8.0
+      - name: SSH로 서버 연결 및 배포 실행
+        uses: appleboy/ssh-action@v0.1.10
         with:
-          ssh-private-key: ${{ secrets.DEV_SSH_KEY }}
-      
-      - name: Deploy to Dev
-        env:
-          HOST: ${{ secrets.DEV_HOST }}
-          USERNAME: ${{ secrets.DEV_USERNAME }}
-          PORT: ${{ secrets.DEV_PORT }}
-          IMAGE_NAME: ${{ needs.build.outputs.image_name }}
-          VERSION: ${{ needs.build.outputs.version }}
-        run: |
-          ssh -p $PORT $USERNAME@$HOST "docker pull $IMAGE_NAME:$VERSION"
+          host: ${{ secrets.DEV_SERVER_HOST }}
+          username: ${{ secrets.DEV_SERVER_USER }}
+          key: ${{ secrets.DEV_SSH_PRIVATE_KEY }}
+          script: |
+            cd /opt/maintenance-monorepo
+            git pull
+            chmod +x scripts/deploy.sh
+            ./scripts/deploy.sh dev ${{ needs.validate.outputs.version }}
 
-  # 스테이징 환경 배포
   deploy-staging:
-    name: Deploy to Staging
-    needs: [validate, build]
-    if: needs.validate.outputs.environment == 'staging'
+    name: 스테이징 환경 배포
     runs-on: ubuntu-latest
+    needs: [validate, build]
+    if: always() && needs.build.result == 'success' && needs.validate.outputs.environment == 'staging'
     
     steps:
-      - name: Configure SSH
-        uses: webfactory/ssh-agent@v0.8.0
+      - name: SSH로 서버 연결 및 배포 실행
+        uses: appleboy/ssh-action@v0.1.10
         with:
-          ssh-private-key: ${{ secrets.STAGING_SSH_KEY }}
-      
-      - name: Deploy to Staging
-        env:
-          HOST: ${{ secrets.STAGING_HOST }}
-          USERNAME: ${{ secrets.STAGING_USERNAME }}
-          PORT: ${{ secrets.STAGING_PORT }}
-          IMAGE_NAME: ${{ needs.build.outputs.image_name }}
-          VERSION: ${{ needs.build.outputs.version }}
-        run: |
-          ssh -p $PORT $USERNAME@$HOST "docker pull $IMAGE_NAME:$VERSION"
+          host: ${{ secrets.STAGING_SERVER_HOST }}
+          username: ${{ secrets.STAGING_SERVER_USER }}
+          key: ${{ secrets.STAGING_SSH_PRIVATE_KEY }}
+          script: |
+            cd /opt/maintenance-monorepo
+            git pull
+            chmod +x scripts/deploy.sh
+            ./scripts/deploy.sh staging ${{ needs.validate.outputs.version }}
 
-  # 프로덕션 환경 배포
   deploy-prod:
-    name: Deploy to Production
+    name: 프로덕션 환경 배포
+    runs-on: ubuntu-latest
     needs: [validate, build]
-    if: needs.validate.outputs.environment == 'production'
-    runs-on: ubuntu-latest
+    if: always() && needs.build.result == 'success' && needs.validate.outputs.environment == 'prod'
+    environment: production # 승인 요구를 위한 environment 설정
     
     steps:
-      - name: Configure SSH
-        uses: webfactory/ssh-agent@v0.8.0
+      - name: SSH로 서버 연결 및 배포 실행
+        uses: appleboy/ssh-action@v0.1.10
         with:
-          ssh-private-key: ${{ secrets.PROD_SSH_KEY }}
-      
-      - name: Deploy to Production
-        env:
-          HOST: ${{ secrets.PROD_HOST }}
-          USERNAME: ${{ secrets.PROD_USERNAME }}
-          PORT: ${{ secrets.PROD_PORT }}
-          IMAGE_NAME: ${{ needs.build.outputs.image_name }}
-          VERSION: ${{ needs.build.outputs.version }}
-          MONITORING_URL: ${{ secrets.MONITORING_URL || env.DEFAULT_MONITORING_URL }}
-        run: |
-          ssh -p $PORT $USERNAME@$HOST "docker pull $IMAGE_NAME:$VERSION"
+          host: ${{ secrets.PROD_SERVER_HOST }}
+          username: ${{ secrets.PROD_SERVER_USER }}
+          key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          script: |
+            cd /opt/maintenance-monorepo
+            git pull
+            chmod +x scripts/deploy.sh
+            ./scripts/deploy.sh prod ${{ needs.validate.outputs.version }}
 
-      - name: Send Slack notification
-        if: always()
-        uses: 8398a7/action-slack@v3
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-        with:
-          status: ${{ job.status }}
-          fields: repo,message,commit,author,action,eventName,workflow
-
-  # 배포 모니터링 
-  deployment-monitor:
-    name: Monitor Deployment
-    needs: [validate, deploy-dev, deploy-staging, deploy-prod]
-    if: |
-      always() && 
-      (needs.deploy-dev.result == 'success' || needs.deploy-staging.result == 'success' || needs.deploy-prod.result == 'success')
+  rollback:
+    name: 롤백 실행
     runs-on: ubuntu-latest
+    needs: validate
+    if: github.event.inputs.rollback == 'true'
     
     steps:
-      - name: Setup monitoring
+      - name: 환경에 따른 롤백 설정
+        id: rollback-config
         run: |
-          echo "Setting up deployment monitoring..."
-          
-          # 환경에 따른 모니터링 URL 설정
-          if [[ "${{ needs.validate.outputs.environment }}" == "production" ]]; then
-            MONITORING_URL="https://example.com/health"
+          if [[ "${{ needs.validate.outputs.environment }}" == "prod" ]]; then
+            echo "host=${{ secrets.PROD_SERVER_HOST }}" >> $GITHUB_OUTPUT
+            echo "user=${{ secrets.PROD_SERVER_USER }}" >> $GITHUB_OUTPUT
+            echo "key=${{ secrets.PROD_SSH_PRIVATE_KEY }}" >> $GITHUB_OUTPUT
           elif [[ "${{ needs.validate.outputs.environment }}" == "staging" ]]; then
-            MONITORING_URL="https://staging.example.com/health"
+            echo "host=${{ secrets.STAGING_SERVER_HOST }}" >> $GITHUB_OUTPUT
+            echo "user=${{ secrets.STAGING_SERVER_USER }}" >> $GITHUB_OUTPUT
+            echo "key=${{ secrets.STAGING_SSH_PRIVATE_KEY }}" >> $GITHUB_OUTPUT
           else
-            MONITORING_URL="https://dev.example.com/health"
+            echo "host=${{ secrets.DEV_SERVER_HOST }}" >> $GITHUB_OUTPUT
+            echo "user=${{ secrets.DEV_SERVER_USER }}" >> $GITHUB_OUTPUT
+            echo "key=${{ secrets.DEV_SSH_PRIVATE_KEY }}" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: SSH로 서버 연결 및 롤백 실행
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ steps.rollback-config.outputs.host }}
+          username: ${{ steps.rollback-config.outputs.user }}
+          key: ${{ steps.rollback-config.outputs.key }}
+          script: |
+            cd /opt/maintenance-monorepo
+            ./scripts/rollback.sh ${{ needs.validate.outputs.environment }} ${{ needs.validate.outputs.version }}
+
+  notify:
+    name: 배포 결과 알림
+    runs-on: ubuntu-latest
+    needs: [validate, build, deploy-dev, deploy-staging, deploy-prod, rollback]
+    if: always()
+    
+    steps:
+      - name: 성공/실패 상태 확인
+        id: check-status
+        run: |
+          if [[ "${{ needs.validate.outputs.environment }}" == "prod" ]]; then
+            DEPLOY_JOB_STATUS="${{ needs.deploy-prod.result }}"
+          elif [[ "${{ needs.validate.outputs.environment }}" == "staging" ]]; then
+            DEPLOY_JOB_STATUS="${{ needs.deploy-staging.result }}"
+          elif [[ "${{ needs.validate.outputs.environment }}" == "dev" ]]; then
+            DEPLOY_JOB_STATUS="${{ needs.deploy-dev.result }}"
+          elif [[ "${{ github.event.inputs.rollback }}" == "true" ]]; then
+            DEPLOY_JOB_STATUS="${{ needs.rollback.result }}"
+          else
+            DEPLOY_JOB_STATUS="skipped"
           fi
           
-          echo "Monitoring URL: $MONITORING_URL"
-          echo "MONITORING_URL=$MONITORING_URL" >> $GITHUB_ENV
+          echo "deploy_status=$DEPLOY_JOB_STATUS" >> $GITHUB_OUTPUT
+          
+          if [[ "$DEPLOY_JOB_STATUS" == "success" ]]; then
+            echo "status_emoji=✅" >> $GITHUB_OUTPUT
+            echo "status_text=성공" >> $GITHUB_OUTPUT
+          elif [[ "$DEPLOY_JOB_STATUS" == "skipped" ]]; then
+            echo "status_emoji=⏭️" >> $GITHUB_OUTPUT
+            echo "status_text=건너뜀" >> $GITHUB_OUTPUT
+          else
+            echo "status_emoji=❌" >> $GITHUB_OUTPUT
+            echo "status_text=실패" >> $GITHUB_OUTPUT
+          fi
       
-      # 배포 후 상태 모니터링 (5분 간격으로 1시간 동안 체크)
-      - name: Perform health checks
-        run: |
-          for i in {1..12}; do
-            echo "Performing health check $i/12..."
-            
-            # 상태 확인 API 호출
-            STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" ${{ env.MONITORING_URL }})
-            
-            if [[ "$STATUS_CODE" != "200" ]]; then
-              echo "::warning::Health check failed with status code: $STATUS_CODE"
-            else
-              echo "Health check succeeded!"
-            fi
-            
-            # 마지막 체크가 아니면 대기
-            if [[ $i -lt 12 ]]; then
-              echo "Waiting 5 minutes until next check..."
-              sleep 300
-            fi
-          done
-      
-      # 모니터링 결과 알림
-      - name: Notify monitoring results
-        uses: 8398a7/action-slack@v3
-        with:
-          status: ${{ job.status }}
-          fields: repo,message,action,eventName,ref,workflow,job,took
-          text: |
-            Deployment Monitoring Complete
-            Environment: ${{ needs.validate.outputs.environment }}
-            Version: ${{ needs.validate.outputs.version }}
-            Status: ${{ job.status }}
+      - name: Slack 알림 전송
+        uses: rtCamp/action-slack-notify@v2
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_CHANNEL: deployments
+          SLACK_COLOR: ${{ steps.check-status.outputs.deploy_status == 'success' && 'good' || steps.check-status.outputs.deploy_status == 'skipped' && 'warning' || 'danger' }}
+          SLACK_ICON: https://github.com/rtCamp.png?size=48
+          SLACK_TITLE: 배포 결과
+          SLACK_MESSAGE: |
+            ${{ steps.check-status.outputs.status_emoji }} *배포 ${{ steps.check-status.outputs.status_text }}*
+            
+            *환경:* ${{ needs.validate.outputs.environment }}
+            *버전:* ${{ needs.validate.outputs.version }}
+            *타임스탬프:* $(date +"%Y-%m-%d %H:%M:%S")
+            *커밋:* ${{ github.sha }}
+            *트리거:* ${{ github.event_name }}
+            *워크플로우:* ${{ github.workflow }}
+            
+            [배포 상세 정보](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          SLACK_USERNAME: GitHub Actions

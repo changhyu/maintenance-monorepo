@@ -15,7 +15,7 @@ if sys.version_info >= (3, 10):
     warnings.filterwarnings("ignore", category=DeprecationWarning, module="gitdb")
     warnings.filterwarnings("ignore", category=DeprecationWarning, module="smmap")
 
-# 외부 라이브러리 대신 내부 모듈에서만 예외 가져오기
+# 외부 라이브러리 대신 내부 모듈에서만 예외 가져오기 (절대 경로 사용)
 from gitmanager.git.core.exceptions import (
     GitAuthenticationException,
     GitBranchException,
@@ -83,7 +83,7 @@ def get_repo_class() -> Optional[Type]:
 # Python 3.12 호환성을 위한 패치 적용
 if GIT_AVAILABLE and PY_VERSION >= (3, 10):
     try:
-        # 내부 패치 모듈 적용
+        # 내부 패치 모듈 적용 (절대 경로 사용)
         from gitmanager.git.core.gitpython_apply_patch import apply_gitpython_patches
         apply_gitpython_patches()
         logger.info("GitPython 패치가 자동으로 적용되었습니다.")

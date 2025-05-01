@@ -9,8 +9,18 @@ from typing import Optional, List
 from sqlalchemy import Column, String, Integer, Boolean, Float, ForeignKey, DateTime, Enum
 from sqlalchemy.orm import relationship
 
-from src.models.base import Base
-from src.models.mixins import TimeStampMixin
+try:
+    from models.base import Base
+    from models.mixins import TimeStampMixin
+except ImportError as e:
+    print(f"vehicle_inspection.py: 로컬 임포트 오류 - {e}")
+    # 임포트 실패 시 기본 클래스 정의
+    class Base:
+        __tablename__ = ""
+    
+    class TimeStampMixin:
+        created_at = None
+        updated_at = None
 
 
 class InspectionStatus(str, enum.Enum):

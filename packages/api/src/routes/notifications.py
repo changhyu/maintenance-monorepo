@@ -39,15 +39,24 @@ class NotificationData(BaseModel):
     actions: List[Dict[str, str]] = []
 
 
-# 환경 변수에서 VAPID 키 가져오기 (설정되지 않은 경우 기본값 사용)
-VAPID_PRIVATE_KEY = os.getenv(
-    "VAPID_PRIVATE_KEY", "uXCQ8FvpmPzYc7HaNEUC_bJ-1b0xDwAZ81q8qEf16AE"
-)
-VAPID_PUBLIC_KEY = os.getenv(
-    "VAPID_PUBLIC_KEY",
-    "BDzZ-AE5Kg9vpjvDrJJgfr1f_0aZLlsUf1FHgvEmP04VC2uAdnPa06PxdnqIHv7ANE_hVB0sZJSZ1i6npZX4dSo",
-)
-VAPID_CLAIMS = {"sub": "mailto:admin@car-goro.com"}
+# VAPID 키는 환경 변수에서 가져오도록 설정
+# 참고: 실제 배포 환경에서는 반드시 환경변수로 안전하게 설정해야 함
+VAPID_PRIVATE_KEY = os.getenv("VAPID_PRIVATE_KEY")
+VAPID_PUBLIC_KEY = os.getenv("VAPID_PUBLIC_KEY")
+VAPID_CLAIM_EMAIL = os.getenv("VAPID_CLAIM_EMAIL", "admin@car-goro.com")
+
+# 키가 환경 변수에 없는 경우 경고 로그 출력
+if not VAPID_PRIVATE_KEY or not VAPID_PUBLIC_KEY:
+    logger.warning(
+        "VAPID 키가 환경 변수에 설정되어 있지 않습니다. "
+        "기본 테스트 키가 사용됩니다. 프로덕션 환경에서는 반드시 환경 변수를 설정하세요."
+    )
+    # 테스트용 기본 키 (이 키는 실제 프로덕션 환경에서 사용하면 안 됨)
+    VAPID_PRIVATE_KEY = "uXCQ8FvpmPzYc7HaNEUC_bJ-1b0xDwAZ81q8qEf16AE"
+    VAPID_PUBLIC_KEY = "BDzZ-AE5Kg9vpjvDrJJgfr1f_0aZLlsUf1FHgvEmP04VC2uAdnPa06PxdnqIHv7ANE_hVB0sZJSZ1i6npZX4dSo"
+
+# VAPID 클레임 설정
+VAPID_CLAIMS = {"sub": f"mailto:{VAPID_CLAIM_EMAIL}"}
 
 # 구독 정보 저장소 (실제 구현에서는 데이터베이스 사용)
 subscriptions = []

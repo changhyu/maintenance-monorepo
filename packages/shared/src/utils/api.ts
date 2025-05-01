@@ -4,7 +4,7 @@ import axios from 'axios';
  * API 요청을 위한 기본 설정된 axios 인스턴스
  */
 export const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001', // 기본 API URL
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000', // 기본 API URL
   timeout: 10000, // 10초 타임아웃
   headers: {
     'Content-Type': 'application/json',
@@ -49,4 +49,4 @@ api.interceptors.response.use(response => {
   return Promise.reject(error);
 });
 
-export default api; 
+export default api;

@@ -363,7 +363,7 @@ export class ApiClient {
 let apiBaseUrl = '/api';
 // 로컬 환경에서 백엔드 API 서버 URL 설정
 if (process.env.NODE_ENV === 'development') {
-    apiBaseUrl = 'http://localhost:8080/api'; // 포트 8000에서 8080으로 변경
+    apiBaseUrl = 'http://localhost:8000/api'; // 백엔드 API 서버 URL (포트 8000)
 }
 else if (process.env.REACT_APP_API_URL) {
     apiBaseUrl = process.env.REACT_APP_API_URL;

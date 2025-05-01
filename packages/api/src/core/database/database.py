@@ -14,7 +14,7 @@ from typing import AsyncGenerator, Optional
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
-from packages.api.srcconfig import settings
+from core.config import settings
 
 # 로거 설정
 logger = logging.getLogger(__name__)

@@ -10,7 +10,7 @@ from typing import Dict, Tuple, Any, Optional, Union, List
 from datetime import datetime, timedelta
 import threading
 
-from gitmanager.security.rate_limit.storage import RateLimitStorage, InMemoryStorage
+from .storage import RateLimitStorage, InMemoryStorage
 
 # 로거 설정
 logger = logging.getLogger(__name__)

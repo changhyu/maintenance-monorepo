@@ -1,17 +1,15 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import styled from 'styled-components';
 import {
   Card,
   Typography,
   IconButton,
-  Skeleton,
   Tooltip,
   Zoom,
   Menu,
   MenuItem,
   Collapse,
-  useTheme,
   CircularProgress,
   Alert
 } from '@mui/material';
@@ -19,11 +17,11 @@ import {
   DragIndicator as DragIndicatorIcon,
   MoreVert as MoreVertIcon,
   Refresh as RefreshIcon,
-  Settings as SettingsIcon,
   Fullscreen as FullscreenIcon,
   Close as CloseIcon
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
+import ClientOnly from '../utils/ClientOnly';
 
 export enum WidgetStatus {
   IDLE = 'idle',
@@ -78,6 +76,8 @@ interface DashboardLayoutProps {
   onWidgetClose?: (widgetId: string) => void;
   onWidgetRefresh?: (widgetId: string) => Promise<void>;
   defaultCollapsed?: boolean;
+  emptyMessage?: React.ReactNode;
+  loadingComponent?: React.ReactNode;
 }
 
 const Container = styled.div`
@@ -171,9 +171,148 @@ const StatusContainer = styled.div`
   padding: 1rem;
 `;
 
-const SafeContent: React.FC<{ content: React.ReactNode }> = ({ content }) => {
-  // This wrapper component safely renders ReactNode content
-  return <>{content}</>;
+const EmptyMessageWrapper = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  padding: 2rem;
+  text-align: center;
+`;
+
+const LoadingContainer = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 200px;
+`;
+
+const LoadingSpinner = () => <CircularProgress />;
+
+const WidgetHeaderActions = ({
+  item,
+  menuAnchor,
+  collapsedWidgets,
+  handleWidgetRefresh,
+  handleWidgetFullscreen,
+  handleMenuOpen,
+  handleMenuClose,
+  handleWidgetCollapse,
+  handleWidgetClose
+}: {
+  item: Widget;
+  menuAnchor: Record<string, HTMLElement | null>;
+  collapsedWidgets: Record<string, boolean>;
+  handleWidgetRefresh: (widgetId: string) => void;
+  handleWidgetFullscreen: (widgetId: string) => void;
+  handleMenuOpen: (event: React.MouseEvent<HTMLButtonElement>, widgetId: string) => void;
+  handleMenuClose: (widgetId: string) => void;
+  handleWidgetCollapse: (widgetId: string) => void;
+  handleWidgetClose: (widgetId: string) => void;
+}) => (
+  <HeaderActions>
+    {item.isRefreshable && (
+      <IconButton
+        size="small"
+        onClick={() => handleWidgetRefresh(item.id)}
+      >
+        <RefreshIcon fontSize="small" />
+      </IconButton>
+    )}
+    {item.isFullscreenable && (
+      <IconButton
+        size="small"
+        onClick={() => handleWidgetFullscreen(item.id)}
+      >
+        <FullscreenIcon fontSize="small" />
+      </IconButton>
+    )}
+    {(item.actions?.length > 0 || item.isCollapsible) && (
+      <>
+        <IconButton
+          size="small"
+          onClick={(e) => handleMenuOpen(e, item.id)}
+        >
+          <MoreVertIcon fontSize="small" />
+        </IconButton>
+        <Menu
+          anchorEl={menuAnchor[item.id]}
+          open={menuAnchor[item.id] != null}
+          onClose={() => handleMenuClose(item.id)}
+        >
+          {item.isCollapsible && (
+            <MenuItem onClick={() => handleWidgetCollapse(item.id)}>
+              {collapsedWidgets[item.id] ? '펼치기' : '접기'}
+            </MenuItem>
+          )}
+          {item.actions?.map((action, actionIndex) => (
+            <MenuItem
+              key={`action-${item.id}-${actionIndex}`}
+              onClick={action.onClick}
+              disabled={action.disabled}
+            >
+              {action.icon && (
+                <span style={{ marginRight: '0.5rem' }}>
+                  {action.icon}
+                </span>
+              )}
+              {action.label}
+            </MenuItem>
+          ))}
+        </Menu>
+      </>
+    )}
+    {item.isCloseable && (
+      <IconButton
+        size="small"
+        onClick={() => handleWidgetClose(item.id)}
+      >
+        <CloseIcon fontSize="small" />
+      </IconButton>
+    )}
+  </HeaderActions>
+);
+
+const renderWidgetContent = (item: Widget) => {
+  if (item.status === WidgetStatus.LOADING) {
+    return (
+      <StatusContainer>
+        <CircularProgress size={24} />
+        {item.loadingMessage && (
+          <Typography variant="body2" sx={{ ml: 1 }}>
+            {item.loadingMessage}
+          </Typography>
+        )}
+      </StatusContainer>
+    );
+  } else if (item.status === WidgetStatus.ERROR) {
+    return (
+      <Alert severity="error" sx={{ mb: 2 }}>
+        {item.errorMessage || '오류가 발생했습니다.'}
+      </Alert>
+    );
+  } else {
+    return <div>{item.content}</div>;
+  }
+};
+
+const WidgetContent = ({
+  item,
+  collapsedWidgets
+}: {
+  item: Widget;
+  collapsedWidgets: Record<string, boolean>;
+}) => (
+  <Collapse in={!collapsedWidgets[item.id]}>
+    <ContentWrapper $customStyle={item.contentStyle}>
+      {renderWidgetContent(item)}
+    </ContentWrapper>
+  </Collapse>
+);
+
+const renderStaticWidgets = () => {
+  return <div>Loading...</div>;
 };
 
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({
@@ -184,7 +323,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   animationEnabled = true,
   onWidgetClose,
   onWidgetRefresh,
-  defaultCollapsed = false
+  defaultCollapsed = false,
+  emptyMessage,
+  loadingComponent
 }) => {
   const [items, setItems] = useState<Widget[]>(widgets);
   const [collapsedWidgets, setCollapsedWidgets] = useState<Record<string, boolean>>(
@@ -195,10 +336,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   );
   const [menuAnchor, setMenuAnchor] = useState<Record<string, HTMLElement | null>>({});
   const [fullscreenWidget, setFullscreenWidget] = useState<string | null>(null);
-  const theme = useTheme();
 
   useEffect(() => {
-    // 자동 새로고침 설정
+    setItems(widgets);
+  }, [widgets]);
+
+  useEffect(() => {
     const intervals: NodeJS.Timeout[] = [];
     
     items.forEach(widget => {
@@ -209,14 +352,15 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         intervals.push(interval);
       }
     });
-
     return () => {
       intervals.forEach(interval => clearInterval(interval));
     };
   }, [items]);
 
   const handleDragEnd = (result: any) => {
-    if (!result.destination) return;
+    if (!result.destination) {
+      return;
+    }
     
     const newItems = Array.from(items);
     const [reorderedItem] = newItems.splice(result.source.index, 1);
@@ -227,38 +371,39 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
       onLayoutChange(newItems);
     }
   };
-
+  
   const handleMenuOpen = (event: React.MouseEvent<HTMLButtonElement>, widgetId: string) => {
     setMenuAnchor(prev => ({
       ...prev,
       [widgetId]: event.currentTarget
     }));
   };
-
+  
   const handleMenuClose = (widgetId: string) => {
     setMenuAnchor(prev => ({
       ...prev,
       [widgetId]: null
     }));
   };
-
+  
   const handleWidgetCollapse = (widgetId: string) => {
     setCollapsedWidgets(prev => ({
       ...prev,
       [widgetId]: !prev[widgetId]
     }));
+    handleMenuClose(widgetId);
   };
-
+  
   const handleWidgetRefresh = async (widgetId: string) => {
     if (onWidgetRefresh) {
       await onWidgetRefresh(widgetId);
     }
   };
-
+  
   const handleWidgetFullscreen = (widgetId: string) => {
     setFullscreenWidget(prev => prev === widgetId ? null : widgetId);
   };
-
+  
   const handleWidgetClose = (widgetId: string) => {
     if (onWidgetClose) {
       onWidgetClose(widgetId);
@@ -293,168 +438,117 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     }
   };
 
-  if (isLoading) {
+  const renderDraggableWidget = (item: Widget, providedDrag: any) => {
+    const tooltipTitle = item.description ?? '';
+    const hasTooltip = !!item.description;
+    
     return (
-      <Container className={className}>
-        <AnimatePresence>
-          {[1, 2, 3, 4].map((item) => (
-            <WidgetWrapper
-              key={item}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ duration: 0.3 }}
+      <WidgetWrapper
+        {...providedDrag.draggableProps}
+        ref={providedDrag.innerRef}
+        $width={item.width}
+        variants={itemVariants}
+        layout
+      >
+        {hasTooltip ? (
+          <Tooltip
+            title={tooltipTitle}
+            TransitionComponent={Zoom}
+            arrow
+            placement="top"
+          >
+            <StyledCard $customStyle={item.style}>
+              <DragHandle
+                {...providedDrag.dragHandleProps}
+                $customStyle={item.headerStyle}
+              >
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <DragIndicatorIcon fontSize="small" style={{ marginRight: '0.5rem' }} />
+                  <Typography variant="subtitle2">{item.title}</Typography>
+                </div>
+                <WidgetHeaderActions
+                  item={item}
+                  menuAnchor={menuAnchor}
+                  collapsedWidgets={collapsedWidgets}
+                  handleWidgetRefresh={handleWidgetRefresh}
+                  handleWidgetFullscreen={handleWidgetFullscreen}
+                  handleMenuOpen={handleMenuOpen}
+                  handleMenuClose={handleMenuClose}
+                  handleWidgetCollapse={handleWidgetCollapse}
+                  handleWidgetClose={handleWidgetClose}
+                />
+              </DragHandle>
+              <WidgetContent
+                item={item}
+                collapsedWidgets={collapsedWidgets}
+              />
+            </StyledCard>
+          </Tooltip>
+        ) : (
+          <StyledCard $customStyle={item.style}>
+            <DragHandle
+              {...providedDrag.dragHandleProps}
+              $customStyle={item.headerStyle}
             >
-              <StyledCard>
-                <Skeleton variant="rectangular" height={200} />
-              </StyledCard>
-            </WidgetWrapper>
-          ))}
-        </AnimatePresence>
-      </Container>
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <DragIndicatorIcon fontSize="small" style={{ marginRight: '0.5rem' }} />
+                <Typography variant="subtitle2">{item.title}</Typography>
+              </div>
+              <WidgetHeaderActions
+                item={item}
+                menuAnchor={menuAnchor}
+                collapsedWidgets={collapsedWidgets}
+                handleWidgetRefresh={handleWidgetRefresh}
+                handleWidgetFullscreen={handleWidgetFullscreen}
+                handleMenuOpen={handleMenuOpen}
+                handleMenuClose={handleMenuClose}
+                handleWidgetCollapse={handleWidgetCollapse}
+                handleWidgetClose={handleWidgetClose}
+              />
+            </DragHandle>
+            <WidgetContent
+              item={item}
+              collapsedWidgets={collapsedWidgets}
+            />
+          </StyledCard>
+        )}
+      </WidgetWrapper>
     );
+  };
+
+  if (!items || items.length === 0) {
+    return emptyMessage ? <EmptyMessageWrapper>{emptyMessage}</EmptyMessageWrapper> : null;
+  } else if (isLoading) {
+    return <LoadingContainer>{loadingComponent ?? <LoadingSpinner />}</LoadingContainer>;
   }
 
   return (
-    <DragDropContext onDragEnd={handleDragEnd}>
-      <Droppable droppableId="dashboard" direction="horizontal">
-        {(provided) => (
-          <Container
-            ref={provided.innerRef}
-            {...provided.droppableProps}
-            className={className}
-            as={motion.div}
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
-          >
-            <AnimatePresence>
-              {items.map((item, index) => (
-                <Draggable key={item.id} draggableId={item.id} index={index}>
-                  {(providedDrag) => (
-                    <WidgetWrapper
-                      ref={providedDrag.innerRef}
-                      {...providedDrag.draggableProps}
-                      $width={fullscreenWidget === item.id ? 'full' : item.width}
-                      variants={itemVariants}
-                      initial="hidden"
-                      animate="visible"
-                      exit={{ opacity: 0, scale: 0.95 }}
-                      whileHover={{ scale: animationEnabled ? 1.02 : 1 }}
-                      whileTap={{ scale: animationEnabled ? 0.98 : 1 }}
-                      style={{
-                        zIndex: fullscreenWidget === item.id ? 1000 : 1,
-                        gridColumn: fullscreenWidget === item.id ? '1 / -1' : undefined
-                      }}
-                    >
-                      <StyledCard $customStyle={item.style}>
-                        <Tooltip
-                          title={item.description || ''}
-                          placement="top"
-                          TransitionComponent={Zoom}
-                          arrow
-                        >
-                          <DragHandle {...providedDrag.dragHandleProps} $customStyle={item.headerStyle}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                              <DragIndicatorIcon fontSize="small" />
-                              <Typography variant="subtitle1" component="h3">
-                                {item.title}
-                              </Typography>
-                            </div>
-                            <HeaderActions>
-                              {item.isRefreshable && (
-                                <IconButton
-                                  size="small"
-                                  onClick={() => handleWidgetRefresh(item.id)}
-                                >
-                                  <RefreshIcon fontSize="small" />
-                                </IconButton>
-                              )}
-                              {item.isFullscreenable && (
-                                <IconButton
-                                  size="small"
-                                  onClick={() => handleWidgetFullscreen(item.id)}
-                                >
-                                  <FullscreenIcon fontSize="small" />
-                                </IconButton>
-                              )}
-                              {(item.actions && item.actions.length > 0 || item.isCollapsible) && (
-                                <>
-                                  <IconButton
-                                    size="small"
-                                    onClick={(e) => handleMenuOpen(e, item.id)}
-                                  >
-                                    <MoreVertIcon fontSize="small" />
-                                  </IconButton>
-                                  <Menu
-                                    anchorEl={menuAnchor[item.id]}
-                                    open={Boolean(menuAnchor[item.id])}
-                                    onClose={() => handleMenuClose(item.id)}
-                                  >
-                                    {item.isCollapsible && (
-                                      <MenuItem onClick={() => handleWidgetCollapse(item.id)}>
-                                        {collapsedWidgets[item.id] ? '펼치기' : '접기'}
-                                      </MenuItem>
-                                    )}
-                                    {item.actions?.map((action, actionIndex) => (
-                                      <MenuItem
-                                        key={actionIndex}
-                                        onClick={action.onClick}
-                                        disabled={action.disabled}
-                                      >
-                                        {action.icon && (
-                                          <span style={{ marginRight: '0.5rem' }}>
-                                            {action.icon}
-                                          </span>
-                                        )}
-                                        {action.label}
-                                      </MenuItem>
-                                    ))}
-                                  </Menu>
-                                </>
-                              )}
-                              {item.isCloseable && (
-                                <IconButton
-                                  size="small"
-                                  onClick={() => handleWidgetClose(item.id)}
-                                >
-                                  <CloseIcon fontSize="small" />
-                                </IconButton>
-                              )}
-                            </HeaderActions>
-                          </DragHandle>
-                        </Tooltip>
-                        <Collapse in={!collapsedWidgets[item.id]}>
-                          <ContentWrapper $customStyle={item.contentStyle}>
-                            {item.status === WidgetStatus.LOADING && (
-                              <StatusContainer>
-                                <CircularProgress size={24} />
-                                {item.loadingMessage && (
-                                  <Typography variant="body2" sx={{ ml: 1 }}>
-                                    {item.loadingMessage}
-                                  </Typography>
-                                )}
-                              </StatusContainer>
-                            )}
-                            {item.status === WidgetStatus.ERROR && (
-                              <Alert severity="error" sx={{ mb: 2 }}>
-                                {item.errorMessage || '오류가 발생했습니다.'}
-                              </Alert>
-                            )}
-                            <div>{item.content as JSX.Element}</div>
-                          </ContentWrapper>
-                        </Collapse>
-                      </StyledCard>
-                    </WidgetWrapper>
-                  )}
-                </Draggable>
-              ))}
-            </AnimatePresence>
-            {provided.placeholder}
-          </Container>
-        )}
-      </Droppable>
-    </DragDropContext>
+    <ClientOnly fallback={renderStaticWidgets()}>
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <Droppable droppableId="dashboard" direction="horizontal">
+          {(provided) => (
+            <Container
+              ref={provided.innerRef}
+              {...provided.droppableProps}
+              className={className}
+              as={motion.div}
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+            >
+              <AnimatePresence>
+                {items.map((item, index) => (
+                  <Draggable key={item.id} draggableId={item.id} index={index}>
+                    {(providedDrag) => renderDraggableWidget(item, providedDrag)}
+                  </Draggable>
+                ))}
+              </AnimatePresence>
+              {provided.placeholder}
+            </Container>
+          )}
+        </Droppable>
+      </DragDropContext>
+    </ClientOnly>
   );
 };
 

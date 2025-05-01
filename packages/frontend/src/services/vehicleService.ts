@@ -1,12 +1,26 @@
-import apiClient from '../api/apiClient';
+import apiClient from '../utils/apiClient';
 import { Vehicle, VehicleDTO, VehicleFilter } from '../types/vehicle';
 
 /**
  * 차량 서비스 클래스
  * 차량 관련 API 호출을 처리합니다.
  */
-class VehicleService {
+export class VehicleService {
+  private static instance: VehicleService;
   private readonly baseUrl = '/vehicles';
+
+  /**
+   * 싱글톤 인스턴스를 반환합니다.
+   * @returns VehicleService 인스턴스
+   */
+  public static getInstance(): VehicleService {
+    if (!VehicleService.instance) {
+      VehicleService.instance = new VehicleService();
+    }
+    return VehicleService.instance;
+  }
+
+  private constructor() {}
 
   /**
    * 차량 목록을 조회합니다.
@@ -18,6 +32,18 @@ class VehicleService {
       params: filters,
     });
     return response.data;
+  }
+
+  /**
+   * 모든 차량 목록을 조회합니다.
+   * @param filters 필터링 조건
+   * @returns 차량 목록
+   */
+  async getAllVehicles(filters?: VehicleFilter): Promise<Vehicle[]> {
+    const response = await apiClient.get(this.baseUrl, {
+      params: filters,
+    });
+    return response.data.items || response.data;
   }
 
   /**
@@ -125,6 +151,5 @@ class VehicleService {
   }
 }
 
-// 싱글톤 인스턴스 생성 및 내보내기
-const vehicleService = new VehicleService();
-export default vehicleService;
+// 하위 호환성을 위해 기본 내보내기도 유지
+export default VehicleService.getInstance();

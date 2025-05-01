@@ -4,8 +4,24 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build", "security:check"],
-      "outputs": ["dist/**", ".next/**", "build/**"],
+      "outputs": ["dist/**", ".next/**", "build/**", "lib/**", "out/**"],
       "cache": true
+    },
+    "@maintenance/api#build": {
+      "outputs": [],
+      "cache": false
+    },
+    "@maintenance/document-processing#build": {
+      "outputs": [],
+      "cache": false
+    },
+    "@maintenance/ml-service#build": {
+      "outputs": [],
+      "cache": false
+    },
+    "@maintenance/mobile#build": {
+      "outputs": [],
+      "cache": false
     },
     "test": {
       "dependsOn": ["^build"],

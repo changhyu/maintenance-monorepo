@@ -14,22 +14,23 @@ from enum import Enum
 from functools import wraps
 from typing import Any, Awaitable, Callable, Dict, List, Optional, Type, Union
 
-from packages.api.src.core.cachedecorators import ttl_cache
-from packages.api.src.core.cacheinterfaces import (
+# 임포트 경로 수정
+from core.cache.decorators import ttl_cache
+from core.cache.interfaces import (
     CacheBackend,
     CacheInterface,
     CacheMetrics,
     CacheMonitor,
 )
-from packages.api.src.core.cachekey_patterns import (
+from core.cache.key_patterns import (
     CACHE_SECTIONS,
     RESOURCE_KEY_PATTERNS,
 )
-from packages.api.src.core.cachelru_cache import LRUCache
-from packages.api.src.core.cachemanager import CacheManager
-from packages.api.src.core.cachememory_cache import MemoryCacheManager
-from packages.api.src.core.cacheredis_cache import RedisCache, RedisLock
-from packages.api.src.core.cachesettings import (
+from core.cache.lru_cache import LRUCache
+from core.cache.manager import CacheManager
+from core.cache.memory_cache import MemoryCacheManager
+from core.cache.redis_cache import RedisCache, RedisLock
+from core.cache.settings import (
     CacheBackendType,
     CacheSettings,
     EvictionPolicy,

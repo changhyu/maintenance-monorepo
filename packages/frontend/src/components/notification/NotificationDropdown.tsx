@@ -13,8 +13,6 @@ import {
   Divider,
   CircularProgress,
   useTheme,
-  Switch,
-  FormControlLabel,
   Tooltip
 } from '@mui/material';
 import {
@@ -27,14 +25,17 @@ import {
   VolumeOff as VolumeOffIcon
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
+import NotificationServiceImpl from '../../services/notificationService';
+import type { Notification, NotificationStatus } from '../../types/notification';
+import { formatNotificationDate } from '../../utils/notificationUtils';
+import ClientOnly from '../utils/ClientOnly';
 
-import { notificationService } from '../../services/notificationService';
-import { Notification, NotificationStatus, NotificationType } from '../../types/notification';
-import {
-  formatNotificationDate,
-  getNotificationIcon,
-  getNotificationColor
-} from '../../utils/notificationUtils';
+// NotificationFilter 타입 정의 추가
+interface NotificationFilter {
+  userId?: string;
+  limit?: number;
+  status?: string;
+}
 
 interface NotificationDropdownProps {
   userId: string;
@@ -45,15 +46,16 @@ interface NotificationDropdownProps {
   soundEnabled?: boolean;
 }
 
-const NotificationSounds = {
-  [NotificationType.MAINTENANCE]: '/sounds/maintenance.mp3',
-  [NotificationType.VEHICLE]: '/sounds/vehicle.mp3',
-  [NotificationType.SYSTEM]: '/sounds/system.mp3',
-  [NotificationType.APPOINTMENT]: '/sounds/appointment.mp3',
-  [NotificationType.SERVICE]: '/sounds/service.mp3',
-  [NotificationType.RECALL]: '/sounds/recall.mp3',
-  [NotificationType.PAYMENT]: '/sounds/payment.mp3',
-  [NotificationType.MESSAGE]: '/sounds/message.mp3',
+// 알림음 정의 
+const NotificationSounds: Record<string, string> = {
+  maintenance: '/sounds/maintenance.mp3',
+  vehicle: '/sounds/vehicle.mp3',
+  system: '/sounds/system.mp3',
+  appointment: '/sounds/appointment.mp3',
+  service: '/sounds/service.mp3',
+  recall: '/sounds/recall.mp3',
+  payment: '/sounds/payment.mp3',
+  message: '/sounds/message.mp3',
   default: '/sounds/notification.mp3'
 };
 
@@ -65,7 +67,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
   isOpen,
   onClose,
   maxItems = 5,
-  onViewAllClick,
+  onViewAllClick = () => {}, // 기본값 제공하여 필수 속성이 아니게 함
   soundEnabled: initialSoundEnabled = true
 }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -75,9 +77,10 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
   const anchorRef = useRef<HTMLButtonElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const theme = useTheme();
+  const notificationService = NotificationServiceImpl.getInstance();
 
+  // 오디오 엘리먼트 생성
   useEffect(() => {
-    // 오디오 엘리먼트 생성
     audioRef.current = new Audio(NotificationSounds.default);
     audioRef.current.volume = 0.5;
 
@@ -89,24 +92,41 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
     };
   }, []);
 
-  const playNotificationSound = (type: NotificationType = NotificationType.SYSTEM) => {
-    if (!soundEnabled || !audioRef.current) return;
+  // 알림음 재생 함수
+  const playNotificationSound = (type = 'system') => {
+    if (!soundEnabled || !audioRef.current) {
+      return;
+    }
 
-    const soundUrl = NotificationSounds[type] || NotificationSounds.default;
+    // 소문자로 변환하여 일치 확인
+    const soundType = type.toLowerCase();
+    const soundUrl = NotificationSounds[soundType] ?? NotificationSounds.default;
+    
     audioRef.current.src = soundUrl;
     audioRef.current.play().catch(error => {
       console.error('Failed to play notification sound:', error);
     });
   };
 
+  // 알림 데이터 가져오기
   const fetchNotifications = async () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await notificationService.getNotifications(userId, maxItems);
+      
+      // notificationService의 올바른 메소드 호출
+      const filter: NotificationFilter = { userId, limit: maxItems };
+      const response = await notificationService.getNotifications(filter);
+      
+      // 타입 변환 작업 수행 (types/notification.ts에서 정의한 타입으로 변환)
+      const notifications = (response.notifications || []).map((notif: any) => ({
+        ...notif,
+        // 필요한 경우 추가 필드 변환
+        isRead: notif.status === 'read' || notif.isRead
+      })) as Notification[];
       
       // 새로운 알림이 있는지 확인
-      const hasNewNotifications = data.some(
+      const hasNewNotifications = notifications.some(
         notification => !notifications.find(n => n.id === notification.id)
       );
       
@@ -114,7 +134,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
         playNotificationSound();
       }
       
-      setNotifications(data);
+      setNotifications(notifications);
     } catch (err) {
       setError('알림을 불러오는데 실패했습니다.');
       console.error('Failed to fetch notifications:', err);
@@ -123,55 +143,21 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
     }
   };
 
+  // 알림 데이터 불러오기 (dropdown이 열릴 때만)
   useEffect(() => {
     if (isOpen) {
       fetchNotifications();
     }
   }, [isOpen, userId, maxItems]);
 
-  // 실시간 알림 구독
-  useEffect(() => {
-    const handleNewNotification = (notification: Notification) => {
-      setNotifications(prev => {
-        const isNew = !prev.find(n => n.id === notification.id);
-        if (isNew) {
-          playNotificationSound(notification.type);
-          return [notification, ...prev].slice(0, maxItems);
-        }
-        return prev;
-      });
-    };
-
-    if (userId) {
-      notificationService.subscribeToNotifications(userId, handleNewNotification);
-    }
-
-    return () => {
-      notificationService.unsubscribeFromNotifications();
-    };
-  }, [userId, maxItems, soundEnabled]);
-
-  const getStatusIcon = (status: NotificationStatus) => {
-    switch (status) {
-      case NotificationStatus.SUCCESS:
-        return <SuccessIcon sx={{ color: theme.palette.success.main }} />;
-      case NotificationStatus.ERROR:
-        return <ErrorIcon sx={{ color: theme.palette.error.main }} />;
-      case NotificationStatus.WARNING:
-        return <WarningIcon sx={{ color: theme.palette.warning.main }} />;
-      case NotificationStatus.INFO:
-      default:
-        return <InfoIcon sx={{ color: theme.palette.info.main }} />;
-    }
-  };
-
+  // 읽음 표시 처리 
   const handleMarkAsRead = async (notificationId: string) => {
     try {
       await notificationService.markAsRead(notificationId);
       setNotifications(prevNotifications =>
         prevNotifications.map(notification =>
           notification.id === notificationId
-            ? { ...notification, isRead: true }
+            ? { ...notification, isRead: true, status: 'read' as NotificationStatus }
             : notification
         )
       );
@@ -180,6 +166,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
     }
   };
 
+  // 알림 소리 설정 토글
   const handleSoundToggle = () => {
     setSoundEnabled(!soundEnabled);
     if (!soundEnabled) {
@@ -187,6 +174,75 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
       playNotificationSound();
     }
   };
+
+  // 알림 상태에 따른 아이콘 표시
+  const getStatusIcon = (status: NotificationStatus) => {
+    switch (status) {
+      case 'success':
+        return <SuccessIcon sx={{ color: theme.palette.success.main }} />;
+      case 'error':
+        return <ErrorIcon sx={{ color: theme.palette.error.main }} />;
+      case 'warning':
+        return <WarningIcon sx={{ color: theme.palette.warning.main }} />;
+      case 'info':
+      default:
+        return <InfoIcon sx={{ color: theme.palette.info.main }} />;
+    }
+  };
+
+  // 정적 알림 목록 렌더링 (SSG 용)
+  const renderStaticNotificationList = () => (
+    <List sx={{ p: 0, maxHeight: 360, overflowY: 'auto' }}>
+      {notifications.map((notification, index) => (
+        <React.Fragment key={`static-${notification.id}`}>
+          <ListItem
+            sx={{
+              bgcolor: notification.isRead ? 'transparent' : 'action.hover',
+              '&:hover': {
+                bgcolor: 'action.selected'
+              }
+            }}
+            onClick={() => handleMarkAsRead(notification.id)}
+          >
+            <ListItemIcon>
+              {getStatusIcon(notification.status)}
+            </ListItemIcon>
+            <ListItemText
+              primary={notification.title}
+              secondary={
+                <>
+                  <Typography
+                    component="span"
+                    variant="body2"
+                    color="textSecondary"
+                    sx={{ display: 'block' }}
+                  >
+                    {notification.message}
+                  </Typography>
+                  <Typography
+                    component="span"
+                    variant="caption"
+                    color="textSecondary"
+                  >
+                    {formatNotificationDate(notification.createdAt)}
+                  </Typography>
+                </>
+              }
+            />
+          </ListItem>
+          {index < notifications.length - 1 && (
+            <Divider variant="inset" component="li" />
+          )}
+        </React.Fragment>
+      ))}
+    </List>
+  );
+
+  // 조건부 렌더링을 위한 상태 변수들
+  const showLoading = loading;
+  const showError = !loading && error;
+  const showEmpty = !loading && !error && notifications.length === 0;
+  const showNotifications = !loading && !error && notifications.length > 0;
 
   return (
     <>
@@ -216,13 +272,15 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
           vertical: 'top',
           horizontal: 'right',
         }}
-        PaperProps={{
-          sx: {
-            width: 360,
-            maxHeight: 480,
-            overflow: 'hidden',
-            borderRadius: 2,
-            boxShadow: theme.shadows[8]
+        slotProps={{
+          paper: {
+            sx: {
+              width: 360,
+              maxHeight: 480,
+              overflow: 'hidden',
+              borderRadius: 2,
+              boxShadow: theme.shadows[8]
+            }
           }
         }}
       >
@@ -239,78 +297,85 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
           </Box>
         </Box>
 
-        {loading ? (
+        {showLoading && (
           <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
             <CircularProgress size={24} />
           </Box>
-        ) : error ? (
+        )}
+        
+        {showError && (
           <Box sx={{ p: 3, textAlign: 'center' }}>
             <Typography color="error">{error}</Typography>
             <Button onClick={fetchNotifications} sx={{ mt: 1 }}>
               다시 시도
             </Button>
           </Box>
-        ) : notifications.length === 0 ? (
+        )}
+        
+        {showEmpty && (
           <Box sx={{ p: 3, textAlign: 'center' }}>
             <Typography color="textSecondary">
               새로운 알림이 없습니다.
             </Typography>
           </Box>
-        ) : (
+        )}
+        
+        {showNotifications && (
           <>
-            <List sx={{ p: 0, maxHeight: 360, overflowY: 'auto' }}>
-              <AnimatePresence>
-                {notifications.map((notification, index) => (
-                  <motion.div
-                    key={notification.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    transition={{ duration: 0.2, delay: index * 0.05 }}
-                  >
-                    <ListItem
-                      button
-                      onClick={() => handleMarkAsRead(notification.id)}
-                      sx={{
-                        bgcolor: notification.isRead ? 'transparent' : 'action.hover',
-                        '&:hover': {
-                          bgcolor: 'action.selected'
-                        }
-                      }}
+            <ClientOnly fallback={renderStaticNotificationList()}>
+              <List sx={{ p: 0, maxHeight: 360, overflowY: 'auto' }}>
+                <AnimatePresence>
+                  {notifications.map((notification, index) => (
+                    <motion.div
+                      key={notification.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ duration: 0.2, delay: index * 0.05 }}
                     >
-                      <ListItemIcon>
-                        {getStatusIcon(notification.status)}
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={notification.title}
-                        secondary={
-                          <>
-                            <Typography
-                              component="span"
-                              variant="body2"
-                              color="textSecondary"
-                              sx={{ display: 'block' }}
-                            >
-                              {notification.message}
-                            </Typography>
-                            <Typography
-                              component="span"
-                              variant="caption"
-                              color="textSecondary"
-                            >
-                              {formatNotificationDate(notification.createdAt)}
-                            </Typography>
-                          </>
-                        }
-                      />
-                    </ListItem>
-                    {index < notifications.length - 1 && (
-                      <Divider variant="inset" component="li" />
-                    )}
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-            </List>
+                      <ListItem
+                        sx={{
+                          bgcolor: notification.isRead ? 'transparent' : 'action.hover',
+                          '&:hover': {
+                            bgcolor: 'action.selected'
+                          }
+                        }}
+                        onClick={() => handleMarkAsRead(notification.id)}
+                      >
+                        <ListItemIcon>
+                          {getStatusIcon(notification.status)}
+                        </ListItemIcon>
+                        <ListItemText
+                          primary={notification.title}
+                          secondary={
+                            <>
+                              <Typography
+                                component="span"
+                                variant="body2"
+                                color="textSecondary"
+                                sx={{ display: 'block' }}
+                              >
+                                {notification.message}
+                              </Typography>
+                              <Typography
+                                component="span"
+                                variant="caption"
+                                color="textSecondary"
+                              >
+                                {formatNotificationDate(notification.createdAt)}
+                              </Typography>
+                            </>
+                          }
+                        />
+                      </ListItem>
+                      {index < notifications.length - 1 && (
+                        <Divider variant="inset" component="li" />
+                      )}
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </List>
+            </ClientOnly>
 
             {onViewAllClick && (
               <Box sx={{ p: 1, borderTop: 1, borderColor: 'divider' }}>

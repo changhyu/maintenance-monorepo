@@ -11,20 +11,65 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from gitmanager.git.core.exceptions import (
-    GitAuthenticationException,
-    GitBranchException,
-    GitCommandException,
-    GitCommitException,
-    GitConflictException,
-    GitMergeException,
+# 임포트 경로 수정
+from ..core.exceptions import (
     GitException,
+    GitCommitException,
+    GitMergeException,
     GitPushPullException,
-    GitRemoteException,
-    GitRepositoryException,
-    GitTagException,
-    create_git_exception
+    GitBranchException,
+    GitTagException
 )
+
+# 이하 필요한 예외 클래스들을 현재 구조에 맞게 직접 정의
+class GitAuthenticationException(GitException):
+    """Git 인증 관련 예외"""
+    pass
+
+class GitCommandException(GitException):
+    """Git 명령어 실행 중 발생한 예외"""
+    
+    def __init__(self, message: str, command: str = "", exit_code: int = -1, stderr: str = "", details: Optional[Dict[str, Any]] = None):
+        super().__init__(message, details)
+        self.command = command
+        self.exit_code = exit_code
+        self.stderr = stderr
+        
+        # 기본 세부 정보에 명령어 관련 정보 추가
+        if self.details is None:
+            self.details = {}
+        self.details.update({
+            "command": command,
+            "exit_code": exit_code,
+            "stderr": stderr
+        })
+
+class GitRemoteException(GitException):
+    """Git 원격 저장소 관련 예외"""
+    pass
+
+class GitRepositoryException(GitException):
+    """Git 저장소 관련 예외"""
+    pass
+
+class GitConflictException(GitException):
+    """Git 충돌 관련 예외"""
+    pass
+
+def create_git_exception(ex_type: str, message: str, details: Optional[Dict[str, Any]] = None) -> GitException:
+    """예외 유형에 따라 적절한 GitException 인스턴스를 생성"""
+    exception_map = {
+        "command": GitCommandException,
+        "repository": GitRepositoryException,
+        "merge": GitMergeException,
+        "branch": GitBranchException,
+        "commit": GitCommitException,
+        "tag": GitTagException,
+        "remote": GitRemoteException,
+    }
+    
+    exception_class = exception_map.get(ex_type, GitException)
+    return exception_class(message, details)
 
 logger = logging.getLogger(__name__)
 

@@ -1,0 +1,367 @@
+{
+  "project_root": {
+    "directories": [
+      ".husky",
+      ".cursor",
+      "docker",
+      "context",
+      ".pytest_cache",
+      "config",
+      "node_modules",
+      "tests",
+      "docs",
+      ".turbo",
+      "components",
+      "logs",
+      "backup_20250413_111400",
+      ".codesight",
+      ".venv",
+      "scripts",
+      "packages",
+      ".github",
+      ".git",
+      ".vscode",
+      "offline_storage",
+      "pages",
+      "services",
+      "git",
+      "src"
+    ],
+    "files": [
+      ".eslintrc.js.bak",
+      "install_git_service.sh",
+      "setup_improvements.sh",
+      "fix_complete.md",
+      "run_git_tests.sh",
+      "Dockerfile.api.dev",
+      "UPDATE_SUMMARY.md",
+      "tsconfig.node.json",
+      "1c203463317d90133a59aaef0f890b284ef82353c980f183e3dae88b50afb31d.tar.gz",
+      ".DS_Store",
+      "PROJECT_STRUCTURE.md",
+      ".env.local",
+      "fix_script_command.sh",
+      "cursor_rules.mdc",
+      "requirements.txt",
+      "init-db.sh",
+      "run_tests.py",
+      "fix.sh",
+      "fix_script_result.log",
+      "CNAME",
+      "fix_file_saver_types.sh",
+      "script.sh",
+      "maintenance-monorepo.code-workspace",
+      ".coverage",
+      "fix_all_super_final.sh",
+      "fix_docker.sh",
+      "fix_port.py",
+      "fix_database.py",
+      "run_all_git_tests.sh",
+      "turbo.json",
+      "restart_project.sh",
+      "fix-eslint.sh",
+      "fix_final_version.sh",
+      "fix_ultimate_final.sh",
+      "Dockerfile.frontend.dev",
+      ".env.test",
+      "fix_google_maps_types.sh",
+      "docker-compose.dev.yml",
+      "fix_npm_deps.sh",
+      "run.sh",
+      "Dockerfile.api",
+      "README.md",
+      "update-git.sh",
+      "run_git_tests.py",
+      "docker-compose.db.yml",
+      "fix_prisma_version.sh",
+      "fix_config.py",
+      "CNAME.backup",
+      "fix-error.sh",
+      "test_module_structure.py",
+      ".dockerignore",
+      ".gitignore",
+      "package-lock.json",
+      "package.json",
+      ".env",
+      "setup_test_env.sh",
+      "test_results.log",
+      ".eslintrc.js",
+      "simple_test.py",
+      ".env.db",
+      "fix_all_final.sh",
+      "tsconfig.json",
+      "docker-compose.yml",
+      "docker-compose.prod.yml",
+      "fix_all_issues.py",
+      "docker-compose.test.yml",
+      "IMPROVEMENTS.md",
+      ".eslintignore",
+      "fix_super_final.sh",
+      ".env.example",
+      "fix_concurrently.sh",
+      "docker-compose.api.yml",
+      ".db_config",
+      "docker-compose.frontend.yml",
+      "fix_ultimate.sh",
+      "install-deps.sh",
+      "module_structure.json",
+      "Dockerfile.frontend",
+      "fix_npm_deps_force.sh"
+    ],
+    "count": {
+      "dirs": 25,
+      "files": 79
+    }
+  },
+  "directories": {
+    "packages": {
+      "directories": [
+        "database",
+        "frontend",
+        "shared",
+        "api-client",
+        "api"
+      ],
+      "files": [
+        ".DS_Store"
+      ],
+      "count": {
+        "dirs": 5,
+        "files": 1
+      }
+    },
+    "packages/api": {
+      "directories": [
+        "migrations",
+        ".pytest_cache",
+        "tests",
+        "docs",
+        ".turbo",
+        "logs",
+        ".venv",
+        "packages",
+        "venv",
+        "api.egg-info",
+        "monitoring",
+        "htmlcov",
+        "offline_storage",
+        "servers",
+        "src"
+      ],
+      "files": [
+        ".pylintrc",
+        "app.db",
+        ".env.production",
+        "TEST_GUIDE.md",
+        "pytest.ini",
+        "requirements.txt",
+        "alembic.ini",
+        "Dockerfile",
+        ".coverage",
+        "check_db_connection.sh",
+        ".pylintrc.bak",
+        ".env.test",
+        "run.sh",
+        "mypy.ini",
+        "setup.py",
+        "check_db.py",
+        "package.json",
+        ".env",
+        "check_data.py",
+        "test_output.txt",
+        "create_test_data.py",
+        ".env.development",
+        "start.sh"
+      ],
+      "count": {
+        "dirs": 15,
+        "files": 23
+      }
+    },
+    "packages/api/src": {
+      "directories": [
+        "routers",
+        "database",
+        "core",
+        "config",
+        "utils",
+        "repositories",
+        "models",
+        "__pycache__",
+        "scripts",
+        "api.egg-info",
+        "modules",
+        "controllers",
+        "routes",
+        "services"
+      ],
+      "files": [
+        "__init__.py",
+        "app.py",
+        "main.py.bak",
+        "main.py"
+      ],
+      "count": {
+        "dirs": 14,
+        "files": 4
+      }
+    },
+    "packages/api/src/core": {
+      "directories": [
+        "middleware",
+        "database",
+        "cache",
+        "models",
+        "__pycache__",
+        "monitoring"
+      ],
+      "files": [
+        "auth.py",
+        "logging.py",
+        "metrics.py",
+        "cache_keys.py",
+        "sharding.py",
+        "documentation.py",
+        "structured_logging.py",
+        "base_repository.py",
+        "parallel_processor.py",
+        "responses.py",
+        "encryption.py",
+        "resilient_processor.py",
+        "config.py",
+        "background_tasks.py",
+        "audit.py",
+        "dummy_modules.py",
+        "test_metrics.py",
+        "cache_manager.py",
+        "events.py",
+        "security.py",
+        "constants.py",
+        "cache_decorators.py",
+        "rate_limiter.py",
+        "cache.py",
+        "query_optimizer.py",
+        "__init__.py",
+        "logger.py",
+        "router_loader.py",
+        "base_model.py",
+        "dashboard.py",
+        "metrics_collector.py",
+        "caching.py",
+        "utils.py",
+        "debug.py",
+        "versioning.py",
+        "replication.py",
+        "dummy_models.py",
+        "exceptions.py",
+        "error_handler.py",
+        "response_formatter.py",
+        "offline_manager.py",
+        "cache_optimizer.py",
+        "env_validator.py",
+        "resilience.py",
+        "middleware.py",
+        "dependencies.py",
+        "lifespan.py",
+        "security_utils.py",
+        "logging_setup.py",
+        "websocket_manager.py",
+        "decorators.py"
+      ],
+      "count": {
+        "dirs": 6,
+        "files": 51
+      }
+    },
+    "packages/api/src/services": {
+      "directories": [],
+      "files": [
+        "maintenance_service.py",
+        "git_service.py"
+      ],
+      "count": {
+        "dirs": 0,
+        "files": 2
+      }
+    },
+    "packages/api/servers/src/git": {
+      "directories": [
+        ".pytest_cache",
+        "tests",
+        "src"
+      ],
+      "files": [
+        "LICENSE",
+        "uv.lock",
+        "Dockerfile",
+        "pyproject.toml",
+        "README.md",
+        ".gitignore",
+        ".python-version"
+      ],
+      "count": {
+        "dirs": 3,
+        "files": 7
+      }
+    },
+    "tests": {
+      "directories": [
+        "unit",
+        "integration",
+        "e2e"
+      ],
+      "files": [
+        "test_maintenance.py",
+        "conftest.py"
+      ],
+      "count": {
+        "dirs": 3,
+        "files": 2
+      }
+    },
+    "tests/unit": {
+      "directories": [],
+      "files": [
+        "test_security.py",
+        "test_todo_service.js",
+        "test_todo_service_py.py"
+      ],
+      "count": {
+        "dirs": 0,
+        "files": 3
+      }
+    },
+    "tests/integration": {
+      "directories": [],
+      "files": [
+        "test_todo_api.py",
+        "test_auth_api.py"
+      ],
+      "count": {
+        "dirs": 0,
+        "files": 2
+      }
+    }
+  },
+  "python_path": [
+    "/Users/gongchanghyeon/Desktop/maintenance-monorepo",
+    "/Users/gongchanghyeon/Desktop/maintenance-monorepo",
+    "/Users/gongchanghyeon/Desktop/maintenance-monorepo",
+    "/Users/gongchanghyeon/Desktop/maintenance",
+    "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/lib/python39.zip",
+    "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9",
+    "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/lib-dynload",
+    "/Users/gongchanghyeon/Desktop/maintenance-monorepo/.venv/lib/python3.9/site-packages"
+  ],
+  "module_imports": {
+    "packages.api.src.core.security": {
+      "success": false,
+      "error": "No module named 'packages.api.src.core.securit'",
+      "module": "packages.api.src.core.securit"
+    },
+    "packages.api.src.services.git_service": {
+      "success": true,
+      "module": "packages.api.src.services.git_service"
+    }
+  }
+}

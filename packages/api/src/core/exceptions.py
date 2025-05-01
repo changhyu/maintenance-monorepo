@@ -39,6 +39,7 @@ class ErrorCodes:
     # 일반 오류 (1000-1999)
     GENERAL_ERROR = "ERR1000"
     UNEXPECTED_ERROR = "ERR1001"
+    CONFIG_ERROR = "ERR1002"
 
     # 인증 관련 오류 (2000-2999)
     AUTHENTICATION_FAILED = "ERR2000"

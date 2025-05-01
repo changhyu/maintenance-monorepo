@@ -5,10 +5,15 @@ Git 관리 패키지
 """
 
 import logging
+import sys
+import os
 from typing import Optional, Dict, Any, Type
 
 # 로거 설정
 logger = logging.getLogger(__name__)
+
+# Git 모듈 경로 설정
+__git_module_path__ = os.path.join(os.path.dirname(__file__), 'git')
 
 # Git 서비스 클래스에 대한 단일 진입점 제공
 def get_git_service():
@@ -24,6 +29,7 @@ def get_git_service():
 
 # 편의를 위한 GitService 직접 임포트 (선택적)
 try:
+    # 절대 경로 임포트 사용
     from gitmanager.git.core.service import GitService as CoreGitService
     
     # 표준화된 외부 접근 포인트
@@ -53,7 +59,7 @@ try:
             # 추가 로깅
             logger.debug(f"GitService 초기화: {repository_path}")
     
-    # 예외 클래스도 상위 레벨로 노출
+    # 예외 클래스도 상위 레벨로 노출 (절대 경로 사용)
     from gitmanager.git.core.exceptions import (
         GitException,
         GitAuthenticationException,
@@ -82,7 +88,7 @@ def get_git_exceptions() -> Dict[str, Type]:
         Dict[str, Type]: 예외 클래스 딕셔너리
     """
     try:
-        from gitmanager.git.core.exceptions import (
+        from .git.core.exceptions import (
             GitException,
             GitAuthenticationException,
             GitBranchException,

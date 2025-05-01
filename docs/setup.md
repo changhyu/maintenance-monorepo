@@ -112,10 +112,10 @@ python -m backend.db.init_db
 ```bash
 # 백엔드 개발 서버 실행
 cd backend
-python -m uvicorn main:app --reload --port 9999
+python -m uvicorn main:app --reload --port 8000
 ```
 
-백엔드 서버는 [http://localhost:9999](http://localhost:9999) 에서 접근할 수 있습니다.
+백엔드 서버는 [http://localhost:8000](http://localhost:8000) 에서 접근할 수 있습니다.
 
 **프론트엔드 개발 서버:**
 
@@ -140,9 +140,9 @@ docker-compose up -d backend frontend
 
 ### 3.2 서비스 접근
 
-- **백엔드 API**: [http://localhost:9999](http://localhost:9999)
+- **백엔드 API**: [http://localhost:8000](http://localhost:8000)
 - **프론트엔드**: [http://localhost:3000](http://localhost:3000)
-- **API 문서**: [http://localhost:9999/docs](http://localhost:9999/docs)
+- **API 문서**: [http://localhost:8000/docs](http://localhost:8000/docs)
 - **PostgreSQL**: localhost:5432
 - **Redis**: localhost:6379
 
@@ -186,7 +186,7 @@ docker-compose down -v
 
 | 변수명 | 설명 | 기본값 | 필수 여부 |
 |--------|------|--------|----------|
-| `PORT` | 백엔드 서버 포트 | 9999 | 아니오 |
+| `PORT` | 백엔드 서버 포트 | 8000 | 아니오 |
 | `HOST` | 백엔드 서버 호스트 | 0.0.0.0 | 아니오 |
 | `DATABASE_URL` | 데이터베이스 연결 문자열 | sqlite:///./prod.db | 아니오 |
 | `SECRET_KEY` | JWT 토큰 암호화 키 | your-secret-key-here | 예 |
@@ -199,7 +199,7 @@ docker-compose down -v
 `.env.local` 파일 예시:
 
 ```bash
-PORT=9999
+PORT=8000
 HOST=localhost
 DATABASE_URL=postgresql://maintenance_user:your_password@localhost:5432/maintenance_db
 SECRET_KEY=my-super-secret-key-for-development
@@ -494,7 +494,7 @@ npm run dev
 FastAPI의 자동 리로드 기능을 활용하세요:
 
 ```bash
-uvicorn backend.main:app --reload --host 0.0.0.0 --port 9999
+uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 ## 9. 다른 문서 참조

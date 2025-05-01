@@ -9,7 +9,7 @@ from typing import Dict, List, Optional
 import psutil
 from prometheus_client import REGISTRY, Counter, Gauge, Histogram
 
-from packages.api.src.core.monitoringlogger import logger
+from core.monitoring.logger import logger
 
 logger = logging.getLogger(__name__)
 

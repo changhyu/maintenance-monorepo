@@ -1,0 +1,38 @@
+보안 민감 정보 스캔 결과 - Tue Apr 22 20:54:23 KST 2025
+=========================================
+
+Git 백업 파일에서 민감한 정보 검사 결과:
+! Git 백업 디렉토리에서 워크플로우 파일이 발견되었습니다.
+
+--- cd.yml 분석 ---
+⚠️ password 패턴 발견:
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+⚠️ secret 패턴 발견:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.SECURE_VALUE }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ssh-private-key: ${{ secrets.STAGING_SSH_PRIVATE_KEY }}
+        run: scp deploy-config.env ${{ secrets.STAGING_SSH_USER }}@${{ secrets.STAGING_SSH_HOST }}:/opt/maintenance-app/
+          DEPLOY_RESULT=$(ssh ${{ secrets.STAGING_SSH_USER }}@${{ secrets.STAGING_SSH_HOST }} "cd /opt/maintenance-app && \
+          ssh-private-key: ${{ secrets.PRODUCTION_SSH_PRIVATE_KEY }}
+        run: scp deploy-config.env ${{ secrets.PRODUCTION_SSH_USER }}@${{ secrets.PRODUCTION_SSH_HOST }}:/opt/maintenance-app/
+          DEPLOY_RESULT=$(ssh ${{ secrets.PRODUCTION_SSH_USER }}@${{ secrets.PRODUCTION_SSH_HOST }} "cd /opt/maintenance-app && \
+          ssh ${{ secrets.PRODUCTION_SSH_USER }}@${{ secrets.PRODUCTION_SSH_HOST }} "cd /opt/maintenance-app && \
+          echo "${{ secrets.SSL_CERTIFICATE }}" > ssl_certs/${{ env.DOMAIN }}.crt
+          echo "${{ secrets.SSL_PRIVATE_KEY }}" > ssl_certs/${{ env.DOMAIN }}.key
+          scp -r ssl_certs/* ${{ secrets.PRODUCTION_SSH_USER }}@${{ secrets.PRODUCTION_SSH_HOST }}:/opt/maintenance-app/ssl/
+          ssh ${{ secrets.PRODUCTION_SSH_USER }}@${{ secrets.PRODUCTION_SSH_HOST }} "cd /opt/maintenance-app && \
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          apiKey: ${{ secrets.NEW_RELIC_API_KEY }}
+          accountId: ${{ secrets.NEW_RELIC_ACCOUNT_ID }}
+          applicationId: ${{ secrets.NEW_RELIC_APP_ID }}
+⚠️ token 패턴 발견:
+          token: ${{ secrets.GITHUB_TOKEN }}
+⚠️ key 패턴 발견:
+          key: npm-deps-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: npm-deps-
+          ssh-private-key: ${{ secrets.STAGING_SSH_PRIVATE_KEY }}
+          ssh-private-key: ${{ secrets.PRODUCTION_SSH_PRIVATE_KEY }}
+          echo "${{ secrets.SSL_PRIVATE_KEY }}" > ssl_certs/${{ env.DOMAIN }}.key
+          apiKey: ${{ secrets.NEW_RELIC_API_KEY }}

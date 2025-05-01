@@ -17,9 +17,9 @@ from fastapi.openapi.utils import get_openapi
 from fastapi.staticfiles import StaticFiles
 from starlette.responses import HTMLResponse
 
-from packages.api.src.coreconfig import settings
-from packages.api.src.corelogger import logger
-from packages.api.src.coreversioning import ApiVersion
+from core.config import settings
+from core.logger import logger
+from core.versioning import ApiVersion
 
 # API 문서화 상수
 DOCS_URL = "/docs"

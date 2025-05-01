@@ -23,7 +23,8 @@ except ImportError:
     from aioredis.client import Redis, Pipeline
     from aioredis.exceptions import RedisError, LockError, WatchError
 
-from packages.api.src.core.cacheconstants import (
+# 임포트 경로 수정
+from core.cache.constants import (
     COMPRESSION_THRESHOLD,
     DEFAULT_CACHE_TTL,
     LOCK_TIMEOUT,
@@ -34,7 +35,7 @@ from packages.api.src.core.cacheconstants import (
     REDIS_SOCKET_TIMEOUT,
     RETRY_DELAY,
 )
-from packages.api.src.core.cacheinterfaces import MetricsData, RedisInterface
+from core.cache.interfaces import MetricsData, RedisInterface
 
 logger = logging.getLogger(__name__)
 

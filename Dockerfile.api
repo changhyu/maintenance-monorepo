@@ -59,14 +59,15 @@ COPY --from=builder /venv /venv
 ENV PATH="/venv/bin:$PATH"
 
 # 애플리케이션 코드 복사
+COPY backend /app/backend
 COPY packages/api /app/packages/api
 COPY packages/shared-python /app/packages/shared-python
 
 # 작업 디렉토리 이동
-WORKDIR /app/packages/api
+WORKDIR /app
 
 # 환경 변수 설정
-ENV PYTHONPATH=/app \
+ENV PYTHONPATH=/app:/app/packages/api \
     PYTHONUNBUFFERED=1 \
     PORT=8000 \
     HOST=0.0.0.0 \

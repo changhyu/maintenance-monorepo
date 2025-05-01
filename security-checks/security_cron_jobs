@@ -1,0 +1,8 @@
+# 매주 월요일 오전 3시에 Docker 보안 스캔 실행
+0 3 * * 1 /Users/gongchanghyeon/Desktop/maintenance-monorepo/security-checks/weekly_docker_scan.sh >> /Users/gongchanghyeon/Desktop/maintenance-monorepo/security-checks/../logs/security-scans/weekly_docker_scan.log 2>&1
+
+# 매월 1일 오전 4시에 코드베이스 보안 점검 실행
+0 4 1 * * /Users/gongchanghyeon/Desktop/maintenance-monorepo/security-checks/monthly_codebase_scan.sh >> /Users/gongchanghyeon/Desktop/maintenance-monorepo/security-checks/../logs/security-scans/monthly_codebase_scan.log 2>&1
+
+# 분기마다 (1월, 4월, 7월, 10월) 2일 오전 5시에 종속성 감사 실행
+0 5 2 1,4,7,10 * /Users/gongchanghyeon/Desktop/maintenance-monorepo/security-checks/quarterly_dependency_audit.sh >> /Users/gongchanghyeon/Desktop/maintenance-monorepo/security-checks/../logs/security-scans/quarterly_dependency_audit.log 2>&1

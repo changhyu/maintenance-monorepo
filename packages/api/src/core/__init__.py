@@ -9,8 +9,8 @@ Core 패키지 초기화
 - 메트릭 수집
 """
 
-from packages.api.src.core.config import settings
-from packages.api.src.core.exceptions import (
+from core.config import settings
+from core.exceptions import (
     AuthenticationException,
     ConfigurationException,
     DatabaseException,
@@ -18,8 +18,8 @@ from packages.api.src.core.exceptions import (
     NotFoundException,
     ValidationException,
 )
-from packages.api.src.core.offline_manager import OfflineManager
-from packages.api.src.coredatabase.database import (
+from core.offline_manager import OfflineManager
+from core.database.database import (
     AsyncSession,
     Base,
     SessionLocal,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -10,14 +10,16 @@ import {
   Button,
   Chip,
   Tooltip,
-  Alert
+  Alert,
+  Snackbar
 } from '@mui/material';
 import {
   Close as CloseIcon,
   Refresh as RefreshIcon,
   Fullscreen as FullscreenIcon,
   FullscreenExit as FullscreenExitIcon,
-  Warning as WarningIcon
+  Warning as WarningIcon,
+  NetworkCheck as NetworkCheckIcon
 } from '@mui/icons-material';
 import { CCTVData } from '../services/uticService';
 
@@ -25,6 +27,16 @@ interface CCTVViewerProps {
   cctv: CCTVData | null;
   onClose: () => void;
 }
+
+interface NetworkStatus {
+  quality: 'good' | 'fair' | 'poor';
+  bandwidth: number;
+  latency: number;
+}
+
+const MAX_RETRY_ATTEMPTS = 3;
+const RETRY_DELAY = 2000; // 2초
+const QUALITY_CHECK_INTERVAL = 5000; // 5초
 
 /**
  * CCTV 영상 뷰어 컴포넌트
@@ -39,9 +51,100 @@ const CCTVViewer: React.FC<CCTVViewerProps> = ({ cctv, onClose }) => {
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+  const [retryCount, setRetryCount] = useState<number>(0);
+  const [networkStatus, setNetworkStatus] = useState<NetworkStatus | null>(null);
+  const [showNetworkAlert, setShowNetworkAlert] = useState<boolean>(false);
   
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const qualityCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // 네트워크 상태 모니터링
+  const checkNetworkStatus = useCallback(async () => {
+    try {
+      const startTime = performance.now();
+      const response = await fetch(cctv?.url || '', { method: 'HEAD' });
+      const endTime = performance.now();
+      
+      const latency = endTime - startTime;
+      const bandwidth = response.headers.get('content-length') 
+        ? Number(response.headers.get('content-length')) / (latency / 1000)
+        : 0;
+
+      const status: NetworkStatus = {
+        quality: latency < 200 && bandwidth > 1000000 ? 'good' 
+          : latency < 500 && bandwidth > 500000 ? 'fair' 
+          : 'poor',
+        bandwidth,
+        latency
+      };
+
+      setNetworkStatus(status);
+      if (status.quality === 'poor') {
+        setShowNetworkAlert(true);
+      }
+    } catch (err) {
+      console.error('네트워크 상태 확인 실패:', err);
+    }
+  }, [cctv?.url]);
+
+  // 미디어 로딩 실패 시 재시도
+  const handleMediaError = useCallback(() => {
+    if (retryCount < MAX_RETRY_ATTEMPTS) {
+      setRetryCount(prev => prev + 1);
+      setIsLoading(true);
+      setError(null);
+      
+      retryTimeoutRef.current = setTimeout(() => {
+        setLastRefresh(new Date());
+      }, RETRY_DELAY);
+    } else {
+      setIsLoading(false);
+      setError('영상 로딩에 실패했습니다. 잠시 후 다시 시도해주세요.');
+    }
+  }, [retryCount]);
+
+  // 스트리밍 품질 자동 조절
+  const adjustStreamQuality = useCallback(() => {
+    if (!videoRef.current || !networkStatus) return;
+
+    const video = videoRef.current;
+    const quality = networkStatus.quality;
+
+    switch (quality) {
+      case 'good':
+        video.playbackRate = 1.0;
+        break;
+      case 'fair':
+        video.playbackRate = 0.8;
+        break;
+      case 'poor':
+        video.playbackRate = 0.6;
+        break;
+    }
+  }, [networkStatus]);
+
+  // 컴포넌트 마운트/언마운트 시 정리
+  useEffect(() => {
+    if (cctv) {
+      qualityCheckIntervalRef.current = setInterval(checkNetworkStatus, QUALITY_CHECK_INTERVAL);
+    }
+
+    return () => {
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+      }
+      if (qualityCheckIntervalRef.current) {
+        clearInterval(qualityCheckIntervalRef.current);
+      }
+    };
+  }, [cctv, checkNetworkStatus]);
+
+  // 네트워크 상태 변경 시 스트리밍 품질 조절
+  useEffect(() => {
+    adjustStreamQuality();
+  }, [networkStatus, adjustStreamQuality]);
 
   // 타입에 맞는 미디어 컴포넌트 렌더링
   const renderMedia = () => {
@@ -244,6 +347,18 @@ const CCTVViewer: React.FC<CCTVViewerProps> = ({ cctv, onClose }) => {
                   />
                 </Tooltip>
               )}
+
+              {networkStatus && (
+                <Tooltip title={`대역폭: ${(networkStatus.bandwidth / 1000000).toFixed(2)} Mbps, 지연시간: ${networkStatus.latency.toFixed(0)}ms`}>
+                  <Chip 
+                    icon={<NetworkCheckIcon />}
+                    label={networkStatus.quality === 'good' ? '양호' : networkStatus.quality === 'fair' ? '보통' : '불량'}
+                    size="small"
+                    color={networkStatus.quality === 'good' ? 'success' : networkStatus.quality === 'fair' ? 'warning' : 'error'}
+                    sx={{ ml: 1 }}
+                  />
+                </Tooltip>
+              )}
             </Box>
             
             <Box>
@@ -350,6 +465,21 @@ const CCTVViewer: React.FC<CCTVViewerProps> = ({ cctv, onClose }) => {
           </DialogContent>
         </>
       )}
+
+      <Snackbar
+        open={showNetworkAlert}
+        autoHideDuration={6000}
+        onClose={() => setShowNetworkAlert(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert 
+          severity="warning" 
+          onClose={() => setShowNetworkAlert(false)}
+          icon={<NetworkCheckIcon />}
+        >
+          네트워크 상태가 불안정합니다. 영상 품질이 자동으로 조절됩니다.
+        </Alert>
+      </Snackbar>
     </Dialog>
   );
 };

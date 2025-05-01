@@ -15,8 +15,8 @@ from typing import Any, Awaitable, Callable, Coroutine, Dict, List, Optional, Se
 import psutil
 from fastapi import FastAPI
 
-# 병렬 처리 모듈 추가
-from packages.api.src.coreparallel_processor import ParallelProcessor
+# 임포트 경로 수정
+from core.parallel_processor import ParallelProcessor
 
 logger = logging.getLogger(__name__)
 

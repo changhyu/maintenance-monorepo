@@ -22,6 +22,16 @@ interface ExtendedNotificationOptions extends NotificationOptions {
 }
 
 /**
+ * VAPID 키를 가져오는 함수
+ * 환경 변수에서만 가져옵니다
+ */
+async function getVAPIDPublicKey(): Promise<string | null> {
+  // 환경 변수에서 VAPID 키를 가져오기
+  const vapidPublicKey: string | undefined = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+  return vapidPublicKey || null;
+}
+
+/**
  * 푸시 알림 구독 설정
  * @param registration 서비스 워커 등록 객체
  */
@@ -33,35 +43,48 @@ export async function setupPushSubscription(registration: ServiceWorkerRegistrat
     // 구독이 없으면 새로 생성
     if (!subscription) {
       // VAPID 키 가져오기
-      const { data } = await axios.get('/api/notifications/vapid-public-key');
-      const vapidPublicKey = data.public_key;
+      const vapidPublicKey = await getVAPIDPublicKey();
       
       if (!vapidPublicKey) {
-        throw new Error('VAPID 공개 키를 가져올 수 없습니다.');
+        console.error('VAPID 공개 키를 가져올 수 없습니다. 푸시 알림 설정을 진행할 수 없습니다.');
+        throw new Error('VAPID 키를 가져올 수 없습니다');
       }
       
       // base64 문자열을 Uint8Array로 변환
       const convertedVapidKey = urlBase64ToUint8Array(vapidPublicKey);
       
-      // 새 구독 생성
-      subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: convertedVapidKey
-      });
-      
-      console.log('푸시 알림 구독이 생성되었습니다.');
-      
-      // 구독 정보를 로컬 스토리지에 저장
-      localStorage.setItem(PUSH_SUBSCRIPTION_KEY, JSON.stringify(subscription));
-      
-      // 서버에 구독 정보 전송
-      await sendSubscriptionToServer(subscription);
+      try {
+        // 새 구독 생성
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: convertedVapidKey
+        });
+        
+        console.log('푸시 알림 구독이 생성되었습니다.');
+        
+        // 구독 정보를 로컬 스토리지에 저장
+        localStorage.setItem(PUSH_SUBSCRIPTION_KEY, JSON.stringify(subscription));
+        
+        // 서버에 구독 정보 전송
+        await sendSubscriptionToServer(subscription);
+      } catch (subscribeError: any) {
+        console.error('푸시 알림 구독 생성 중 오류 발생:', subscribeError);
+        
+        if (Notification.permission === 'denied') {
+          console.error('알림 권한이 거부되었습니다. 브라우저 설정에서 권한을 허용해주세요.');
+        } else if (subscribeError.name === 'NotAllowedError') {
+          console.error('푸시 알림 구독이 허용되지 않았습니다.');
+        } else {
+          console.error('푸시 알림 구독 중 알 수 없는 오류가 발생했습니다:', subscribeError.message);
+        }
+        throw subscribeError;
+      }
     } else {
       console.log('이미 푸시 알림에 구독되어 있습니다.');
     }
   } catch (error) {
     console.error('푸시 알림 구독 설정 중 오류 발생:', error);
-    throw error;
+    throw error; // 오류를 상위로 전파하여 적절한 처리를 할 수 있도록 함
   }
 }
 
@@ -89,8 +112,9 @@ export async function sendNotification(title: string, options: ExtendedNotificat
     const payload = {
       title,
       body: options.body || '',
-      icon: options.icon || '/logo192.png',
-      badge: options.badge || '/notification-badge.png',
+      // 기본 아이콘 경로를 상대 경로에서 절대 경로로 변경
+      icon: options.icon || '/icons/notification-icon.png',
+      badge: options.badge || '/icons/notification-badge.png',
       url: options.data?.url || '/',
       tag: options.tag,
       actions: options.actions
@@ -172,13 +196,18 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const base64 = (base64String + padding)
     .replace(/-/g, '+')
     .replace(/_/g, '/');
-
-  const rawData = atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
+    
+  try {
+    const rawData = atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i);
+    }
+    
+    return outputArray;
+  } catch (error) {
+    console.error('VAPID 키 변환 중 오류 발생:', error);
+    throw new Error('VAPID 키 형식이 올바르지 않습니다');
   }
-  
-  return outputArray;
-} 
+}

@@ -1,0 +1,20 @@
+services:
+  vault:
+    image: hashicorp/vault:latest
+    container_name: hashicorp-vault
+    ports:
+      - "8200:8200"
+    cap_add:
+      - IPC_LOCK
+    environment:
+      - VAULT_ADDR=http://0.0.0.0:8200
+      - VAULT_API_ADDR=http://0.0.0.0:8200
+      - VAULT_DEV_ROOT_TOKEN_ID=root
+    command: server -dev -dev-listen-address=0.0.0.0:8200
+    restart: unless-stopped
+    networks:
+      - vault-network
+
+networks:
+  vault-network:
+    driver: bridge

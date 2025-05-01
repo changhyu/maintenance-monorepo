@@ -12,12 +12,14 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 import concurrent.futures
-import lru_dict
+# lru_dict 모듈 대신 OrderedDict 사용
+from collections import OrderedDict
 
-from packages.api.src.corecache.config import get_cache_config
-from packages.api.src.corecache.manager import get_cache_manager
-from packages.api.src.corecache_decorators import CacheLevel
-from packages.api.src.coremetrics_collector import metrics_collector
+# 임포트 경로 수정
+from core.cache.config import get_cache_config
+from core.cache.manager import get_cache_manager
+from core.cache_decorators import CacheLevel  # 수정된 임포트 경로
+from core.metrics_collector import metrics_collector
 
 logger = logging.getLogger(__name__)
 config = get_cache_config()
@@ -33,6 +35,45 @@ OPTIMIZATION_INTERVAL = 1800  # 30분
 MIN_DATA_POINTS = 1000
 DEFAULT_TTL = 3600  # 1시간
 MEMORY_THRESHOLD = 0.8  # 80% 메모리 임계값
+
+# OrderedDict를 사용하여 LRU 캐시 구현
+class LRUCache:
+    """OrderedDict를 사용한 LRU 캐시 구현"""
+    def __init__(self, max_size):
+        self.cache = OrderedDict()
+        self.max_size = max_size
+        
+    def __setitem__(self, key, value):
+        if key in self.cache:
+            self.cache.pop(key)
+        self.cache[key] = value
+        if len(self.cache) > self.max_size:
+            self.cache.popitem(last=False)  # FIFO로 제거
+            
+    def __getitem__(self, key):
+        if key in self.cache:
+            value = self.cache.pop(key)
+            self.cache[key] = value  # 최근 사용 항목으로 이동
+            return value
+        raise KeyError(key)
+        
+    def __contains__(self, key):
+        return key in self.cache
+        
+    def __len__(self):
+        return len(self.cache)
+        
+    def items(self):
+        return self.cache.items()
+    
+    def keys(self):
+        return self.cache.keys()
+        
+    def get(self, key, default=None):
+        try:
+            return self[key]
+        except KeyError:
+            return default
 
 
 class CacheUsageData:
@@ -194,14 +235,15 @@ class CacheOptimizer:
     """캐시 정책 최적화 클래스"""
 
     def __init__(self, data_dir: str = "data/cache_usage"):
-        self.usage_data = lru_dict.LRUDict(MAX_KEYS)  # LRU 캐시 사용
+        # LRU 캐시 구현으로 변경
+        self.usage_data = LRUCache(MAX_KEYS)
         self.data_dir = data_dir
         os.makedirs(data_dir, exist_ok=True)
         self.last_optimization = datetime.now() - timedelta(days=1)
         
-        # 최적화된 설정 값 (메모리 효율성을 위한 LRU 사용)
-        self.optimized_ttls = lru_dict.LRUDict(5000)
-        self.optimized_levels = lru_dict.LRUDict(5000)
+        # 최적화된 설정 값 (LRU 캐시 사용)
+        self.optimized_ttls = LRUCache(5000)
+        self.optimized_levels = LRUCache(5000)
         
         self.last_save_time = time.time()
         self.last_optimization_time = time.time()

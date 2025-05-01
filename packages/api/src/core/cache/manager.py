@@ -13,10 +13,9 @@ from datetime import timedelta
 from enum import Enum
 from typing import Any, Dict, List, Optional, Pattern, Set, Tuple, Union
 
-from packages.apicache.config import CacheBackend, get_cache_config
-
-from packages.api.src.core.cachebackends import MemoryCache, RedisCache
-from packages.api.src.core.cachesettings import CacheSettings
+from core.cache.config import CacheBackend, get_cache_config
+from core.cache.backends import MemoryCache, RedisCache
+from core.cache.settings import CacheSettings
 
 logger = logging.getLogger(__name__)
 

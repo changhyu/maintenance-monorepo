@@ -72,7 +72,7 @@ export class ApiClientCore {
    * @param error Axios 오류 객체
    * @returns Promise reject 결과
    */
-  protected handleResponseError(error: AxiosError): Promise<never> {
+  protected handleResponseError(error: AxiosError): Promise<any> {
     // 네트워크 오류 처리 (서버 연결 실패)
     if (error.code === 'ECONNABORTED' || !error.response) {
       console.error('API 서버 연결 실패:', error.message);

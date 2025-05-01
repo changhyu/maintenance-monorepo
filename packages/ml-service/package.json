@@ -1,0 +1,12 @@
+{
+  "name": "@maintenance/ml-service",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "python -m src.main",
+    "start": "python -m src.main",
+    "build": "echo 'No build step for Python ML service'",
+    "test": "pytest",
+    "lint": "flake8 src"
+  }
+}

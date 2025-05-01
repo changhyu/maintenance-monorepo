@@ -6,7 +6,7 @@ import hashlib
 from datetime import datetime, timedelta
 from typing import Dict, Optional, Union, Any
 
-from gitmanager.config.settings import settings
+from ..config.settings import settings
 
 def encode_jwt(payload: Dict[str, Any], secret_key: str, algorithm: str = 'HS256') -> str:
     """JWT 토큰 인코딩 함수"""

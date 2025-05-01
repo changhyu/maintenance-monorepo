@@ -7,7 +7,8 @@ Git 서비스의 기본 동작을 정의하는 인터페이스입니다.
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Union
 
-from gitmanager.git.core.types import (
+# 상대 경로 임포트로 수정
+from ...git.core.types import (
     BranchComparisonResult,
     BranchInfo,
     CommitComparison,

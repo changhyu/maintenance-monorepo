@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { Card, Table, Typography, Button, Spin, Alert, Space, Tag, Tabs, List, Timeline, Collapse, Statistic } from 'antd';
 import { ReloadOutlined, BranchesOutlined, CodeOutlined, HistoryOutlined, FileOutlined, DiffOutlined, UserOutlined } from '@ant-design/icons';
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 
 const { Title, Text, Paragraph } = Typography;
 const { TabPane } = Tabs;
@@ -35,6 +35,15 @@ interface DiffInfo {
   changes: string;
 }
 
+interface ApiResponse<T> {
+  data: T;
+  error?: string;
+}
+
+interface ApiErrorResponse {
+  error: string;
+}
+
 const GitMonitor: React.FC = () => {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [commits, setCommits] = useState<Commit[]>([]);
@@ -44,56 +53,65 @@ const GitMonitor: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
-  const API_BASE_URL = 'http://127.0.0.1:9999/api/v1';
+  const API_BASE_URL = process.env.REACT_APP_MONITOR_API_URL || 'http://127.0.0.1:8000/api/v1';
 
-  useEffect(() => {
-    fetchData();
-    // 30초마다 데이터 새로고침
-    const interval = setInterval(fetchData, 30000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const [branchesResp, commitsResp, statusResp] = await Promise.all([
-        axios.get(`${API_BASE_URL}/git/branches`),
-        axios.get(`${API_BASE_URL}/git/commits`),
-        axios.get(`${API_BASE_URL}/git/status`)
+        axios.get<ApiResponse<{ branches: Branch[] }>>(`${API_BASE_URL}/git/branches`),
+        axios.get<ApiResponse<{ commits: Commit[] }>>(`${API_BASE_URL}/git/commits`),
+        axios.get<ApiResponse<Status>>(`${API_BASE_URL}/git/status`)
       ]);
 
-      setBranches(branchesResp.data.branches);
-      setCommits(commitsResp.data.commits);
-      setStatus(statusResp.data);
+      if (branchesResp.data.error || commitsResp.data.error || statusResp.data.error) {
+        throw new Error('API 응답에 오류가 포함되어 있습니다.');
+      }
+
+      setBranches(branchesResp.data.data.branches);
+      setCommits(commitsResp.data.data.commits);
+      setStatus(statusResp.data.data);
       setLastUpdated(new Date());
     } catch (err) {
-      console.error('Git 정보 로드 오류:', err);
-      setError('Git 저장소 정보를 가져오는 중 오류가 발생했습니다.');
+      const error = err as AxiosError<ApiErrorResponse>;
+      console.error('Git 정보 로드 오류:', error);
+      setError(error.response?.data?.error || 'Git 저장소 정보를 가져오는 중 오류가 발생했습니다.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [API_BASE_URL]);
 
-  const fetchDiff = async (file: string) => {
+  useEffect(() => {
+    fetchData();
+    const interval = setInterval(fetchData, 30000);
+    return () => clearInterval(interval);
+  }, [fetchData]);
+
+  const fetchDiff = useCallback(async (file: string) => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/git/diff?file=${file}`);
-      const newDiffs = [...diffs];
-      const existingDiffIndex = newDiffs.findIndex(diff => diff.file === file);
+      const response = await axios.get<ApiResponse<{ diff: string }>>(`${API_BASE_URL}/git/diff?file=${file}`);
       
-      if (existingDiffIndex >= 0) {
-        newDiffs[existingDiffIndex] = { file, changes: response.data.diff };
-      } else {
-        newDiffs.push({ file, changes: response.data.diff });
+      if (response.data.error) {
+        throw new Error(response.data.error);
       }
-      
-      setDiffs(newDiffs);
-    } catch (err) {
-      console.error(`${file}의 diff 정보를 가져오는 중 오류가 발생했습니다:`, err);
-    }
-  };
 
-  const branchColumns = [
+      setDiffs(prevDiffs => {
+        const existingDiffIndex = prevDiffs.findIndex(diff => diff.file === file);
+        if (existingDiffIndex >= 0) {
+          const newDiffs = [...prevDiffs];
+          newDiffs[existingDiffIndex] = { file, changes: response.data.data.diff };
+          return newDiffs;
+        }
+        return [...prevDiffs, { file, changes: response.data.data.diff }];
+      });
+    } catch (err) {
+      const error = err as AxiosError<ApiErrorResponse>;
+      console.error(`${file}의 diff 정보를 가져오는 중 오류가 발생했습니다:`, error);
+    }
+  }, [API_BASE_URL]);
+
+  const branchColumns = useMemo(() => [
     {
       title: '브랜치명',
       dataIndex: 'name',
@@ -111,9 +129,9 @@ const GitMonitor: React.FC = () => {
       key: 'commit',
       render: (text: string) => <Text code>{text.substring(0, 7)}</Text>,
     },
-  ];
+  ], []);
 
-  const commitColumns = [
+  const commitColumns = useMemo(() => [
     {
       title: '커밋 해시',
       dataIndex: 'short_hash',
@@ -143,7 +161,7 @@ const GitMonitor: React.FC = () => {
       key: 'message',
       ellipsis: true,
     },
-  ];
+  ], []);
 
   if (loading && branches.length === 0) {
     return (
@@ -170,7 +188,7 @@ const GitMonitor: React.FC = () => {
   }
 
   return (
-    <div className="git-monitor">
+    <div className="git-monitor" role="main" aria-label="Git 저장소 모니터링">
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
         <Title level={2}>
           <CodeOutlined /> Git 저장소 모니터링
@@ -183,13 +201,14 @@ const GitMonitor: React.FC = () => {
             icon={<ReloadOutlined />} 
             onClick={fetchData}
             type="primary"
+            aria-label="새로고침"
           >
             새로고침
           </Button>
         </Space>
       </div>
 
-      <Tabs defaultActiveKey="status">
+      <Tabs defaultActiveKey="status" accessibilityLabel="Git 정보 탭">
         <TabPane 
           tab={
             <span>
@@ -241,6 +260,7 @@ const GitMonitor: React.FC = () => {
                                 type="link" 
                                 onClick={() => fetchDiff(file)}
                                 size="small"
+                                aria-label={`${file} 변경사항 보기`}
                               >
                                 변경사항 보기
                               </Button>
@@ -278,6 +298,7 @@ const GitMonitor: React.FC = () => {
                                 type="link" 
                                 onClick={() => fetchDiff(file)}
                                 size="small"
+                                aria-label={`${file} 변경사항 보기`}
                               >
                                 변경사항 보기
                               </Button>
@@ -326,6 +347,7 @@ const GitMonitor: React.FC = () => {
               rowKey="name"
               pagination={false}
               size="middle"
+              aria-label="브랜치 목록"
             />
           </Card>
         </TabPane>
@@ -346,6 +368,7 @@ const GitMonitor: React.FC = () => {
               rowKey="hash"
               pagination={{ pageSize: 10 }}
               size="middle"
+              aria-label="커밋 목록"
             />
           </Card>
           
@@ -369,4 +392,4 @@ const GitMonitor: React.FC = () => {
   );
 };
 
-export default GitMonitor; 
+export default GitMonitor;

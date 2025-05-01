@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 from pydantic import PostgresDsn, validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from packages.api.src.core.exceptions import ConfigurationException
+from core.exceptions import ConfigurationException
 
 # yaml 의존성 조건부 임포트
 try:
