@@ -8,7 +8,6 @@ from typing import Any, Dict
 
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.types import ASGIApp
 
 from backend.core.config import settings
 
@@ -45,10 +44,6 @@ class JSONFormatter(logging.Formatter):
 
 def setup_logging() -> logging.Logger:
     """애플리케이션 전체 로깅 설정"""
-    # 로그 디렉토리 생성
-    log_dir = Path("logs")
-    log_dir.mkdir(exist_ok=True)
-    
     # 루트 로거 설정
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.INFO)
